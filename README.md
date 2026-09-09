@@ -41,7 +41,13 @@ MeteoOne 1.0 targets:
 
 Pre-alpha / foundation.
 
-See [ROADMAP.md](ROADMAP.md) and [docs/architecture/README.md](docs/architecture/README.md).
+See:
+
+- [ROADMAP.md](ROADMAP.md) for milestone sequencing;
+- [docs/architecture/README.md](docs/architecture/README.md) for architecture;
+- [docs/branding/BRAND_GUIDE.md](docs/branding/BRAND_GUIDE.md) for brand identity and voice;
+- [docs/design/DESIGN_SYSTEM.md](docs/design/DESIGN_SYSTEM.md) for UI implementation rules;
+- [docs/branding/APP_ICON.md](docs/branding/APP_ICON.md) for canonical app-icon handling.
 
 ## License
 
