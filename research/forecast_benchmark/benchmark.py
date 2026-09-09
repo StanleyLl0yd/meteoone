@@ -62,7 +62,12 @@ def score_forecasts(
     if len(location_ids) > 1:
         raise ValueError("score_forecasts requires one benchmark location")
 
-    observation_times = [_parse_utc(point.time) for point in observations.points]
+    observation_pairs = sorted(
+        ((_parse_utc(point.time), point) for point in observations.points),
+        key=lambda pair: pair[0],
+    )
+    observation_times = [pair[0] for pair in observation_pairs]
+    observation_points = tuple(pair[1] for pair in observation_pairs)
     groups: dict[tuple[str, str], _Accumulator] = {}
 
     for forecast in forecasts:
@@ -80,7 +85,7 @@ def score_forecasts(
 
             observed = _nearest_observation(
                 valid_time,
-                observations.points,
+                observation_points,
                 observation_times,
                 tolerance_minutes=tolerance_minutes,
             )
