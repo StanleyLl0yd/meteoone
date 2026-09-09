@@ -16,6 +16,7 @@ from .providers import (
     MetNorwayAdapter,
     OpenMeteoAdapter,
 )
+from .wis2_observations import RoshydrometWis2Adapter
 from .storage import (
     read_forecasts,
     read_observations,
@@ -147,6 +148,56 @@ def observations(args: argparse.Namespace) -> None:
         f"station={match.station.station_id} "
         f"distance_km={match.distance_km:.1f} "
         f"points={len(series.points)} output={args.output}"
+    )
+
+
+def wis2_station(args: argparse.Namespace) -> None:
+    location = _find_location(load_locations(), args.location)
+    match = RoshydrometWis2Adapter().find_station(
+        location,
+        args.start,
+        args.end,
+        max_distance_km=args.max_distance_km,
+        target_elevation_m=args.target_elevation_m,
+        max_elevation_delta_m=args.max_elevation_delta_m,
+    )
+    payload = match.station.to_dict()
+    payload["distance_km"] = round(match.distance_km, 3)
+    payload["elevation_delta_m"] = match.elevation_delta_m
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2))
+
+
+def wis2_observations(args: argparse.Namespace) -> None:
+    location = _find_location(load_locations(), args.location)
+    adapter = RoshydrometWis2Adapter()
+    match = adapter.find_station(
+        location,
+        args.start,
+        args.end,
+        max_distance_km=args.max_distance_km,
+        target_elevation_m=args.target_elevation_m,
+        max_elevation_delta_m=args.max_elevation_delta_m,
+    )
+    fetched = adapter.fetch_period(
+        match.station,
+        args.start,
+        args.end,
+        min_coverage_ratio=args.min_coverage_ratio,
+    )
+    write_observations(args.output, fetched.series)
+    raw_output = args.raw_output or args.output.with_name(
+        f"{args.output.stem}-raw.json"
+    )
+    raw_output.parent.mkdir(parents=True, exist_ok=True)
+    raw_output.write_bytes(fetched.raw_body)
+    print(
+        f"station={match.station.station_id} "
+        f"distance_km={match.distance_km:.1f} "
+        f"points={len(fetched.series.points)} "
+        f"precipitation_intervals="
+        f"{len(fetched.series.precipitation_intervals)} "
+        f"features={fetched.returned_features} "
+        f"output={args.output} raw_output={raw_output}"
     )
 
 
@@ -334,6 +385,34 @@ def parser() -> argparse.ArgumentParser:
     _add_station_rules(observations_parser)
     observations_parser.add_argument("--output", required=True, type=Path)
     observations_parser.set_defaults(handler=observations)
+
+    wis2_station_parser = sub.add_parser(
+        "wis2-station",
+        help="show the verified Roshydromet WIS2 station for a location",
+    )
+    _add_station_rules(wis2_station_parser)
+    wis2_station_parser.set_defaults(handler=wis2_station)
+
+    wis2_observations_parser = sub.add_parser(
+        "wis2-observations",
+        help="collect Roshydromet WIS2 SYNOP observations and raw OGC JSON",
+    )
+    _add_station_rules(wis2_observations_parser)
+    wis2_observations_parser.add_argument(
+        "--min-coverage-ratio",
+        type=float,
+        default=0.98,
+    )
+    wis2_observations_parser.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+    )
+    wis2_observations_parser.add_argument(
+        "--raw-output",
+        type=Path,
+    )
+    wis2_observations_parser.set_defaults(handler=wis2_observations)
 
     score_parser = sub.add_parser(
         "score",
