@@ -222,6 +222,50 @@ class StabilitySummaryTest(unittest.TestCase):
             {"cells": 1, "ties": 1, "wins": {}},
         )
 
+    def test_ranks_precipitation_interval_skill_when_available(self) -> None:
+        def score(model_family: str, mae: float) -> dict[str, object]:
+            return {
+                "model_family": model_family,
+                "lead_bucket": "6-24h",
+                "matched_points": 0,
+                "temperature": None,
+                "pressure": None,
+                "precipitation": {
+                    "count": 3,
+                    "mae": mae,
+                    "bias": 0.0,
+                    "rmse": mae,
+                },
+                "wind_vector_error_mps": None,
+                "wind_count": 0,
+                "precipitation_brier": None,
+                "precipitation_brier_count": 0,
+            }
+
+        scores = [
+            score("ECMWF_IFS", 0.8),
+            score("DWD_ICON", 1.2),
+        ]
+        result = analyze_stability(
+            {"all": {"scores": scores}},
+            [{"location": "test", "scores": scores}],
+        )
+
+        winner = result["split_bucket_winners"]["all"]["6-24h"][
+            "precipitation_mae"
+        ]
+        self.assertEqual(winner["winner"], "ECMWF_IFS")
+        self.assertEqual(
+            result["winner_counts_across_splits_and_leads"][
+                "precipitation_mae"
+            ],
+            {"ECMWF_IFS": 1},
+        )
+        self.assertEqual(
+            result["location_lead_winners"]["precipitation_mae"],
+            {"cells": 1, "ties": 0, "wins": {"ECMWF_IFS": 1}},
+        )
+
     def test_rejects_duplicate_location_payloads(self) -> None:
         aggregate = {
             "scores": [],
