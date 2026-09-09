@@ -1,6 +1,6 @@
 # MeteoOne forecast benchmark
 
-This directory contains the M0 research harness used to compare forecast model families before production weights are selected.
+This directory contains the M0 research harness used to compare forecast model families and support the evidence-backed initial fusion decision.
 
 It is isolated from the Android application, uses only the Python standard library, and keeps network collection out of blocking PR checks.
 
@@ -154,11 +154,11 @@ The Brier implementation therefore remains available for a future explicitly mod
 
 ## Weighting policy
 
-M0 production fusion remains equal-weight until this benchmark has sufficient real-observation coverage.
+M0 production fusion is equal-weight across independent model families. The completed August campaign supports retaining that baseline; future unequal weights require broader validation rather than an arbitrary conversion of one campaign's errors into weight ratios.
 
 Measured weights must be derived from reproducible historical skill, remain model-family aware, and be documented with the benchmark period, locations, lead bucket, parameter and usable sample counts. MET Norway must not increase ECMWF's independent evidence weight.
 
-Unequal weights require an advantage that is measurable, material, reasonably stable by geography and lead bucket, and supported by sufficient usable samples. The M0 campaign should also check a simple time stability split such as first-half versus second-half or odd versus even initialization dates. If rankings change materially across location, lead, metric, or time split, equal weights remain the evidence-backed baseline.
+Unequal weights require an advantage that is measurable, material, reasonably stable by geography and lead bucket, and supported by sufficient usable samples. The completed M0 campaign checks first-half versus second-half and odd versus even initialization-date stability. Because rankings change materially across location, parameter, and precipitation time splits, equal weights remain the evidence-backed M0 baseline.
 
 A small pilot may validate the pipeline, but it must not be presented as calibrated production accuracy.
 
