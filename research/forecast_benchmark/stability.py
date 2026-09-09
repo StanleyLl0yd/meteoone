@@ -14,6 +14,7 @@ from .observations import ObservationSeries
 PRIMARY_METRICS = (
     "temperature_mae",
     "pressure_mae",
+    "precipitation_mae",
     "wind_vector_error_mps",
 )
 LEAD_BUCKET_ORDER = {
@@ -330,11 +331,13 @@ def _metric_value(
         value = score.get(metric)
         return None if value is None else float(value)
 
-    summary_name = (
-        "temperature"
-        if metric == "temperature_mae"
-        else "pressure"
-    )
+    summary_name = {
+        "temperature_mae": "temperature",
+        "pressure_mae": "pressure",
+        "precipitation_mae": "precipitation",
+    }.get(metric)
+    if summary_name is None:
+        raise ValueError(f"Unknown stability metric: {metric}")
     summary = score.get(summary_name)
     if not isinstance(summary, Mapping):
         return None
@@ -349,11 +352,13 @@ def _metric_count(
     if metric == "wind_vector_error_mps":
         return int(score.get("wind_count") or 0)
 
-    summary_name = (
-        "temperature"
-        if metric == "temperature_mae"
-        else "pressure"
-    )
+    summary_name = {
+        "temperature_mae": "temperature",
+        "pressure_mae": "pressure",
+        "precipitation_mae": "precipitation",
+    }.get(metric)
+    if summary_name is None:
+        raise ValueError(f"Unknown stability metric: {metric}")
     summary = score.get(summary_name)
     if not isinstance(summary, Mapping):
         return 0
