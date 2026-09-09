@@ -605,7 +605,7 @@ Use spring motion only where it remains calm and predictable.
 
 Examples:
 
-- model streams subtly converge during refresh;
+- model nodes and segmented arcs subtly settle around the fusion core during refresh;
 - chart lines reveal on first display;
 - hero atmosphere transitions when weather state changes.
 

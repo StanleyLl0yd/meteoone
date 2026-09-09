@@ -96,16 +96,16 @@ The primary MeteoOne metaphor is:
 
 **many signals converging into one local forecast**
 
-The canonical icon expresses this through several colored streams that converge on a single weather/location focal point.
+The canonical icon expresses this through several independent colored model nodes and segmented orbital arcs arranged around one luminous weather/location core.
 
-The streams can represent:
+The orbiting elements can represent:
 
 - independent model families;
-- provider pipelines;
-- forecast signals;
-- the fusion process.
+- distinct forecast signals;
+- model diversity around one product decision;
+- the system that keeps provenance separate while producing one fused result.
 
-The focal point represents:
+The central weather lens represents:
 
 - the user's forecast location;
 - the resulting MeteoOne forecast;
@@ -237,9 +237,11 @@ Illustrations should support information, not compete with it.
 
 Generic stock weather photography is not part of the core MeteoOne visual system.
 
-## Secondary brand motif: fusion streams
+## Secondary brand motif: forecast orbit
 
-A simplified convergence/stream motif may appear as a secondary graphic element.
+A simplified orbital motif derived from the canonical icon may appear as a secondary graphic element.
+
+It uses a small number of nodes, segmented arcs, and one visually dominant center to express independent evidence organized around one fused local forecast.
 
 Possible uses:
 
@@ -249,7 +251,7 @@ Possible uses:
 - store screenshots;
 - section dividers in brand artwork.
 
-The motif should remain light and abstract.
+The motif should remain light, geometric, and abstract. It must not become a literal copy of the app icon on every screen.
 
 Do not create a second competing logo from it unless the project owner explicitly approves one.
 
@@ -429,7 +431,7 @@ Motion communicates data flow, refresh, and convergence.
 
 Good motion:
 
-- model streams converging into the fused forecast;
+- model nodes and orbit segments settling into a coherent state around the fused forecast;
 - graph lines revealing smoothly;
 - subtle weather-layer movement;
 - small refresh-state transitions.
