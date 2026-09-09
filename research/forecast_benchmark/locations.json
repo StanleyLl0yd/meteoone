@@ -1,0 +1,82 @@
+[
+  {
+    "id": "saint-petersburg",
+    "name": "Saint Petersburg",
+    "latitude": 59.9386,
+    "longitude": 30.3141,
+    "timezone_id": "Europe/Moscow",
+    "climate_note": "North-west / Baltic maritime influence"
+  },
+  {
+    "id": "moscow",
+    "name": "Moscow",
+    "latitude": 55.7558,
+    "longitude": 37.6173,
+    "timezone_id": "Europe/Moscow",
+    "climate_note": "Central European Russia / humid continental"
+  },
+  {
+    "id": "kazan",
+    "name": "Kazan",
+    "latitude": 55.7961,
+    "longitude": 49.1064,
+    "timezone_id": "Europe/Moscow",
+    "climate_note": "Volga region / continental"
+  },
+  {
+    "id": "yekaterinburg",
+    "name": "Yekaterinburg",
+    "latitude": 56.8389,
+    "longitude": 60.6057,
+    "timezone_id": "Asia/Yekaterinburg",
+    "climate_note": "Urals / continental"
+  },
+  {
+    "id": "novosibirsk",
+    "name": "Novosibirsk",
+    "latitude": 55.0084,
+    "longitude": 82.9357,
+    "timezone_id": "Asia/Novosibirsk",
+    "climate_note": "West Siberia / strongly continental"
+  },
+  {
+    "id": "krasnoyarsk",
+    "name": "Krasnoyarsk",
+    "latitude": 56.0153,
+    "longitude": 92.8932,
+    "timezone_id": "Asia/Krasnoyarsk",
+    "climate_note": "Central Siberia / continental"
+  },
+  {
+    "id": "sochi",
+    "name": "Sochi",
+    "latitude": 43.5855,
+    "longitude": 39.7231,
+    "timezone_id": "Europe/Moscow",
+    "climate_note": "Black Sea / humid subtropical and complex terrain"
+  },
+  {
+    "id": "vladivostok",
+    "name": "Vladivostok",
+    "latitude": 43.1155,
+    "longitude": 131.8855,
+    "timezone_id": "Asia/Vladivostok",
+    "climate_note": "Pacific / monsoon-influenced"
+  },
+  {
+    "id": "yakutsk",
+    "name": "Yakutsk",
+    "latitude": 62.0355,
+    "longitude": 129.6755,
+    "timezone_id": "Asia/Yakutsk",
+    "climate_note": "Extreme continental"
+  },
+  {
+    "id": "murmansk",
+    "name": "Murmansk",
+    "latitude": 68.9585,
+    "longitude": 33.0827,
+    "timezone_id": "Europe/Moscow",
+    "climate_note": "Arctic / maritime influence"
+  }
+]

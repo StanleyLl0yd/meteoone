@@ -19,6 +19,10 @@ Exit: reproducible project build and evidence-backed initial fusion strategy.
 
 - current-location acquisition with manual fallback;
 - provider adapters and normalization;
+- direct official-source adapters for NOAA/NCEP GFS, ECMWF IFS Open Data, and DWD ICON Open Data;
+- retain Open-Meteo as a fallback, normalization, and cross-check provider path;
+- preserve provider provenance separately from model-family identity so duplicate delivery paths never become duplicate fusion votes;
+- provider fallback and cross-check orchestration;
 - hourly forecast through 72 hours;
 - robust fusion without ML;
 - qualitative model agreement;
@@ -68,7 +72,7 @@ Exit: fusion weights are measurable rather than purely heuristic.
 - key isolation;
 - deduplication and rate limiting;
 - provider health;
-- migration path to direct ECMWF, ICON, and GFS open data;
+- central orchestration of the direct official-source and fallback provider paths established earlier;
 - server-side verification pipeline.
 
 Exit: public clients no longer depend on embedding provider secrets.
@@ -99,7 +103,7 @@ Exit: release candidate quality.
 - saved locations;
 - alerts and nowcast;
 - widgets and radar;
-- direct model-data ingestion;
+- additional model families and regional sources;
 - adaptive regional/seasonal weighting.
 
 ## M9 — Google Play

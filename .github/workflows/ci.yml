@@ -24,6 +24,11 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13"
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
         with:
@@ -34,6 +39,9 @@ jobs:
 
       - name: Install Android SDK packages
         run: android sdk install platforms/android-37.0 build-tools/37.0.0
+
+      - name: Research unit tests
+        run: python -m unittest discover -s research/forecast_benchmark/tests -v
 
       - name: Verify
         run: >-
