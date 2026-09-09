@@ -45,7 +45,9 @@ class WindVectorErrorTest(unittest.TestCase):
             [5.0],
             [350.0],
         )
-        self.assertAlmostEqual(value or -1.0, 0.0)
+        self.assertIsNotNone(value)
+        assert value is not None
+        self.assertAlmostEqual(value, 0.0)
 
     def test_opposite_wind_is_large_error(self) -> None:
         value = wind_vector_error_mps(
