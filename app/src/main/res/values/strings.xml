@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MeteoOne</string>
+    <string name="tagline">Many models. One forecast.</string>
+    <string name="foundation_status">Forecast foundation in development</string>
+</resources>
