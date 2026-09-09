@@ -114,6 +114,9 @@ class _FakeJsonResponse:
     def read(self, *args):
         return self._payload.read(*args)
 
+    def geturl(self) -> str:
+        return "https://example.test/data"
+
 
 class JsonHttpClientTest(unittest.TestCase):
     def test_retries_transient_network_failure(self) -> None:
@@ -122,6 +125,7 @@ class JsonHttpClientTest(unittest.TestCase):
             max_attempts=2,
             backoff_seconds=0.25,
             sleep=sleeps.append,
+            allowed_hosts=frozenset({"example.test"}),
         )
         with patch(
             "research.forecast_benchmark.providers.urllib.request.urlopen",
@@ -144,6 +148,7 @@ class JsonHttpClientTest(unittest.TestCase):
             max_attempts=3,
             backoff_seconds=0.25,
             sleep=sleeps.append,
+            allowed_hosts=frozenset({"example.test"}),
         )
         error = urllib.error.HTTPError(
             "https://example.test/data",
@@ -167,6 +172,15 @@ class JsonHttpClientTest(unittest.TestCase):
 
         self.assertEqual(mocked.call_count, 1)
         self.assertEqual(sleeps, [])
+
+    def test_rejects_non_https_and_unapproved_hosts(self) -> None:
+        client = JsonHttpClient(
+            allowed_hosts=frozenset({"example.test"}),
+        )
+        with self.assertRaises(ValueError):
+            client.get("file:///etc/passwd", {})
+        with self.assertRaises(ValueError):
+            client.get("https://unapproved.test/data", {})
 
 
 class MetNorwayParserTest(unittest.TestCase):
