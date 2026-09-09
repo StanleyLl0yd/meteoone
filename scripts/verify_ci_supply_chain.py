@@ -50,7 +50,8 @@ for root in ROOTS:
                     indent = len(action.group("indent"))
                     block = []
                     for following in lines[number:]:
-                        if following.strip() and len(following) - len(following.lstrip()) <= indent:
+                        following_indent = len(following) - len(following.lstrip())
+                        if following.lstrip().startswith("- ") and following_indent < indent:
                             break
                         block.append(following)
                     if not any(
