@@ -8,6 +8,7 @@ permissions:
 
 jobs:
   dependency-review:
+    if: ${{ !github.event.repository.private || vars.GHAS_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
