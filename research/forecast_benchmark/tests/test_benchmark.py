@@ -9,6 +9,7 @@ from research.forecast_benchmark.observations import (
     IsdStation,
     ObservationSeries,
     ObservedPoint,
+    ObservedPrecipitationInterval,
 )
 
 
@@ -101,6 +102,78 @@ class BenchmarkScoreTest(unittest.TestCase):
 
         first = next(score for score in scores if score.lead_bucket == "0-6h")
         self.assertAlmostEqual(first.precipitation_brier or -1.0, 0.04)
+
+    def test_scores_exact_open_meteo_precipitation_intervals(self) -> None:
+        forecast = Forecast(
+            origin=Origin(
+                provider="OPEN_METEO",
+                model_family="ECMWF_IFS",
+                model_id="ecmwf_ifs",
+                model_run="2026-09-01T00:00:00Z",
+            ),
+            location=LOCATION,
+            hourly=tuple(
+                HourlyPoint(
+                    time=f"2026-09-01T{hour:02d}:00:00Z",
+                    precipitation_mm=0.1,
+                )
+                for hour in range(1, 13)
+            ),
+        )
+        observations = ObservationSeries(
+            source="ROSHYDROMET_WIS2_SYNOP",
+            station=STATION,
+            points=(),
+            precipitation_intervals=(
+                ObservedPrecipitationInterval(
+                    start_time="2026-09-01T00:00:00Z",
+                    end_time="2026-09-01T12:00:00Z",
+                    amount_mm=1.0,
+                ),
+            ),
+        )
+
+        scores = score_forecasts([forecast], observations)
+
+        self.assertEqual(len(scores), 1)
+        self.assertEqual(scores[0].lead_bucket, "6-24h")
+        self.assertEqual(scores[0].matched_points, 0)
+        assert scores[0].precipitation is not None
+        self.assertEqual(scores[0].precipitation.count, 1)
+        self.assertAlmostEqual(scores[0].precipitation.mae, 0.2)
+        self.assertAlmostEqual(scores[0].precipitation.bias, 0.2)
+
+    def test_does_not_score_partial_precipitation_intervals(self) -> None:
+        forecast = Forecast(
+            origin=Origin(
+                provider="OPEN_METEO",
+                model_family="ECMWF_IFS",
+                model_id="ecmwf_ifs",
+                model_run="2026-09-01T00:00:00Z",
+            ),
+            location=LOCATION,
+            hourly=tuple(
+                HourlyPoint(
+                    time=f"2026-09-01T{hour:02d}:00:00Z",
+                    precipitation_mm=0.1,
+                )
+                for hour in range(1, 12)
+            ),
+        )
+        observations = ObservationSeries(
+            source="ROSHYDROMET_WIS2_SYNOP",
+            station=STATION,
+            points=(),
+            precipitation_intervals=(
+                ObservedPrecipitationInterval(
+                    start_time="2026-09-01T00:00:00Z",
+                    end_time="2026-09-01T12:00:00Z",
+                    amount_mm=1.0,
+                ),
+            ),
+        )
+
+        self.assertEqual(score_forecasts([forecast], observations), ())
 
     def test_unsorted_observations_are_normalized_before_matching(self) -> None:
         forecast = Forecast(
