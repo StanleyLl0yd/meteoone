@@ -1,0 +1,101 @@
+name: M0 benchmark precipitation rescore
+
+on:
+  push:
+    branches:
+      - research/m0-benchmark-rescore
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  rescore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13"
+
+      - name: Run research tests
+        run: python -m unittest discover -s research/forecast_benchmark/tests -v
+
+      - name: Download immutable August campaign evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p research-output
+          gh run download 34353729773 \
+            --repo "${GITHUB_REPOSITORY}" \
+            --name meteoone-m0-august-benchmark \
+            --dir research-output
+
+      - name: Recompute stability with exact precipitation intervals
+        run: |
+          set -euo pipefail
+          args=(python -m research.forecast_benchmark.cli stability
+            --forecasts research-output/forecasts.jsonl)
+          for location in saint-petersburg moscow kazan yekaterinburg novosibirsk krasnoyarsk sochi vladivostok yakutsk murmansk; do
+            args+=(--observations "${location}=research-output/observations/${location}.json")
+          done
+          args+=(--output research-output/stability-rescored.json)
+          "${args[@]}"
+
+      - name: Validate precipitation evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("research-output/stability-rescored.json").read_text()
+          )
+          assert payload["forecast_counts_by_split"] == {
+              "all": 840,
+              "first-half": 420,
+              "second-half": 420,
+              "odd": 420,
+              "even": 420,
+          }
+          assert payload["location_count"] == 10
+          assert "precipitation_mae" in payload["primary_metrics"]
+
+          pooled = payload["pooled"]["all"]
+          expected_counts = {
+              "DWD_ICON": 1599,
+              "ECMWF_IFS": 1599,
+              "NOAA_GFS": 1599,
+          }
+          actual_counts = {
+              model: metrics["precipitation_mae"]["count"]
+              for model, metrics in pooled.items()
+          }
+          assert actual_counts == expected_counts, actual_counts
+
+          print(json.dumps({
+              "primary_metrics": payload["primary_metrics"],
+              "pooled_all": pooled,
+              "winner_counts":
+                  payload["winner_counts_across_splits_and_leads"],
+              "location_lead_winners":
+                  payload["location_lead_winners"],
+          }, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload rescored benchmark evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: meteoone-m0-august-benchmark-rescored
+          path: |
+            research-output/forecasts.jsonl
+            research-output/forecast-errors.jsonl
+            research-output/observations/
+            research-output/stability-rescored.json
+          if-no-files-found: error
+          retention-days: 14
