@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import math
-import ssl
 import time
 import urllib.error
 import urllib.parse
@@ -27,7 +26,7 @@ USER_AGENT = "MeteoOneResearch/0.1 (+https://github.com/StanleyLl0yd/meteoone)"
 SOURCE_ID = "ROSHYDROMET_WIS2_SYNOP"
 DATASET_ID = "urn:wmo:md:ru-roshydromet:core.surface-based-observations.synop"
 WIS2_ITEMS_URL = (
-    "https://wis2box.mecom.ru/oapi/collections/"
+    "http://wis2box.mecom.ru/oapi/collections/"
     f"{DATASET_ID}/items"
 )
 DEFAULT_STATIONS = Path(__file__).with_name("wis2_stations.json")
@@ -125,7 +124,6 @@ class Wis2HttpClient:
             except (
                 urllib.error.URLError,
                 TimeoutError,
-                ssl.SSLError,
             ) as error:
                 last_error = error
                 if attempt == self.max_attempts:

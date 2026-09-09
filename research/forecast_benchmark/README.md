@@ -59,40 +59,67 @@ Successful forecasts are preserved even if another model request fails. Failures
 
 For a common ECMWF/ICON/GFS comparison window, use dates supported by all three Open-Meteo Single Runs archives. At the time this M0 methodology was established, the limiting non-ECMWF archives begin on 2026-04-02. Re-check provider documentation before future benchmark campaigns.
 
-## Observation reference: NOAA/NCEI ISD
+## Observation reference: Roshydromet WIS2 / SYNOP
 
-The benchmark reference is real surface observations from NOAA/NCEI Integrated Surface Database / Global Hourly, not forecast or reanalysis output.
+The current Russian M0 truth source is direct surface observation data published by Roshydromet through WIS2, not forecast or reanalysis output.
 
-Select the station first:
+Dataset:
 
-```bash
-python3 -m research.forecast_benchmark.cli station \
-  --location moscow \
-  --start 2026-09-01 \
-  --end 2026-09-07
-```
+`urn:wmo:md:ru-roshydromet:core.surface-based-observations.synop`
 
-Then collect the observations:
+The dataset is published under the WMO `core` data policy. MeteoOne keeps a reviewed WIGOS mapping for all 10 M0 benchmark locations.
+
+Select the configured station first:
 
 ```bash
-python3 -m research.forecast_benchmark.cli observations \
+python3 -m research.forecast_benchmark.cli wis2-station \
   --location moscow \
-  --start 2026-09-01 \
-  --end 2026-09-07 \
-  --output research-output/moscow-observations.json
+  --start 2026-08-01 \
+  --end 2026-08-31
 ```
 
-Station selection rules are deliberately explicit:
+Then collect observations:
 
-- the station must cover the complete requested period;
+```bash
+python3 -m research.forecast_benchmark.cli wis2-observations \
+  --location moscow \
+  --start 2026-08-01 \
+  --end 2026-08-31 \
+  --output research-output/moscow-wis2-observations.json
+```
+
+Acceptance rules are deliberately strict:
+
+- the configured station must cover the complete requested period;
 - the default station radius is at most 75 km from the benchmark location;
-- if `--target-elevation-m` is supplied, the station must publish elevation and the default maximum elevation difference is 300 m;
-- no automatic lapse-rate or pressure/elevation correction is applied in M0;
-- station identity, coordinates and elevation remain in the observation artifact for auditability.
+- if target elevation is supplied, the station must publish elevation and the default maximum elevation difference is 300 m;
+- the default usable coverage requirement is 98% for each core deterministic field;
+- expected SYNOP cadence is 3 hours;
+- units must match the expected Roshydromet projection exactly;
+- non-finite and physically implausible values are rejected;
+- conflicting duplicate measurements are treated as missing;
+- WIGOS station identity must match every accepted feature;
+- no automatic lapse-rate or pressure/elevation correction is applied in M0.
 
-The benchmark accepts ISD quality flags `0`, `1`, `4`, `5` and `9`. Suspect or erroneous observations are treated as missing rather than repaired or fabricated.
+The current Roshydromet OGC projection does not expose an explicit source QC flag. The benchmark therefore does not claim one exists. The exact downloaded OGC response is persisted byte-for-byte alongside parsed provenance so the input can be reproduced and audited.
 
-For precipitation, the initial benchmark uses one-hour `AA1`..`AA4` amounts. Trace precipitation is preserved as an event for Brier scoring even when the measured depth is zero. Inaccurate, deleted, or incompatible accumulation records are excluded.
+### WIS2 transport caveat
+
+Roshydromet currently publishes this OGC endpoint over HTTP. A 2026-09-09 GitHub-hosted transport probe confirmed that HTTPS on port 443 timed out while the published HTTP endpoint returned HTTP 200 with the expected SYNOP FeatureCollection.
+
+These observations are public and contain no MeteoOne secrets, but the HTTP transport is unauthenticated and does not provide transport integrity. Persisting the exact payload and hashing an artifact can prove later file identity; it cannot authenticate what was received over the network.
+
+### Precipitation semantics
+
+Roshydromet SYNOP precipitation is not an hourly precipitation series. Values commonly represent multi-hour accumulation intervals, often 12 hours, with exact boundaries encoded in `phenomenonTime`; schedules can differ by station.
+
+The adapter therefore stores precipitation separately as `ObservedPrecipitationInterval`. It does not map those accumulations into `ObservedPoint.precipitation_mm`, does not compare a multi-hour accumulation with one forecast hour, and does not invent trace semantics for negative values.
+
+For the current M0 weight campaign, precipitation is excluded from fusion-weight determination unless an explicit interval methodology is implemented and tested that sums model precipitation over the exact observed interval using deterministic, non-overlapping intervals.
+
+### Legacy NOAA/NCEI ISD support
+
+NOAA/NCEI ISD / Global Hourly remains useful for legacy and historical work where coverage is sufficient. It is not the practical truth source for the selected August 2026 Russian M0 campaign because recent Russian coverage is insufficient.
 
 ## Scoring
 
@@ -110,7 +137,7 @@ Metrics:
 
 - temperature: MAE, bias and RMSE;
 - sea-level pressure: MAE, bias and RMSE;
-- one-hour precipitation amount: MAE, bias and RMSE;
+- one-hour precipitation amount: MAE, bias and RMSE when a compatible hourly observation series exists; the current WIS2 campaign does not synthesize hourly precipitation;
 - precipitation probability: Brier score against observed precipitation events when the probability source has explicit provenance;
 - wind: mean vector error;
 - lead buckets: 0–6 h, 6–24 h, 24–48 h and 48–72 h.
@@ -131,6 +158,8 @@ M0 production fusion remains equal-weight until this benchmark has sufficient re
 
 Measured weights must be derived from reproducible historical skill, remain model-family aware, and be documented with the benchmark period, locations, lead bucket, parameter and usable sample counts. MET Norway must not increase ECMWF's independent evidence weight.
 
+Unequal weights require an advantage that is measurable, material, reasonably stable by geography and lead bucket, and supported by sufficient usable samples. The M0 campaign should also check a simple time stability split such as first-half versus second-half or odd versus even initialization dates. If rankings change materially across location, lead, metric, or time split, equal weights remain the evidence-backed baseline.
+
 A small pilot may validate the pipeline, but it must not be presented as calibrated production accuracy.
 
 ## Reproducibility and generated data
@@ -149,10 +178,16 @@ Open-Meteo's public free API may be used only within the provider's applicable c
 
 MET Norway requests use an identifying User-Agent and must follow its current caching, attribution and traffic requirements.
 
-NOAA/NCEI station metadata and Global Hourly access are read through public NCEI endpoints. Provider terms and data documentation must be re-checked before a production/release decision.
+Roshydromet WIS2 SYNOP observations are public WMO core data. The currently published OGC endpoint is HTTP-only; MeteoOne must preserve this transport limitation explicitly rather than treating it as authenticated or integrity-protected transport.
+
+NOAA/NCEI station metadata and Global Hourly access remain available for legacy/historical research where coverage is sufficient. Provider terms and data documentation must be re-checked before a production/release decision.
 
 ## Sources verified for M0
 
+- Roshydromet WIS2 OGC API:
+  http://wis2box.mecom.ru/oapi/collections/urn:wmo:md:ru-roshydromet:core.surface-based-observations.synop/items
+- Roshydromet WIS2 node:
+  http://wis2box.mecom.ru
 - NOAA/NCEI Integrated Surface Database:
   https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database
 - NOAA/NCEI ISD station history:

@@ -16,6 +16,7 @@ from research.forecast_benchmark.observations import (
 )
 from research.forecast_benchmark.wis2_observations import (
     DATASET_ID,
+    WIS2_ITEMS_URL,
     RawJsonResponse,
     RoshydrometWis2Adapter,
     Wis2HttpClient,
@@ -249,6 +250,12 @@ class _FakeResponse:
 
 
 class Wis2HttpClientTest(unittest.TestCase):
+    def test_official_endpoint_uses_published_http_transport(self) -> None:
+        self.assertTrue(
+            WIS2_ITEMS_URL.startswith("http://wis2box.mecom.ru/")
+        )
+        self.assertFalse(WIS2_ITEMS_URL.startswith("https://"))
+
     def test_retries_transient_network_failure(self) -> None:
         sleeps: list[float] = []
         client = Wis2HttpClient(
