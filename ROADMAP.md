@@ -72,7 +72,7 @@ Exit: fusion weights are measurable rather than purely heuristic.
 - key isolation;
 - deduplication and rate limiting;
 - provider health;
-- migration path to direct ECMWF, ICON, and GFS open data;
+- central orchestration of the direct official-source and fallback provider paths established earlier;
 - server-side verification pipeline.
 
 Exit: public clients no longer depend on embedding provider secrets.
@@ -103,7 +103,7 @@ Exit: release candidate quality.
 - saved locations;
 - alerts and nowcast;
 - widgets and radar;
-- direct model-data ingestion;
+- additional model families and regional sources;
 - adaptive regional/seasonal weighting.
 
 ## M9 — Google Play
