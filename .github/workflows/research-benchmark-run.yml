@@ -1,4 +1,4 @@
-name: M0 one-location end-to-end smoke
+name: M0 full August benchmark campaign
 
 on:
   push:
@@ -9,9 +9,9 @@ permissions:
   contents: read
 
 jobs:
-  smoke:
+  benchmark:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 90
 
     steps:
       - name: Checkout
@@ -25,27 +25,13 @@ jobs:
       - name: Run research tests
         run: python -m unittest discover -s research/forecast_benchmark/tests -v
 
-      - name: Collect one archived run
+      - name: Collect August archived forecasts
         run: |
           set -euo pipefail
           mkdir -p research-output
-          python -m research.forecast_benchmark.cli batch-runs             --start 2026-08-01             --end 2026-08-01             --cycles 0             --location saint-petersburg             --hours 72             --output research-output/forecasts.jsonl             --errors research-output/forecast-errors.jsonl
+          python -m research.forecast_benchmark.cli batch-runs             --start 2026-08-01             --end 2026-08-28             --cycles 0             --hours 72             --output research-output/forecasts.jsonl             --errors research-output/forecast-errors.jsonl
 
-      - name: Collect Roshydromet WIS2 observations
-        run: |
-          set -euo pipefail
-          python -m research.forecast_benchmark.cli wis2-station             --location saint-petersburg             --start 2026-08-01             --end 2026-08-03             > research-output/station.json
-
-          python -m research.forecast_benchmark.cli wis2-observations             --location saint-petersburg             --start 2026-08-01             --end 2026-08-03             --output research-output/observations.json             --raw-output research-output/observations-raw.json
-
-      - name: Score and aggregate
-        run: |
-          set -euo pipefail
-          python -m research.forecast_benchmark.cli score             --location saint-petersburg             --forecasts research-output/forecasts.jsonl             --observations research-output/observations.json             --output research-output/score.json
-
-          python -m research.forecast_benchmark.cli aggregate             --score research-output/score.json             --output research-output/aggregate.json
-
-      - name: Validate smoke evidence
+      - name: Validate forecast campaign completeness
         run: |
           python - <<'PY'
           import json
@@ -62,45 +48,276 @@ jobs:
               for line in (root / "forecast-errors.jsonl").read_text().splitlines()
               if line.strip()
           ]
-          observations = json.loads((root / "observations.json").read_text())
-          score = json.loads((root / "score.json").read_text())
+          assert len(forecasts) == 840, len(forecasts)
+          assert not errors, errors[:10]
 
-          assert len(forecasts) == 3, len(forecasts)
-          assert not errors, errors
-          assert observations["source"] == "ROSHYDROMET_WIS2_SYNOP"
-          assert observations["station"]["station_id"] == "0-20000-0-26063"
-          assert len(observations["points"]) == 24, len(observations["points"])
-          assert len(observations["precipitation_intervals"]) > 0
-          assert len(score["scores"]) == 12, len(score["scores"])
+          by_model = {}
+          by_location = {}
+          for forecast in forecasts:
+              family = forecast["origin"]["model_family"]
+              location = forecast["location"]["id"]
+              by_model[family] = by_model.get(family, 0) + 1
+              by_location[location] = by_location.get(location, 0) + 1
 
-          for bucket in score["scores"]:
-              assert bucket["matched_points"] > 0
-              assert bucket["temperature"] is not None
-              assert bucket["pressure"] is not None
-              assert bucket["wind_count"] > 0
-              assert bucket["precipitation"] is None
-              assert bucket["precipitation_brier"] is None
+          assert by_model == {
+              "DWD_ICON": 280,
+              "ECMWF_IFS": 280,
+              "NOAA_GFS": 280,
+          }, by_model
+          assert len(by_location) == 10, by_location
+          assert set(by_location.values()) == {84}, by_location
 
-          manifest = {
+          print(json.dumps({
               "forecast_count": len(forecasts),
               "forecast_error_count": len(errors),
-              "observation_point_count": len(observations["points"]),
-              "precipitation_interval_count": len(observations["precipitation_intervals"]),
-              "score_bucket_count": len(score["scores"]),
-              "models": sorted(f["origin"]["model_family"] for f in forecasts),
-              "raw_observation_bytes": (root / "observations-raw.json").stat().st_size,
-          }
-          (root / "manifest.json").write_text(
-              json.dumps(manifest, indent=2, sort_keys=True) + "\n"
-          )
-          print(json.dumps(manifest, indent=2, sort_keys=True))
+              "by_model": by_model,
+              "by_location": by_location,
+          }, indent=2, sort_keys=True))
           PY
 
-      - name: Upload smoke artifact
+      - name: Collect August Roshydromet WIS2 truth
+        run: |
+          set -euo pipefail
+          mkdir -p research-output/observations
+          mapfile -t locations < <(python - <<'PY'
+          import json
+          from pathlib import Path
+          for item in json.loads(Path("research/forecast_benchmark/locations.json").read_text()):
+              print(item["id"])
+          PY
+          )
+          for location in "${locations[@]}"; do
+            echo "=== WIS2 ${location} ==="
+            python -m research.forecast_benchmark.cli wis2-observations               --location "${location}"               --start 2026-08-01               --end 2026-08-31               --output "research-output/observations/${location}.json"               --raw-output "research-output/observations/${location}-raw.json"
+          done
+
+      - name: Build stability splits
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("research-output")
+          lines = [
+              line for line in (root / "forecasts.jsonl").read_text().splitlines()
+              if line.strip()
+          ]
+          buckets = {
+              "first-half": [],
+              "second-half": [],
+              "odd": [],
+              "even": [],
+          }
+          for line in lines:
+              payload = json.loads(line)
+              day = int(payload["origin"]["model_run"][8:10])
+              buckets["first-half" if day <= 14 else "second-half"].append(line)
+              buckets["odd" if day % 2 else "even"].append(line)
+
+          expected = {
+              "first-half": 420,
+              "second-half": 420,
+              "odd": 420,
+              "even": 420,
+          }
+          for name, values in buckets.items():
+              assert len(values) == expected[name], (name, len(values))
+              (root / f"forecasts-{name}.jsonl").write_text(
+                  "\n".join(values) + "\n"
+              )
+
+          print(json.dumps({name: len(values) for name, values in buckets.items()},
+                           sort_keys=True))
+          PY
+
+      - name: Score full campaign and stability splits
+        run: |
+          set -euo pipefail
+          mkdir -p research-output/scores research-output/aggregates
+          mapfile -t locations < <(python - <<'PY'
+          import json
+          from pathlib import Path
+          for item in json.loads(Path("research/forecast_benchmark/locations.json").read_text()):
+              print(item["id"])
+          PY
+          )
+
+          for split in all first-half second-half odd even; do
+            if [ "${split}" = all ]; then
+              forecasts="research-output/forecasts.jsonl"
+            else
+              forecasts="research-output/forecasts-${split}.jsonl"
+            fi
+
+            args=(python -m research.forecast_benchmark.cli aggregate)
+            for location in "${locations[@]}"; do
+              score="research-output/scores/${split}-${location}.json"
+              python -m research.forecast_benchmark.cli score                 --location "${location}"                 --forecasts "${forecasts}"                 --observations "research-output/observations/${location}.json"                 --output "${score}"
+              args+=(--score "${score}")
+            done
+            args+=(--output "research-output/aggregates/${split}.json")
+            "${args[@]}"
+          done
+
+      - name: Analyze stability
+        run: |
+          python - <<'PY'
+          import json
+          from collections import Counter, defaultdict
+          from pathlib import Path
+
+          root = Path("research-output")
+          splits = ("all", "first-half", "second-half", "odd", "even")
+          metrics = ("temperature_mae", "pressure_mae", "wind_vector_error_mps")
+          bucket_order = ("0-6h", "6-24h", "24-48h", "48-72h")
+
+          def metric_value(score, metric):
+              if metric == "temperature_mae":
+                  value = score.get("temperature")
+                  return None if value is None else float(value["mae"])
+              if metric == "pressure_mae":
+                  value = score.get("pressure")
+                  return None if value is None else float(value["mae"])
+              return score.get("wind_vector_error_mps")
+
+          def metric_count(score, metric):
+              if metric == "temperature_mae":
+                  value = score.get("temperature")
+                  return 0 if value is None else int(value["count"])
+              if metric == "pressure_mae":
+                  value = score.get("pressure")
+                  return 0 if value is None else int(value["count"])
+              return int(score.get("wind_count") or 0)
+
+          aggregates = {}
+          for split in splits:
+              payload = json.loads(
+                  (root / "aggregates" / f"{split}.json").read_text()
+              )
+              aggregates[split] = payload["scores"]
+
+          pooled = {}
+          split_winners = {}
+          for split in splits:
+              by_model = defaultdict(list)
+              for score in aggregates[split]:
+                  by_model[score["model_family"]].append(score)
+
+              pooled[split] = {}
+              for model, scores in sorted(by_model.items()):
+                  pooled[split][model] = {}
+                  for metric in metrics:
+                      total_count = sum(metric_count(s, metric) for s in scores)
+                      weighted = sum(
+                          float(metric_value(s, metric)) * metric_count(s, metric)
+                          for s in scores
+                          if metric_value(s, metric) is not None
+                      )
+                      pooled[split][model][metric] = {
+                          "value": None if total_count == 0 else weighted / total_count,
+                          "count": total_count,
+                      }
+
+              winners = {}
+              for bucket in bucket_order:
+                  winners[bucket] = {}
+                  bucket_scores = [
+                      s for s in aggregates[split] if s["lead_bucket"] == bucket
+                  ]
+                  for metric in metrics:
+                      ranked = sorted(
+                          (
+                              (float(metric_value(s, metric)), s["model_family"],
+                               metric_count(s, metric))
+                              for s in bucket_scores
+                              if metric_value(s, metric) is not None
+                          )
+                      )
+                      winners[bucket][metric] = {
+                          "winner": ranked[0][1],
+                          "best": ranked[0][0],
+                          "runner_up": ranked[1][0],
+                          "relative_margin": (
+                              (ranked[1][0] - ranked[0][0]) / ranked[1][0]
+                              if ranked[1][0] else 0.0
+                          ),
+                          "count": ranked[0][2],
+                      }
+              split_winners[split] = winners
+
+          location_wins = {metric: Counter() for metric in metrics}
+          location_cells = {metric: 0 for metric in metrics}
+          for score_file in sorted((root / "scores").glob("all-*.json")):
+              payload = json.loads(score_file.read_text())
+              by_bucket = defaultdict(list)
+              for score in payload["scores"]:
+                  by_bucket[score["lead_bucket"]].append(score)
+              for bucket in bucket_order:
+                  for metric in metrics:
+                      ranked = sorted(
+                          (
+                              (float(metric_value(s, metric)), s["model_family"])
+                              for s in by_bucket[bucket]
+                              if metric_value(s, metric) is not None
+                          )
+                      )
+                      if ranked:
+                          location_wins[metric][ranked[0][1]] += 1
+                          location_cells[metric] += 1
+
+          winner_counts = {metric: Counter() for metric in metrics}
+          for split in splits:
+              for bucket in bucket_order:
+                  for metric in metrics:
+                      winner_counts[metric][
+                          split_winners[split][bucket][metric]["winner"]
+                      ] += 1
+
+          summary = {
+              "campaign": {
+                  "forecast_dates": "2026-08-01/2026-08-28",
+                  "truth_dates": "2026-08-01/2026-08-31",
+                  "locations": 10,
+                  "models": ["DWD_ICON", "ECMWF_IFS", "NOAA_GFS"],
+                  "cycle": "00Z",
+                  "horizon_hours": 72,
+                  "precipitation_weighting": "excluded_interval_semantics",
+              },
+              "pooled": pooled,
+              "split_bucket_winners": split_winners,
+              "winner_counts_across_5_splits_x_4_leads": {
+                  metric: dict(counter) for metric, counter in winner_counts.items()
+              },
+              "location_lead_winners_10x4": {
+                  metric: {
+                      "cells": location_cells[metric],
+                      "wins": dict(location_wins[metric]),
+                  }
+                  for metric in metrics
+              },
+          }
+          (root / "stability-summary.json").write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + "\n"
+          )
+
+          compact = {
+              "campaign": summary["campaign"],
+              "pooled_all": pooled["all"],
+              "winner_counts_across_5_splits_x_4_leads":
+                  summary["winner_counts_across_5_splits_x_4_leads"],
+              "location_lead_winners_10x4":
+                  summary["location_lead_winners_10x4"],
+          }
+          print("M0_STABILITY_SUMMARY_BEGIN")
+          print(json.dumps(compact, indent=2, sort_keys=True))
+          print("M0_STABILITY_SUMMARY_END")
+          PY
+
+      - name: Upload benchmark evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: meteoone-m0-one-location-e2e
+          name: meteoone-m0-august-benchmark
           path: research-output/
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 14
