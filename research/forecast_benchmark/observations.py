@@ -42,8 +42,26 @@ class IsdStation:
 
 
 @dataclass(frozen=True)
+class Wis2Station:
+    station_id: str
+    name: str
+    country: str
+    latitude: float
+    longitude: float
+    elevation_m: float | None
+    begin: date
+    dataset_id: str
+
+    def to_dict(self) -> dict[str, object]:
+        value = asdict(self)
+        value["station_type"] = "WIS2_WIGOS"
+        value["begin"] = self.begin.isoformat()
+        return value
+
+
+@dataclass(frozen=True)
 class StationMatch:
-    station: IsdStation
+    station: IsdStation | Wis2Station
     distance_km: float
     elevation_delta_m: float | None
 
@@ -60,16 +78,28 @@ class ObservedPoint:
 
 
 @dataclass(frozen=True)
+class ObservedPrecipitationInterval:
+    start_time: str
+    end_time: str
+    amount_mm: float
+    trace: bool = False
+
+
+@dataclass(frozen=True)
 class ObservationSeries:
     source: str
-    station: IsdStation
+    station: IsdStation | Wis2Station
     points: tuple[ObservedPoint, ...]
+    precipitation_intervals: tuple[ObservedPrecipitationInterval, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         return {
             "source": self.source,
             "station": self.station.to_dict(),
             "points": [asdict(point) for point in self.points],
+            "precipitation_intervals": [
+                asdict(interval) for interval in self.precipitation_intervals
+            ],
         }
 
 
