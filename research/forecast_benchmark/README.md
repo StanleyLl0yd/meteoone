@@ -2,11 +2,9 @@
 
 This directory contains the M0 research harness used to compare forecast model families before production weights are selected.
 
-It is intentionally isolated from the Android application and has no third-party Python dependencies.
+It is isolated from the Android application, uses only the Python standard library, and keeps network collection out of blocking PR checks.
 
 ## Models
-
-The initial explicit model set is:
 
 | Provider | API model id | MeteoOne model family |
 | --- | --- | --- |
@@ -15,7 +13,7 @@ The initial explicit model set is:
 | Open-Meteo | `ncep_gfs_global` | NOAA_GFS |
 | MET Norway | Locationforecast global | ECMWF_IFS |
 
-MET Norway global data is intentionally assigned to the ECMWF model family for correlation-aware fusion. It must not become an independent fourth model vote merely because it arrives from another API.
+MET Norway global data is intentionally assigned to the ECMWF model family for correlation-aware fusion. It must not become an independent fourth model vote merely because it arrives through another API.
 
 ## Live collection
 
@@ -32,9 +30,9 @@ python3 -m research.forecast_benchmark.cli live \
 
 The output is newline-delimited canonical JSON, one forecast per provider/model origin.
 
-## Archived single run
+## Archived model runs
 
-Open-Meteo Single Runs can preserve an individual model initialization and forecast horizon:
+Collect one initialization:
 
 ```bash
 python3 -m research.forecast_benchmark.cli single-run \
@@ -44,46 +42,118 @@ python3 -m research.forecast_benchmark.cli single-run \
   --output research-output/moscow-20260901T00.jsonl
 ```
 
-Do not commit generated research output unless it is a deliberately small reviewed fixture.
+Collect a date range while isolating individual model/provider failures:
 
-## Metrics
+```bash
+python3 -m research.forecast_benchmark.cli batch-runs \
+  --start 2026-09-01 \
+  --end 2026-09-07 \
+  --cycles 0 \
+  --hours 72 \
+  --output research-output/forecasts.jsonl
+```
 
-Pure local metric helpers currently cover:
+Omitting `--location` collects every location in `locations.json`. Repeat `--location` to restrict the batch. The default is one 00 UTC initialization per day to keep initial research traffic bounded. Explicit `--cycles 0,6,12,18` enables all common global cycles.
 
-- MAE;
-- bias;
-- RMSE;
-- Brier score for binary precipitation events;
-- mean wind-vector error;
-- lead-time buckets 0–6 h, 6–24 h, 24–48 h and 48–72 h.
+Successful forecasts are preserved even if another model request fails. Failures are written to a sibling `*-errors.jsonl` file unless `--errors` is supplied.
 
-## Observation/reference strategy
+For a common ECMWF/ICON/GFS comparison window, use dates supported by all three Open-Meteo Single Runs archives. At the time this M0 methodology was established, the limiting non-ECMWF archives begin on 2026-04-02. Re-check provider documentation before future benchmark campaigns.
 
-Forecast skill must eventually be evaluated against real observations, not against another forecast product.
+## Observation reference: NOAA/NCEI ISD
 
-Preferred production-quality research reference:
+The benchmark reference is real surface observations from NOAA/NCEI Integrated Surface Database / Global Hourly, not forecast or reanalysis output.
 
-1. public governmental surface-station observations with clear commercial/research reuse terms;
-2. quality-control and station-distance rules;
-3. explicit handling of station elevation versus forecast-grid elevation.
+Select the station first:
 
-Meteostat is useful for exploratory research but its data is currently CC BY-NC 4.0, so it must not become an undisclosed commercial calibration dependency.
+```bash
+python3 -m research.forecast_benchmark.cli station \
+  --location moscow \
+  --start 2026-09-01 \
+  --end 2026-09-07
+```
 
-Open-Meteo historical/reanalysis products may be used as a temporary research proxy, but a proxy derived from ECMWF analysis can systematically favor ECMWF and must not be used to claim calibrated production accuracy.
+Then collect the observations:
+
+```bash
+python3 -m research.forecast_benchmark.cli observations \
+  --location moscow \
+  --start 2026-09-01 \
+  --end 2026-09-07 \
+  --output research-output/moscow-observations.json
+```
+
+Station selection rules are deliberately explicit:
+
+- the station must cover the complete requested period;
+- the default station radius is at most 75 km from the benchmark location;
+- if `--target-elevation-m` is supplied, the station must publish elevation and the default maximum elevation difference is 300 m;
+- no automatic lapse-rate or pressure/elevation correction is applied in M0;
+- station identity, coordinates and elevation remain in the observation artifact for auditability.
+
+The benchmark accepts ISD quality flags `0`, `1`, `4`, `5` and `9`. Suspect or erroneous observations are treated as missing rather than repaired or fabricated.
+
+For precipitation, the initial benchmark uses one-hour `AA1`..`AA4` amounts. Trace precipitation is preserved as an event for Brier scoring even when the measured depth is zero. Inaccurate, deleted, or incompatible accumulation records are excluded.
+
+## Scoring
+
+```bash
+python3 -m research.forecast_benchmark.cli score \
+  --location moscow \
+  --forecasts research-output/forecasts.jsonl \
+  --observations research-output/moscow-observations.json \
+  --output research-output/moscow-score.json
+```
+
+Forecast valid times are matched to the nearest observation within 30 minutes by default. Observation input order is normalized before matching.
+
+Metrics:
+
+- temperature: MAE, bias and RMSE;
+- sea-level pressure: MAE, bias and RMSE;
+- one-hour precipitation amount: MAE, bias and RMSE;
+- precipitation probability: Brier score against observed precipitation events;
+- wind: mean vector error;
+- lead buckets: 0–6 h, 6–24 h, 24–48 h and 48–72 h.
+
+Every score carries its usable sample count. Missing data is excluded parameter-by-parameter; it is never replaced with zero or another synthetic value.
+
+## Weighting policy
+
+M0 production fusion remains equal-weight until this benchmark has sufficient real-observation coverage.
+
+Measured weights must be derived from reproducible historical skill, remain model-family aware, and be documented with the benchmark period, locations, lead bucket, parameter and usable sample counts. MET Norway must not increase ECMWF's independent evidence weight.
+
+A small pilot may validate the pipeline, but it must not be presented as calibrated production accuracy.
+
+## Reproducibility and generated data
+
+Do not commit bulk generated research output. Keep only deliberately small reviewed fixtures when they protect parser or scoring behavior.
+
+Network calls are manual research operations. CI executes local fixture/unit tests only, so provider availability and rate limits cannot make a PR fail.
+
+Meteostat may be useful for exploration but its current CC BY-NC 4.0 dataset must not become an undisclosed commercial calibration dependency.
+
+ECMWF-derived reanalysis can be useful as a diagnostic proxy but must not be used as the reference for production calibration because it can structurally favor ECMWF-derived forecasts.
 
 ## External API policy
 
-Network calls are manual research operations, not blocking PR checks. Unit tests use local fixtures only.
+Open-Meteo's public free API may be used only within the provider's applicable current terms and limits. Production use must follow the applicable commercial/license requirements.
 
-Open-Meteo's public free API is suitable for non-commercial research/evaluation; production usage must follow the applicable current plan/license.
+MET Norway requests use an identifying User-Agent and must follow its current caching, attribution and traffic requirements.
 
-MET Norway requests use an identifying User-Agent and must follow the provider's caching, attribution and traffic requirements.
+NOAA/NCEI station metadata and Global Hourly access are read through public NCEI endpoints. Provider terms and data documentation must be re-checked before a production/release decision.
 
 ## Sources verified for M0
 
-- Open-Meteo OpenAPI model identifiers:
+- NOAA/NCEI Integrated Surface Database:
+  https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database
+- NOAA/NCEI ISD station history:
+  https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv
+- NOAA/NCEI Global Hourly access:
+  https://www.ncei.noaa.gov/data/global-hourly/access/
+- Open-Meteo model identifiers:
   https://github.com/open-meteo/open-meteo/blob/main/openapi/forecast.yml
-- Open-Meteo Historical Forecast / Single Runs documentation:
+- Open-Meteo Historical Forecast / Single Runs:
   https://open-meteo.com/en/docs/historical-forecast-api
   https://open-meteo.com/en/docs/single-runs-api
 - MET Norway Locationforecast:
