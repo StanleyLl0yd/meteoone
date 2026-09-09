@@ -18,3 +18,10 @@ Do not overwrite, recompress, optimize, re-encode, reformat, vectorize, redraw, 
 Platform-required launcher/store assets may be generated only as raster derivatives of the canonical PNG, preserving the visible artwork unchanged.
 
 This branding decision follows the root `AGENTS.md` app-icon rules. If a future icon replaces this one, the project owner must explicitly designate a new PNG as the canonical app icon.
+
+## Related brand documentation
+
+- `docs/branding/BRAND_GUIDE.md` defines MeteoOne brand identity, visual metaphor, palette, and tone.
+- `docs/design/DESIGN_SYSTEM.md` defines implementation-level UI tokens and component rules.
+
+Those documents may describe the icon's visual language, but they do not replace this file as the source of truth for canonical icon bytes.
