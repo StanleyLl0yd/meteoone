@@ -72,6 +72,26 @@ class CliArgumentTest(unittest.TestCase):
         self.assertEqual(args.max_elevation_delta_m, 300.0)
         self.assertIsNone(args.target_elevation_m)
 
+    def test_wis2_observations_use_strict_coverage_defaults(self) -> None:
+        args = parser().parse_args(
+            [
+                "wis2-observations",
+                "--location",
+                "saint-petersburg",
+                "--start",
+                "2026-08-01",
+                "--end",
+                "2026-08-31",
+                "--output",
+                "observations.json",
+            ]
+        )
+        self.assertEqual(args.max_distance_km, 75.0)
+        self.assertEqual(args.max_elevation_delta_m, 300.0)
+        self.assertEqual(args.min_coverage_ratio, 0.98)
+        self.assertIsNone(args.raw_output)
+        self.assertEqual(args.output, Path("observations.json"))
+
     def test_score_uses_half_hour_matching_tolerance(self) -> None:
         args = parser().parse_args(
             [
