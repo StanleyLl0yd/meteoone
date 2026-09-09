@@ -4,6 +4,7 @@ import unittest
 
 from research.forecast_benchmark.model import Location
 from research.forecast_benchmark.providers import (
+    OpenMeteoAdapter,
     OpenMeteoModel,
     parse_met_norway,
     parse_open_meteo,
@@ -52,6 +53,17 @@ class OpenMeteoParserTest(unittest.TestCase):
         self.assertEqual(point.temperature_c, 12.5)
         self.assertEqual(point.wind_speed_mps, 4.2)
         self.assertEqual(point.precipitation_probability_percent, 60.0)
+
+    def test_deterministic_requests_exclude_ensemble_probability(self) -> None:
+        params = OpenMeteoAdapter._params(
+            LOCATION,
+            OpenMeteoModel("icon_global", "DWD_ICON"),
+            72,
+        )
+        self.assertNotIn(
+            "precipitation_probability",
+            params["hourly"].split(","),
+        )
 
     def test_accepts_model_suffixed_fields(self) -> None:
         payload = {
