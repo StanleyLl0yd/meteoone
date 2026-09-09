@@ -155,7 +155,7 @@ class ForecastStabilityTest(unittest.TestCase):
         location_wins = result["location_lead_winners"]
         self.assertEqual(
             location_wins["temperature_mae"],
-            {"cells": 1, "wins": {"DWD_ICON": 1}},
+            {"cells": 1, "ties": 0, "wins": {"DWD_ICON": 1}},
         )
 
     def test_requires_observations_for_every_forecast_location(self) -> None:
@@ -173,6 +173,55 @@ class ForecastStabilityTest(unittest.TestCase):
 
 
 class StabilitySummaryTest(unittest.TestCase):
+    def test_exact_ties_are_not_counted_as_model_wins(self) -> None:
+        tied_score = {
+            "lead_bucket": "0-6h",
+            "matched_points": 1,
+            "temperature": {
+                "count": 1,
+                "mae": 1.0,
+                "bias": 0.0,
+                "rmse": 1.0,
+            },
+            "pressure": None,
+            "precipitation": None,
+            "wind_vector_error_mps": None,
+            "wind_count": 0,
+            "precipitation_brier": None,
+            "precipitation_brier_count": 0,
+        }
+        aggregate = {
+            "scores": [
+                {"model_family": "DWD_ICON", **tied_score},
+                {"model_family": "ECMWF_IFS", **tied_score},
+            ],
+        }
+        location = {
+            "location": "test",
+            "scores": aggregate["scores"],
+        }
+
+        result = analyze_stability({"all": aggregate}, [location])
+
+        winner = result["split_bucket_winners"]["all"]["0-6h"][
+            "temperature_mae"
+        ]
+        self.assertIsNone(winner["winner"])
+        self.assertEqual(
+            winner["tied_models"],
+            ["DWD_ICON", "ECMWF_IFS"],
+        )
+        self.assertEqual(
+            result["winner_counts_across_splits_and_leads"][
+                "temperature_mae"
+            ],
+            {},
+        )
+        self.assertEqual(
+            result["location_lead_winners"]["temperature_mae"],
+            {"cells": 1, "ties": 1, "wins": {}},
+        )
+
     def test_rejects_duplicate_location_payloads(self) -> None:
         aggregate = {
             "scores": [],

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
+import math
 from typing import Any, Mapping, Sequence
 
 from .aggregate import aggregate_score_payloads
@@ -126,21 +127,11 @@ def analyze_stability(
                 ranked = _rank(by_bucket[bucket], metric)
                 if not ranked:
                     continue
-                best_value, best_model, best_count = ranked[0]
-                runner_up = ranked[1][0] if len(ranked) > 1 else None
-                relative_margin = (
-                    None
-                    if runner_up in (None, 0.0)
-                    else (runner_up - best_value) / runner_up
-                )
-                metric_winners[metric] = {
-                    "winner": best_model,
-                    "best": best_value,
-                    "runner_up": runner_up,
-                    "relative_margin": relative_margin,
-                    "count": best_count,
-                }
-                winner_counts[metric][best_model] += 1
+                evidence = _winner_evidence(ranked)
+                metric_winners[metric] = evidence
+                winner = evidence["winner"]
+                if isinstance(winner, str):
+                    winner_counts[metric][winner] += 1
             split_winners[bucket] = metric_winners
         split_bucket_winners[split_name] = split_winners
 
@@ -150,6 +141,10 @@ def analyze_stability(
         for metric in PRIMARY_METRICS
     }
     location_cells = {
+        metric: 0
+        for metric in PRIMARY_METRICS
+    }
+    location_ties = {
         metric: 0
         for metric in PRIMARY_METRICS
     }
@@ -171,8 +166,13 @@ def analyze_stability(
                 ranked = _rank(bucket_scores, metric)
                 if not ranked:
                     continue
-                location_wins[metric][ranked[0][1]] += 1
+                evidence = _winner_evidence(ranked)
                 location_cells[metric] += 1
+                winner = evidence["winner"]
+                if isinstance(winner, str):
+                    location_wins[metric][winner] += 1
+                else:
+                    location_ties[metric] += 1
 
     return {
         "primary_metrics": list(PRIMARY_METRICS),
@@ -185,6 +185,7 @@ def analyze_stability(
         "location_lead_winners": {
             metric: {
                 "cells": location_cells[metric],
+                "ties": location_ties[metric],
                 "wins": dict(sorted(location_wins[metric].items())),
             }
             for metric in PRIMARY_METRICS
@@ -270,6 +271,55 @@ def _rank(
             )
         )
     return sorted(ranked)
+
+
+def _winner_evidence(
+    ranked: Sequence[tuple[float, str, int]],
+) -> dict[str, object]:
+    best_value = ranked[0][0]
+    tied = [
+        item
+        for item in ranked
+        if math.isclose(
+            item[0],
+            best_value,
+            rel_tol=1e-12,
+            abs_tol=1e-12,
+        )
+    ]
+    tied_models = sorted(item[1] for item in tied)
+    winner = tied_models[0] if len(tied_models) == 1 else None
+
+    runner_up = next(
+        (
+            value
+            for value, _, _ in ranked
+            if not math.isclose(
+                value,
+                best_value,
+                rel_tol=1e-12,
+                abs_tol=1e-12,
+            )
+        ),
+        None,
+    )
+    relative_margin = (
+        None
+        if runner_up in (None, 0.0)
+        else (runner_up - best_value) / runner_up
+    )
+    counts = {
+        model: count
+        for _, model, count in tied
+    }
+    return {
+        "winner": winner,
+        "tied_models": tied_models,
+        "best": best_value,
+        "runner_up": runner_up,
+        "relative_margin": relative_margin,
+        "counts": counts,
+    }
 
 
 def _metric_value(
