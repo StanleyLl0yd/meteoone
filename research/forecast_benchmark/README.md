@@ -115,7 +115,7 @@ Roshydromet SYNOP precipitation is not an hourly precipitation series. Values co
 
 The adapter therefore stores precipitation separately as `ObservedPrecipitationInterval`. It does not map those accumulations into `ObservedPoint.precipitation_mm`, does not compare a multi-hour accumulation with one forecast hour, and does not invent trace semantics for negative values.
 
-For the current M0 weight campaign, precipitation is excluded from fusion-weight determination unless an explicit interval methodology is implemented and tested that sums model precipitation over the exact observed interval using deterministic, non-overlapping intervals.
+For the completed M0 campaign, the scorer uses the explicit interval methodology described below: it sums only verified Open-Meteo preceding-hour precipitation values whose complete hourly coverage exactly matches the observed SYNOP interval. Partial or misaligned intervals are rejected. Because some stations publish overlapping 12-hour reporting windows, precipitation stability is reviewed by location and time split rather than treated as an independent hourly sample count.
 
 ### Legacy NOAA/NCEI ISD support
 
