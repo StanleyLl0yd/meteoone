@@ -1,0 +1,106 @@
+name: M0 one-location end-to-end smoke
+
+on:
+  push:
+    branches:
+      - research/m0-benchmark-run
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13"
+
+      - name: Run research tests
+        run: python -m unittest discover -s research/forecast_benchmark/tests -v
+
+      - name: Collect one archived run
+        run: |
+          set -euo pipefail
+          mkdir -p research-output
+          python -m research.forecast_benchmark.cli batch-runs             --start 2026-08-01             --end 2026-08-01             --cycles 0             --location saint-petersburg             --hours 72             --output research-output/forecasts.jsonl             --errors research-output/forecast-errors.jsonl
+
+      - name: Collect Roshydromet WIS2 observations
+        run: |
+          set -euo pipefail
+          python -m research.forecast_benchmark.cli wis2-station             --location saint-petersburg             --start 2026-08-01             --end 2026-08-03             > research-output/station.json
+
+          python -m research.forecast_benchmark.cli wis2-observations             --location saint-petersburg             --start 2026-08-01             --end 2026-08-03             --output research-output/observations.json             --raw-output research-output/observations-raw.json
+
+      - name: Score and aggregate
+        run: |
+          set -euo pipefail
+          python -m research.forecast_benchmark.cli score             --location saint-petersburg             --forecasts research-output/forecasts.jsonl             --observations research-output/observations.json             --output research-output/score.json
+
+          python -m research.forecast_benchmark.cli aggregate             --score research-output/score.json             --output research-output/aggregate.json
+
+      - name: Validate smoke evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("research-output")
+          forecasts = [
+              json.loads(line)
+              for line in (root / "forecasts.jsonl").read_text().splitlines()
+              if line.strip()
+          ]
+          errors = [
+              json.loads(line)
+              for line in (root / "forecast-errors.jsonl").read_text().splitlines()
+              if line.strip()
+          ]
+          observations = json.loads((root / "observations.json").read_text())
+          score = json.loads((root / "score.json").read_text())
+
+          assert len(forecasts) == 3, len(forecasts)
+          assert not errors, errors
+          assert observations["source"] == "ROSHYDROMET_WIS2_SYNOP"
+          assert observations["station"]["station_id"] == "0-20000-0-26063"
+          assert len(observations["points"]) == 24, len(observations["points"])
+          assert len(observations["precipitation_intervals"]) > 0
+          assert len(score["scores"]) == 12, len(score["scores"])
+
+          for bucket in score["scores"]:
+              assert bucket["matched_points"] > 0
+              assert bucket["temperature"] is not None
+              assert bucket["pressure"] is not None
+              assert bucket["wind_count"] > 0
+              assert bucket["precipitation"] is None
+              assert bucket["precipitation_brier"] is None
+
+          manifest = {
+              "forecast_count": len(forecasts),
+              "forecast_error_count": len(errors),
+              "observation_point_count": len(observations["points"]),
+              "precipitation_interval_count": len(observations["precipitation_intervals"]),
+              "score_bucket_count": len(score["scores"]),
+              "models": sorted(f["origin"]["model_family"] for f in forecasts),
+              "raw_observation_bytes": (root / "observations-raw.json").stat().st_size,
+          }
+          (root / "manifest.json").write_text(
+              json.dumps(manifest, indent=2, sort_keys=True) + "\n"
+          )
+          print(json.dumps(manifest, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload smoke artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: meteoone-m0-one-location-e2e
+          path: research-output/
+          if-no-files-found: error
+          retention-days: 7
