@@ -162,6 +162,30 @@ Unequal weights require an advantage that is measurable, material, reasonably st
 
 A small pilot may validate the pipeline, but it must not be presented as calibrated production accuracy.
 
+### Stability analysis
+
+After collecting the complete campaign and one observation JSON per location, run the repository-owned stability analysis instead of choosing a model from one pooled metric:
+
+```bash
+python3 -m research.forecast_benchmark.cli stability \
+  --forecasts research-output/forecasts.jsonl \
+  --observations saint-petersburg=research-output/observations/saint-petersburg.json \
+  --observations moscow=research-output/observations/moscow.json \
+  --observations kazan=research-output/observations/kazan.json \
+  --observations yekaterinburg=research-output/observations/yekaterinburg.json \
+  --observations novosibirsk=research-output/observations/novosibirsk.json \
+  --observations krasnoyarsk=research-output/observations/krasnoyarsk.json \
+  --observations sochi=research-output/observations/sochi.json \
+  --observations vladivostok=research-output/observations/vladivostok.json \
+  --observations yakutsk=research-output/observations/yakutsk.json \
+  --observations murmansk=research-output/observations/murmansk.json \
+  --output research-output/stability.json
+```
+
+The command scores the complete campaign plus first-half, second-half, odd-date and even-date initialization splits. It reports pooled skill, winner/margin by lead bucket and split, and winner counts across location/lead cells for temperature MAE, pressure MAE and wind-vector error. It also preserves each split aggregate in the machine-readable output.
+
+The command deliberately does **not** assign production weights automatically. The output is evidence for the documented M0 decision; materiality, consistency and sample counts still have to be reviewed before changing fusion behavior.
+
 ## Reproducibility and generated data
 
 Do not commit bulk generated research output. Keep only deliberately small reviewed fixtures when they protect parser or scoring behavior.

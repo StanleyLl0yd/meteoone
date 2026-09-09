@@ -16,13 +16,14 @@ from .providers import (
     MetNorwayAdapter,
     OpenMeteoAdapter,
 )
-from .wis2_observations import RoshydrometWis2Adapter
+from .stability import analyze_forecast_stability
 from .storage import (
     read_forecasts,
     read_observations,
     write_forecasts,
     write_observations,
 )
+from .wis2_observations import RoshydrometWis2Adapter
 
 
 ROOT = Path(__file__).resolve().parent
@@ -253,6 +254,29 @@ def aggregate(args: argparse.Namespace) -> None:
     args.output.write_text(text + "\n", encoding="utf-8")
 
 
+def stability(args: argparse.Namespace) -> None:
+    forecasts = read_forecasts(args.forecasts)
+    observations_by_location = {}
+    for location_id, path in args.observations:
+        if location_id in observations_by_location:
+            raise SystemExit(
+                f"Duplicate observations mapping for {location_id}"
+            )
+        observations_by_location[location_id] = read_observations(path)
+
+    payload = analyze_forecast_stability(
+        forecasts,
+        observations_by_location,
+        tolerance_minutes=args.tolerance_minutes,
+    )
+    text = json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2)
+    if args.output is None:
+        print(text)
+        return
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(text + "\n", encoding="utf-8")
+
+
 def list_locations(_: argparse.Namespace) -> None:
     for location in load_locations():
         print(
@@ -298,6 +322,15 @@ def _cycles_arg(value: str) -> tuple[int, ...]:
     if len(set(cycles)) != len(cycles):
         raise argparse.ArgumentTypeError("cycle hours must not contain duplicates")
     return cycles
+
+
+def _named_path_arg(value: str) -> tuple[str, Path]:
+    name, separator, raw_path = value.partition("=")
+    if not separator or not name.strip() or not raw_path.strip():
+        raise argparse.ArgumentTypeError(
+            "expected NAME=PATH"
+        )
+    return name.strip(), Path(raw_path)
 
 
 def _point_date(value: str) -> date:
@@ -438,6 +471,31 @@ def parser() -> argparse.ArgumentParser:
     )
     aggregate_parser.add_argument("--output", type=Path)
     aggregate_parser.set_defaults(handler=aggregate)
+
+    stability_parser = sub.add_parser(
+        "stability",
+        help="analyze model skill stability across lead, location, and time splits",
+    )
+    stability_parser.add_argument(
+        "--forecasts",
+        required=True,
+        type=Path,
+    )
+    stability_parser.add_argument(
+        "--observations",
+        action="append",
+        required=True,
+        type=_named_path_arg,
+        metavar="LOCATION=PATH",
+        help="observation JSON for one location; repeat for every forecast location",
+    )
+    stability_parser.add_argument(
+        "--tolerance-minutes",
+        type=int,
+        default=30,
+    )
+    stability_parser.add_argument("--output", type=Path)
+    stability_parser.set_defaults(handler=stability)
 
     return root
 

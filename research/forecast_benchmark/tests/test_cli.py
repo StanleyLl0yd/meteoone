@@ -5,7 +5,12 @@ import unittest
 from datetime import date
 from pathlib import Path
 
-from research.forecast_benchmark.cli import _cycles_arg, _date_arg, parser
+from research.forecast_benchmark.cli import (
+    _cycles_arg,
+    _date_arg,
+    _named_path_arg,
+    parser,
+)
 
 
 class CliArgumentTest(unittest.TestCase):
@@ -91,6 +96,39 @@ class CliArgumentTest(unittest.TestCase):
         self.assertEqual(args.min_coverage_ratio, 0.98)
         self.assertIsNone(args.raw_output)
         self.assertEqual(args.output, Path("observations.json"))
+
+    def test_named_path_parser_requires_name_and_path(self) -> None:
+        self.assertEqual(
+            _named_path_arg("moscow=observations.json"),
+            ("moscow", Path("observations.json")),
+        )
+        with self.assertRaises(argparse.ArgumentTypeError):
+            _named_path_arg("observations.json")
+
+    def test_stability_accepts_repeatable_observation_mappings(self) -> None:
+        args = parser().parse_args(
+            [
+                "stability",
+                "--forecasts",
+                "forecasts.jsonl",
+                "--observations",
+                "moscow=moscow.json",
+                "--observations",
+                "saint-petersburg=spb.json",
+                "--output",
+                "stability.json",
+            ]
+        )
+        self.assertEqual(args.forecasts, Path("forecasts.jsonl"))
+        self.assertEqual(
+            args.observations,
+            [
+                ("moscow", Path("moscow.json")),
+                ("saint-petersburg", Path("spb.json")),
+            ],
+        )
+        self.assertEqual(args.tolerance_minutes, 30)
+        self.assertEqual(args.output, Path("stability.json"))
 
     def test_score_uses_half_hour_matching_tolerance(self) -> None:
         args = parser().parse_args(
