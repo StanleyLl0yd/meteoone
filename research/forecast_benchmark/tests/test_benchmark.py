@@ -102,6 +102,46 @@ class BenchmarkScoreTest(unittest.TestCase):
         first = next(score for score in scores if score.lead_bucket == "0-6h")
         self.assertAlmostEqual(first.precipitation_brier or -1.0, 0.04)
 
+    def test_unsorted_observations_are_normalized_before_matching(self) -> None:
+        forecast = Forecast(
+            origin=Origin(
+                provider="OPEN_METEO",
+                model_family="ECMWF_IFS",
+                model_id="ecmwf_ifs",
+                model_run="2026-09-01T00:00:00Z",
+            ),
+            location=LOCATION,
+            hourly=(
+                HourlyPoint(
+                    time="2026-09-01T06:00:00Z",
+                    temperature_c=10.0,
+                ),
+            ),
+        )
+        observations = ObservationSeries(
+            source="NOAA_NCEI_ISD",
+            station=STATION,
+            points=(
+                ObservedPoint(
+                    time="2026-09-01T07:00:00Z",
+                    temperature_c=20.0,
+                ),
+                ObservedPoint(
+                    time="2026-09-01T06:05:00Z",
+                    temperature_c=9.0,
+                ),
+                ObservedPoint(
+                    time="2026-09-01T05:55:00Z",
+                    temperature_c=8.0,
+                ),
+            ),
+        )
+
+        scores = score_forecasts([forecast], observations)
+        self.assertEqual(len(scores), 1)
+        assert scores[0].temperature is not None
+        self.assertEqual(scores[0].temperature.mae, 2.0)
+
     def test_nearest_observation_respects_tolerance(self) -> None:
         forecast = Forecast(
             origin=Origin(
