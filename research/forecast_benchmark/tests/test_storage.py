@@ -10,6 +10,8 @@ from research.forecast_benchmark.observations import (
     IsdStation,
     ObservationSeries,
     ObservedPoint,
+    ObservedPrecipitationInterval,
+    Wis2Station,
 )
 from research.forecast_benchmark.storage import (
     read_forecasts,
@@ -39,6 +41,20 @@ STATION = IsdStation(
     elevation_m=24.0,
     begin=date(2000, 1, 1),
     end=date(2030, 12, 31),
+)
+
+WIS2_STATION = Wis2Station(
+    station_id="0-20000-0-26063",
+    name="Saint Petersburg SYNOP",
+    country="RU",
+    latitude=59.9667,
+    longitude=30.3,
+    elevation_m=3.0,
+    begin=date(2026, 7, 1),
+    dataset_id=(
+        "urn:wmo:md:ru-roshydromet:"
+        "core.surface-based-observations.synop"
+    ),
 )
 
 
@@ -77,6 +93,33 @@ class StorageRoundTripTest(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "observations.json"
+            write_observations(path, observations)
+            self.assertEqual(read_observations(path), observations)
+
+
+    def test_wis2_observation_json_round_trip(self) -> None:
+        observations = ObservationSeries(
+            source="ROSHYDROMET_WIS2_SYNOP",
+            station=WIS2_STATION,
+            points=(
+                ObservedPoint(
+                    time="2026-08-01T00:00:00Z",
+                    temperature_c=20.0,
+                    pressure_sea_level_hpa=1012.0,
+                    wind_speed_mps=3.0,
+                    wind_direction_degrees=270.0,
+                ),
+            ),
+            precipitation_intervals=(
+                ObservedPrecipitationInterval(
+                    start_time="2026-08-01T06:00:00Z",
+                    end_time="2026-08-01T18:00:00Z",
+                    amount_mm=2.5,
+                ),
+            ),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "wis2-observations.json"
             write_observations(path, observations)
             self.assertEqual(read_observations(path), observations)
 
