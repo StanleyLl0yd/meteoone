@@ -31,7 +31,7 @@ jobs:
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb
 
       - name: Install Android SDK packages
-        run: sdkmanager --channel=3 "platforms;android-37"
+        run: sdkmanager "platforms;android-CinnamonBun"
 
       - name: Verify
         run: >-
