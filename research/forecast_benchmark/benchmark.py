@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import bisect
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from .metrics import (
     ErrorSummary,
@@ -12,7 +12,11 @@ from .metrics import (
     wind_vector_error_mps,
 )
 from .model import Forecast, HourlyPoint
-from .observations import ObservationSeries, ObservedPoint
+from .observations import (
+    ObservationSeries,
+    ObservedPoint,
+    ObservedPrecipitationInterval,
+)
 
 
 @dataclass(frozen=True)
@@ -69,6 +73,7 @@ def score_forecasts(
     observation_times = [pair[0] for pair in observation_pairs]
     observation_points = tuple(pair[1] for pair in observation_pairs)
     groups: dict[tuple[str, str], _Accumulator] = {}
+    use_interval_precipitation = bool(observations.precipitation_intervals)
 
     for forecast in forecasts:
         if forecast.origin.model_run is None:
@@ -94,7 +99,19 @@ def score_forecasts(
 
             key = (forecast.origin.model_family, bucket)
             accumulator = groups.setdefault(key, _Accumulator())
-            _accumulate(accumulator, point, observed)
+            _accumulate(
+                accumulator,
+                point,
+                observed,
+                include_precipitation=not use_interval_precipitation,
+            )
+
+        _accumulate_interval_precipitation(
+            groups,
+            forecast,
+            observations.precipitation_intervals,
+            run_time,
+        )
 
     bucket_order = {"0-6h": 0, "6-24h": 1, "24-48h": 2, "48-72h": 3}
     keys = sorted(groups, key=lambda key: (key[0], bucket_order[key[1]]))
@@ -138,6 +155,8 @@ def _accumulate(
     accumulator: _Accumulator,
     predicted: HourlyPoint,
     observed: ObservedPoint,
+    *,
+    include_precipitation: bool,
 ) -> None:
     accumulator.matched_points += 1
 
@@ -145,8 +164,9 @@ def _accumulate(
     accumulator.temperature_observed.append(observed.temperature_c)
     accumulator.pressure_predicted.append(predicted.pressure_sea_level_hpa)
     accumulator.pressure_observed.append(observed.pressure_sea_level_hpa)
-    accumulator.precipitation_predicted.append(predicted.precipitation_mm)
-    accumulator.precipitation_observed.append(observed.precipitation_mm)
+    if include_precipitation:
+        accumulator.precipitation_predicted.append(predicted.precipitation_mm)
+        accumulator.precipitation_observed.append(observed.precipitation_mm)
 
     accumulator.wind_speed_predicted.append(predicted.wind_speed_mps)
     accumulator.wind_direction_predicted.append(predicted.wind_direction_degrees)
@@ -157,6 +177,83 @@ def _accumulate(
         predicted.precipitation_probability_percent
     )
     accumulator.precipitation_event.append(_precipitation_event(observed))
+
+
+
+def _accumulate_interval_precipitation(
+    groups: dict[tuple[str, str], _Accumulator],
+    forecast: Forecast,
+    intervals: tuple[ObservedPrecipitationInterval, ...],
+    run_time: datetime,
+) -> None:
+    if not intervals:
+        return
+
+    # The M0 archived Open-Meteo adapter has a verified temporal contract:
+    # each hourly precipitation value is the sum of the preceding hour.
+    # Other providers must expose an equally explicit period contract before
+    # they can be compared with SYNOP accumulation intervals.
+    if forecast.origin.provider != "OPEN_METEO":
+        return
+
+    precipitation_by_end = {
+        _parse_utc(point.time): point.precipitation_mm
+        for point in forecast.hourly
+    }
+    for interval in intervals:
+        start = _parse_utc(interval.start_time)
+        end = _parse_utc(interval.end_time)
+        if start < run_time:
+            continue
+
+        bucket = lead_bucket((end - run_time).total_seconds() / 3600.0)
+        if bucket is None:
+            continue
+
+        predicted = _sum_preceding_hour_precipitation(
+            precipitation_by_end,
+            start,
+            end,
+        )
+        if predicted is None:
+            continue
+
+        accumulator = groups.setdefault(
+            (forecast.origin.model_family, bucket),
+            _Accumulator(),
+        )
+        accumulator.precipitation_predicted.append(predicted)
+        accumulator.precipitation_observed.append(interval.amount_mm)
+
+
+def _sum_preceding_hour_precipitation(
+    precipitation_by_end: dict[datetime, float | None],
+    start: datetime,
+    end: datetime,
+) -> float | None:
+    duration_seconds = (end - start).total_seconds()
+    if duration_seconds <= 0 or duration_seconds % 3600 != 0:
+        return None
+    if any(
+        value != 0
+        for value in (
+            start.minute,
+            start.second,
+            start.microsecond,
+            end.minute,
+            end.second,
+            end.microsecond,
+        )
+    ):
+        return None
+
+    values = []
+    for offset in range(1, int(duration_seconds // 3600) + 1):
+        value = precipitation_by_end.get(start + timedelta(hours=offset))
+        if value is None:
+            return None
+        values.append(value)
+    return sum(values)
 
 
 def _finish(
