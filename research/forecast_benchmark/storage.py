@@ -6,7 +6,13 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from .model import Forecast, HourlyPoint, Location, Origin
-from .observations import IsdStation, ObservationSeries, ObservedPoint
+from .observations import (
+    IsdStation,
+    ObservationSeries,
+    ObservedPoint,
+    ObservedPrecipitationInterval,
+    Wis2Station,
+)
 
 
 def read_forecasts(path: Path) -> tuple[Forecast, ...]:
@@ -71,13 +77,28 @@ def read_observations(path: Path) -> ObservationSeries:
         raise ValueError("Observation file has no points array")
 
     station_values = dict(station)
+    station_type = station_values.pop("station_type", None)
     station_values["begin"] = date.fromisoformat(str(station_values["begin"]))
-    station_values["end"] = date.fromisoformat(str(station_values["end"]))
+    if station_type == "WIS2_WIGOS":
+        station_value = Wis2Station(**station_values)
+    else:
+        station_values["end"] = date.fromisoformat(str(station_values["end"]))
+        station_value = IsdStation(**station_values)
+
+    precipitation_intervals = payload.get("precipitation_intervals") or []
+    if not isinstance(precipitation_intervals, list):
+        raise ValueError(
+            "Observation file precipitation_intervals must be an array"
+        )
 
     return ObservationSeries(
         source=str(payload.get("source") or "NOAA_NCEI_ISD"),
-        station=IsdStation(**station_values),
+        station=station_value,
         points=tuple(ObservedPoint(**dict(point)) for point in points),
+        precipitation_intervals=tuple(
+            ObservedPrecipitationInterval(**dict(interval))
+            for interval in precipitation_intervals
+        ),
     )
 
 
