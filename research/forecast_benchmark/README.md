@@ -111,11 +111,19 @@ Metrics:
 - temperature: MAE, bias and RMSE;
 - sea-level pressure: MAE, bias and RMSE;
 - one-hour precipitation amount: MAE, bias and RMSE;
-- precipitation probability: Brier score against observed precipitation events;
+- precipitation probability: Brier score against observed precipitation events when the probability source has explicit provenance;
 - wind: mean vector error;
 - lead buckets: 0–6 h, 6–24 h, 24–48 h and 48–72 h.
 
 Every score carries its usable sample count. Missing data is excluded parameter-by-parameter; it is never replaced with zero or another synthetic value.
+
+### Probability provenance
+
+The explicit `ecmwf_ifs`, `icon_global` and `ncep_gfs_global` benchmark requests are deterministic model runs. They intentionally do not request Open-Meteo `precipitation_probability`.
+
+Open-Meteo documents ICON precipitation probability as derived from ICON-EPS members and GFS probability as derived from GEFS members, while the deterministic ECMWF API does not expose an equivalent precipitation-probability field. Treating those values as if they were probabilities emitted by the deterministic runs would corrupt model provenance.
+
+The Brier implementation therefore remains available for a future explicitly modelled probabilistic source, but Brier is excluded from deterministic scalar-weight calibration unless that separate source and family relationship are recorded.
 
 ## Weighting policy
 
@@ -156,5 +164,9 @@ NOAA/NCEI station metadata and Global Hourly access are read through public NCEI
 - Open-Meteo Historical Forecast / Single Runs:
   https://open-meteo.com/en/docs/historical-forecast-api
   https://open-meteo.com/en/docs/single-runs-api
+- Open-Meteo model-specific probability provenance:
+  https://open-meteo.com/en/docs/dwd-api
+  https://open-meteo.com/en/docs/gfs-api
+  https://open-meteo.com/en/docs/ecmwf-api
 - MET Norway Locationforecast:
   https://api.met.no/weatherapi/locationforecast/2.0/documentation
