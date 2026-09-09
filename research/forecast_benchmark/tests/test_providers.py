@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import io
 import unittest
+import urllib.error
+from unittest.mock import patch
 
 from research.forecast_benchmark.model import Location
 from research.forecast_benchmark.providers import (
+    JsonHttpClient,
     OpenMeteoAdapter,
     OpenMeteoModel,
     open_meteo_run_parameter,
@@ -93,6 +97,76 @@ class OpenMeteoParserTest(unittest.TestCase):
         )
         self.assertEqual(forecast.hourly[0].temperature_c, 9.0)
         self.assertIsNone(forecast.hourly[0].pressure_sea_level_hpa)
+
+
+class _FakeJsonResponse:
+    status = 200
+
+    def __init__(self, payload: bytes) -> None:
+        self._payload = io.BytesIO(payload)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+    def read(self, *args):
+        return self._payload.read(*args)
+
+
+class JsonHttpClientTest(unittest.TestCase):
+    def test_retries_transient_network_failure(self) -> None:
+        sleeps: list[float] = []
+        client = JsonHttpClient(
+            max_attempts=2,
+            backoff_seconds=0.25,
+            sleep=sleeps.append,
+        )
+        with patch(
+            "research.forecast_benchmark.providers.urllib.request.urlopen",
+            side_effect=[
+                urllib.error.URLError("temporary"),
+                _FakeJsonResponse(b'{"ok": true}'),
+            ],
+        ):
+            payload = client.get(
+                "https://example.test/data",
+                {"q": "test"},
+            )
+
+        self.assertEqual(payload, {"ok": True})
+        self.assertEqual(sleeps, [0.25])
+
+    def test_non_retryable_http_error_preserves_diagnostic_body(self) -> None:
+        sleeps: list[float] = []
+        client = JsonHttpClient(
+            max_attempts=3,
+            backoff_seconds=0.25,
+            sleep=sleeps.append,
+        )
+        error = urllib.error.HTTPError(
+            "https://example.test/data",
+            400,
+            "Bad Request",
+            {},
+            io.BytesIO(b'{"reason":"invalid run"}'),
+        )
+        with patch(
+            "research.forecast_benchmark.providers.urllib.request.urlopen",
+            side_effect=error,
+        ) as mocked:
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "invalid run",
+            ):
+                client.get(
+                    "https://example.test/data",
+                    {"q": "test"},
+                )
+
+        self.assertEqual(mocked.call_count, 1)
+        self.assertEqual(sleeps, [])
 
 
 class MetNorwayParserTest(unittest.TestCase):
