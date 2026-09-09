@@ -36,6 +36,14 @@ HOURLY_FIELDS = (
     "visibility",
 )
 
+# Explicit ECMWF IFS, ICON Global and GFS runs are deterministic products.
+# Open-Meteo precipitation_probability can come from a related ensemble
+# (for example ICON-EPS or GEFS), so it must not inherit deterministic
+# model provenance implicitly.
+DETERMINISTIC_HOURLY_FIELDS = tuple(
+    field for field in HOURLY_FIELDS if field != "precipitation_probability"
+)
+
 
 @dataclass(frozen=True)
 class OpenMeteoModel:
@@ -121,7 +129,7 @@ class OpenMeteoAdapter:
             "latitude": f"{location.latitude:.4f}",
             "longitude": f"{location.longitude:.4f}",
             "models": model.model_id,
-            "hourly": ",".join(HOURLY_FIELDS),
+            "hourly": ",".join(DETERMINISTIC_HOURLY_FIELDS),
             "forecast_hours": str(forecast_hours),
             "timezone": "UTC",
             "timeformat": "unixtime",
