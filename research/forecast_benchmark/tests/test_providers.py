@@ -6,6 +6,7 @@ from research.forecast_benchmark.model import Location
 from research.forecast_benchmark.providers import (
     OpenMeteoAdapter,
     OpenMeteoModel,
+    open_meteo_run_parameter,
     parse_met_norway,
     parse_open_meteo,
 )
@@ -64,6 +65,18 @@ class OpenMeteoParserTest(unittest.TestCase):
             "precipitation_probability",
             params["hourly"].split(","),
         )
+
+    def test_single_run_parameter_uses_documented_utc_format(self) -> None:
+        self.assertEqual(
+            open_meteo_run_parameter("2026-08-01T00:00Z"),
+            "2026-08-01T00:00",
+        )
+        self.assertEqual(
+            open_meteo_run_parameter("2026-08-01T03:00+03:00"),
+            "2026-08-01T00:00",
+        )
+        with self.assertRaises(ValueError):
+            open_meteo_run_parameter("2026-08-01T00:00:30Z")
 
     def test_accepts_model_suffixed_fields(self) -> None:
         payload = {

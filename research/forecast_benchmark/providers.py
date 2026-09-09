@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Mapping, Sequence
 
 from .model import (
@@ -58,6 +60,15 @@ OPEN_METEO_MODELS: tuple[OpenMeteoModel, ...] = (
 )
 
 
+def open_meteo_run_parameter(run: str) -> str:
+    """Return the UTC run value required by Open-Meteo Single Runs API."""
+    canonical = normalize_iso_utc(run)
+    parsed = datetime.fromisoformat(canonical.replace("Z", "+00:00"))
+    if parsed.second != 0:
+        raise ValueError("Open-Meteo run must be aligned to a whole minute")
+    return parsed.strftime("%Y-%m-%dT%H:%M")
+
+
 class JsonHttpClient:
     def __init__(self, timeout_seconds: float = 20.0) -> None:
         self.timeout_seconds = timeout_seconds
@@ -72,10 +83,19 @@ class JsonHttpClient:
             },
             method="GET",
         )
-        with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
-            if response.status != 200:
-                raise RuntimeError(f"HTTP {response.status} for {url}")
-            return json.load(response)
+        try:
+            with urllib.request.urlopen(
+                request, timeout=self.timeout_seconds
+            ) as response:
+                if response.status != 200:
+                    raise RuntimeError(f"HTTP {response.status} for {url}")
+                return json.load(response)
+        except urllib.error.HTTPError as error:
+            detail = error.read(1024).decode("utf-8", errors="replace").strip()
+            suffix = f": {detail}" if detail else ""
+            raise RuntimeError(
+                f"HTTP {error.code} for {url}{suffix}"
+            ) from error
 
 
 class OpenMeteoAdapter:
@@ -102,7 +122,7 @@ class OpenMeteoAdapter:
         forecast_hours: int = 72,
     ) -> Forecast:
         params = self._params(location, model, forecast_hours)
-        params["run"] = run
+        params["run"] = open_meteo_run_parameter(run)
         payload = self.http.get(OPEN_METEO_SINGLE_RUN_URL, params)
         forecast = parse_open_meteo(payload, location, model)
         return Forecast(

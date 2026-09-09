@@ -38,6 +38,24 @@ class CliArgumentTest(unittest.TestCase):
         self.assertEqual(args.hours, 72)
         self.assertEqual(args.output, Path("out.jsonl"))
 
+    def test_aggregate_accepts_repeatable_score_files(self) -> None:
+        args = parser().parse_args(
+            [
+                "aggregate",
+                "--score",
+                "moscow-score.json",
+                "--score",
+                "spb-score.json",
+                "--output",
+                "aggregate.json",
+            ]
+        )
+        self.assertEqual(
+            args.score,
+            [Path("moscow-score.json"), Path("spb-score.json")],
+        )
+        self.assertEqual(args.output, Path("aggregate.json"))
+
     def test_station_rules_have_bounded_defaults(self) -> None:
         args = parser().parse_args(
             [

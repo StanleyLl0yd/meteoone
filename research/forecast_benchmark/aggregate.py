@@ -30,12 +30,16 @@ def aggregate_score_payloads(
     payloads: Iterable[Mapping[str, Any]],
 ) -> tuple[AggregateBucketScore, ...]:
     grouped: dict[tuple[str, str], list[tuple[str, BucketScore]]] = {}
+    seen_locations: set[str] = set()
 
     for payload in payloads:
         location = str(payload.get("location") or "").strip()
         raw_scores = payload.get("scores")
         if not location:
             raise ValueError("Score payload has no location")
+        if location in seen_locations:
+            raise ValueError(f"Duplicate score payload for location {location}")
+        seen_locations.add(location)
         if not isinstance(raw_scores, list):
             raise ValueError(f"Score payload for {location} has no scores array")
 

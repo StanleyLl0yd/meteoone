@@ -6,6 +6,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
+from .aggregate import aggregate_score_payloads
 from .benchmark import score_forecasts
 from .collector import collect_archived_runs, iter_runs
 from .model import Forecast, Location
@@ -182,6 +183,25 @@ def score(args: argparse.Namespace) -> None:
     args.output.write_text(text + "\n", encoding="utf-8")
 
 
+def aggregate(args: argparse.Namespace) -> None:
+    payloads = [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in args.score
+    ]
+    scores = aggregate_score_payloads(payloads)
+    payload = {
+        "locations": sorted(str(value["location"]) for value in payloads),
+        "score_file_count": len(payloads),
+        "scores": [value.to_dict() for value in scores],
+    }
+    text = json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2)
+    if args.output is None:
+        print(text)
+        return
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(text + "\n", encoding="utf-8")
+
+
 def list_locations(_: argparse.Namespace) -> None:
     for location in load_locations():
         print(
@@ -325,6 +345,20 @@ def parser() -> argparse.ArgumentParser:
     score_parser.add_argument("--tolerance-minutes", type=int, default=30)
     score_parser.add_argument("--output", type=Path)
     score_parser.set_defaults(handler=score)
+
+    aggregate_parser = sub.add_parser(
+        "aggregate",
+        help="aggregate per-location score files by model family and lead bucket",
+    )
+    aggregate_parser.add_argument(
+        "--score",
+        action="append",
+        required=True,
+        type=Path,
+        help="per-location score JSON; repeat for each location",
+    )
+    aggregate_parser.add_argument("--output", type=Path)
+    aggregate_parser.set_defaults(handler=aggregate)
 
     return root
 
