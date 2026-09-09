@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+import ssl
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 from .model import (
     Forecast,
@@ -22,6 +24,7 @@ USER_AGENT = "MeteoOneResearch/0.1 (+https://github.com/StanleyLl0yd/meteoone)"
 OPEN_METEO_LIVE_URL = "https://api.open-meteo.com/v1/forecast"
 OPEN_METEO_SINGLE_RUN_URL = "https://single-runs-api.open-meteo.com/v1/forecast"
 MET_NORWAY_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
+RETRYABLE_HTTP_STATUS = frozenset({408, 425, 429, 500, 502, 503, 504})
 
 HOURLY_FIELDS = (
     "temperature_2m",
@@ -70,32 +73,83 @@ def open_meteo_run_parameter(run: str) -> str:
 
 
 class JsonHttpClient:
-    def __init__(self, timeout_seconds: float = 20.0) -> None:
+    def __init__(
+        self,
+        timeout_seconds: float = 20.0,
+        *,
+        max_attempts: int = 3,
+        backoff_seconds: float = 1.0,
+        sleep: Callable[[float], None] = time.sleep,
+    ) -> None:
+        if timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be positive")
+        if max_attempts < 1:
+            raise ValueError("max_attempts must be positive")
+        if backoff_seconds < 0:
+            raise ValueError("backoff_seconds must not be negative")
         self.timeout_seconds = timeout_seconds
+        self.max_attempts = max_attempts
+        self.backoff_seconds = backoff_seconds
+        self.sleep = sleep
 
     def get(self, url: str, params: Mapping[str, str]) -> dict[str, Any]:
         query = urllib.parse.urlencode(params, safe=",")
+        request_url = f"{url}?{query}"
         request = urllib.request.Request(
-            f"{url}?{query}",
+            request_url,
             headers={
                 "Accept": "application/json",
                 "User-Agent": USER_AGENT,
             },
             method="GET",
         )
-        try:
-            with urllib.request.urlopen(
-                request, timeout=self.timeout_seconds
-            ) as response:
-                if response.status != 200:
-                    raise RuntimeError(f"HTTP {response.status} for {url}")
-                return json.load(response)
-        except urllib.error.HTTPError as error:
-            detail = error.read(1024).decode("utf-8", errors="replace").strip()
-            suffix = f": {detail}" if detail else ""
-            raise RuntimeError(
-                f"HTTP {error.code} for {url}{suffix}"
-            ) from error
+
+        last_error: BaseException | None = None
+        for attempt in range(1, self.max_attempts + 1):
+            try:
+                with urllib.request.urlopen(
+                    request,
+                    timeout=self.timeout_seconds,
+                ) as response:
+                    if response.status != 200:
+                        raise RuntimeError(
+                            f"HTTP {response.status} for {request_url}"
+                        )
+                    payload = json.load(response)
+                    if not isinstance(payload, dict):
+                        raise ValueError("JSON response must be an object")
+                    return payload
+            except urllib.error.HTTPError as error:
+                detail = error.read(1024).decode(
+                    "utf-8",
+                    errors="replace",
+                ).strip()
+                suffix = f": {detail}" if detail else ""
+                last_error = RuntimeError(
+                    f"HTTP {error.code} for {request_url}{suffix}"
+                )
+                if (
+                    error.code not in RETRYABLE_HTTP_STATUS
+                    or attempt == self.max_attempts
+                ):
+                    raise last_error from error
+            except (
+                urllib.error.URLError,
+                TimeoutError,
+                ssl.SSLError,
+            ) as error:
+                last_error = error
+                if attempt == self.max_attempts:
+                    raise RuntimeError(
+                        f"Network failure for {request_url}: {error}"
+                    ) from error
+
+            if self.backoff_seconds:
+                self.sleep(
+                    self.backoff_seconds * (2 ** (attempt - 1))
+                )
+
+        raise RuntimeError(f"Failed to fetch {request_url}: {last_error}")
 
 
 class OpenMeteoAdapter:
