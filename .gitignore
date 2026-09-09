@@ -1,0 +1,28 @@
+# Gradle
+.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+local.properties
+
+# Signing and secrets
+*.jks
+*.keystore
+secrets.properties
+.env
+.env.*
+
+# Generated / local
+captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+.DS_Store
+Thumbs.db
+
+# Reports
+reports/
