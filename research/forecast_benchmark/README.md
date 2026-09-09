@@ -137,7 +137,7 @@ Metrics:
 
 - temperature: MAE, bias and RMSE;
 - sea-level pressure: MAE, bias and RMSE;
-- one-hour precipitation amount: MAE, bias and RMSE when a compatible hourly observation series exists; the current WIS2 campaign does not synthesize hourly precipitation;
+- precipitation amount: MAE, bias and RMSE for compatible observation periods. Hourly observations are scored directly; Roshydromet WIS2 accumulation intervals are scored only when the complete interval can be reconstructed exactly from verified preceding-hour Open-Meteo values. Partial or misaligned intervals are rejected and no synthetic hourly truth is created;
 - precipitation probability: Brier score against observed precipitation events when the probability source has explicit provenance;
 - wind: mean vector error;
 - lead buckets: 0–6 h, 6–24 h, 24–48 h and 48–72 h.
@@ -182,9 +182,36 @@ python3 -m research.forecast_benchmark.cli stability \
   --output research-output/stability.json
 ```
 
-The command scores the complete campaign plus first-half, second-half, odd-date and even-date initialization splits. It reports pooled skill, winner/margin by lead bucket and split, and winner counts across location/lead cells for temperature MAE, pressure MAE and wind-vector error. It also preserves each split aggregate in the machine-readable output.
+The command scores the complete campaign plus first-half, second-half, odd-date and even-date initialization splits. It reports pooled skill, winner/margin by lead bucket and split, and winner counts across location/lead cells for temperature MAE, pressure MAE, precipitation MAE and wind-vector error. It also preserves each split aggregate in the machine-readable output. Precipitation cells are present only where an observation accumulation interval fits the forecast lead window exactly; the August WIS2 data therefore has no 0–6 h precipitation cell.
 
 The command deliberately does **not** assign production weights automatically. The output is evidence for the documented M0 decision; materiality, consistency and sample counts still have to be reviewed before changing fusion behavior.
+
+## Final M0 campaign result
+
+The completed August 2026 campaign contains 840 deterministic archived forecasts: 28 initialization dates × 10 locations × 3 model families, all at 00Z with a 72-hour horizon. Direct Roshydromet WIS2 SYNOP is the reference observation source.
+
+Pooled full-period MAE / vector error:
+
+| Model family | Temperature, °C | Pressure, hPa | Wind vector, m/s | 12 h precipitation, mm |
+| --- | ---: | ---: | ---: | ---: |
+| DWD ICON | 1.211 | 0.764 | **1.750** | 1.337 |
+| ECMWF IFS | **1.203** | **0.636** | 1.905 | **1.242** |
+| NOAA GFS | 1.508 | 0.755 | 2.304 | 1.287 |
+
+Usable counts per model family are 6,714 for temperature and pressure, 6,711 for wind, and 1,599 exact 12-hour precipitation comparisons.
+
+Stability prevents treating the pooled winner as a global weight:
+
+- pressure: ECMWF IFS wins all 20 time-split × lead cells and 29/40 location × lead cells;
+- wind: DWD ICON wins all 20 time-split × lead cells and 26/40 location × lead cells;
+- temperature: DWD ICON and ECMWF IFS split the 20 time-split × lead wins 10/10; location wins are 23/14/3 for ICON/ECMWF/GFS;
+- precipitation: available time-split × lead wins are ECMWF 9, GFS 5, ICON 1; location × lead wins are ECMWF 11, GFS 11, ICON 8.
+
+The evidence-backed M0 decision is therefore to **keep equal weights across independent model families**. The data identifies parameter-specific strengths, but one August campaign does not justify inventing numeric parameter/region/season weight ratios, especially before M1 replaces the benchmark delivery path with direct official-source adapters.
+
+The durable decision record is `docs/research/FUSION_BASELINE.md`.
+
+Campaign run: `34353729773`. Exact precipitation rescore run: `34367231365`. Rescored artifact digest: `sha256:8698858548f6961deaf023a696918d74d5f88c88fbb125f9e26c9834e1961b25`.
 
 ## Reproducibility and generated data
 
