@@ -15,28 +15,21 @@ Active controls:
 - Gitleaks scans pull requests, main, and a weekly schedule;
 - Semgrep security-audit/secrets rules run on pull requests, main, weekly schedule, and manual dispatch;
 - Qodana JVM Community runs on schedule/manual dispatch as defense in depth;
-- Dependabot covers Gradle and GitHub Actions.
+- Dependabot covers Gradle and GitHub Actions;
+- secret scanning and push protection are enabled for the public repository;
+- the active `Protect main` ruleset requires the proven `verify`, `gitleaks`, and `Semgrep` contexts.
 
 Qodana is deliberately not a merge gate because a secondary external/tooling failure should not deadlock normal development.
 
-## GitHub Advanced Security boundary
+## CodeQL and Dependency Review
 
-This repository is private. GitHub CodeQL code scanning and Dependency Review require GitHub Advanced Security / GitHub Code Security for the current repository plan.
+The repository is public, so the previous private-repository GitHub Advanced Security plan limitation no longer blocks CodeQL code scanning or Dependency Review.
 
-Their workflows remain ready and are gated by:
+Dependency Review remains configured for pull requests and becomes a required `main` gate only after its exact context succeeds on a real public pull request.
 
-`vars.GHAS_ENABLED == 'true'`
+CodeQL uses advanced setup for `java-kotlin` with a compiled build. Kotlin is not considered covered by a Java-only/no-build database: CodeQL initialization therefore precedes a manual Android `:app:assembleDebug` build, followed by analysis.
 
-or by the repository becoming public.
-
-When the feature becomes available:
-
-1. enable the applicable GitHub security product;
-2. set repository Actions variable `GHAS_ENABLED=true`;
-3. verify CodeQL and Dependency Review both pass;
-4. make their real check contexts required for `main`.
-
-CodeQL uses `build-mode: none` deliberately because the current compiler-tracing path does not support the selected Kotlin 2.4.20 toolchain reliably. Source extraction avoids downgrading the application toolchain merely for a scanner.
+The application Kotlin version must not be downgraded merely to satisfy scanner compatibility. If CodeQL cannot extract the current Kotlin compiler version, keep the scan non-required, record the upstream compatibility gap, and retest when CodeQL support advances.
 
 ## Dependency policy
 
@@ -49,7 +42,7 @@ Dependency updates are reviewed for:
 - license/distribution impact;
 - release APK/AAB behavior.
 
-Dependabot is an update mechanism, not a complete vulnerability gate. Until Dependency Review is available on this private repository, dependency vulnerability enforcement remains a documented plan-level gap rather than being replaced with a flaky external SaaS scanner.
+Dependabot is an update mechanism, not a complete vulnerability gate. Dependency Review supplies the native pull-request dependency-diff gate once its real public-repository context has been verified stable.
 
 ## Network boundary
 
