@@ -21,6 +21,37 @@ class ForecastModelsTest {
     )
 
     @Test
+    fun forecastOriginRequiresGenerationAtOrAfterKnownModelRun() {
+        assertFailsWith<IllegalArgumentException> {
+            ForecastOrigin(
+                provider = ForecastProvider.NOAA_NOMADS,
+                modelFamily = ModelFamily.NOAA_GFS,
+                modelRun = time,
+                generatedAt = time.minusSeconds(1),
+            )
+        }
+
+        ForecastOrigin(
+            provider = ForecastProvider.NOAA_NOMADS,
+            modelFamily = ModelFamily.NOAA_GFS,
+            modelRun = time,
+            generatedAt = time,
+        )
+        ForecastOrigin(
+            provider = ForecastProvider.NOAA_NOMADS,
+            modelFamily = ModelFamily.NOAA_GFS,
+            modelRun = time,
+            generatedAt = time.plusSeconds(1),
+        )
+        ForecastOrigin(
+            provider = ForecastProvider.OPEN_METEO,
+            modelFamily = ModelFamily.NOAA_GFS,
+            modelRun = null,
+            generatedAt = time.minusSeconds(1),
+        )
+    }
+
+    @Test
     fun forecastIntervalRequiresPositiveDuration() {
         val interval = ForecastInterval(
             start = time.minusSeconds(3600),

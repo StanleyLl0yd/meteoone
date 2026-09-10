@@ -24,7 +24,13 @@ data class ForecastOrigin(
     val modelFamily: ModelFamily,
     val modelRun: Instant?,
     val generatedAt: Instant,
-)
+) {
+    init {
+        require(modelRun == null || !generatedAt.isBefore(modelRun)) {
+            "Forecast generation time must not precede the model run"
+        }
+    }
+}
 
 data class ForecastLocation(
     val latitude: Double,
