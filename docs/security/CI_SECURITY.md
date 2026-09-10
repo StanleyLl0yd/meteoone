@@ -11,6 +11,7 @@ Active controls:
 - Gradle wrapper distribution integrity is pinned with SHA-256;
 - `scripts/verify_ci_supply_chain.py` blocks mutable Actions, unpinned workflow containers, `pull_request_target`, persisted checkout credentials, inherited reusable-workflow secrets, and missing top-level workflow permissions;
 - `scripts/verify_app_icon.py` protects the canonical launcher PNG byte hash and validates required raster dimensions without rewriting assets;
+- `scripts/verify_location_privacy.py` rejects precise/background location permissions, duplicate coarse-location ownership, and Android location API usage outside `:core:location`;
 - Android/JVM/research tests, lint, debug APK and release AAB builds run in `verify`;
 - Gitleaks scans pull requests, main, and a weekly schedule;
 - Semgrep security-audit/secrets rules run on pull requests, main, weekly schedule, and manual dispatch;
