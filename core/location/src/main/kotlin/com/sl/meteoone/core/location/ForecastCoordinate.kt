@@ -3,9 +3,10 @@ package com.sl.meteoone.core.location
 /**
  * A privacy-reduced coordinate suitable for forecast lookup and cache identity.
  *
- * This type must not be used to represent raw device/GPS coordinates.
+ * Construction is internal so callers outside this module cannot accidentally wrap raw device
+ * coordinates without applying the location normalization policy first.
  */
-data class ForecastCoordinate(
+data class ForecastCoordinate internal constructor(
     val latitude: Double,
     val longitude: Double,
 ) {
