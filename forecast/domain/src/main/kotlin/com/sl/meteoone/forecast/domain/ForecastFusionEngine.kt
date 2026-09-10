@@ -129,7 +129,9 @@ class ForecastFusionEngine {
                     }
                 },
             )
-        }.sortedWith(::compareIntervalCandidates)
+        }.sortedWith(
+            Comparator { left, right -> compareIntervalCandidates(left, right) },
+        )
 
         val selected = ranked.first().key.interval
         val evidenceValues = evidenceGroups.mapNotNull { group ->
