@@ -31,6 +31,9 @@ class OfficialGribForecastMapper {
         require(fields.all { !it.validTime.isBefore(modelRun) }) {
             "Decoded GRIB valid time must not precede the model run"
         }
+        require(fields.all { it.intervalStart == null || !it.intervalStart.isBefore(modelRun) }) {
+            "Decoded GRIB interval start must not precede the model run"
+        }
 
         val hourly = fields
             .groupBy { it.validTime }

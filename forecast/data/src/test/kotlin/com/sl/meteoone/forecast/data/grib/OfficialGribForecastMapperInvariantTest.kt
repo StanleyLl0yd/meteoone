@@ -32,6 +32,38 @@ class OfficialGribForecastMapperInvariantTest {
     }
 
     @Test
+    fun gustIntervalMustNotPrecedeModelRun() {
+        assertFailsWith<IllegalArgumentException> {
+            map(intervalField(GribForecastParameter.WIND_GUST_10M, modelRun.minusSeconds(1)))
+        }
+    }
+
+    @Test
+    fun precipitationIntervalMustNotPrecedeModelRun() {
+        assertFailsWith<IllegalArgumentException> {
+            map(intervalField(GribForecastParameter.PRECIPITATION_ACCUMULATION, modelRun.minusSeconds(1)))
+        }
+    }
+
+    @Test
+    fun intervalMayStartAtModelRun() {
+        val forecast = mapper.map(
+            provider = ForecastProvider.NOAA_NOMADS,
+            modelRun = modelRun,
+            generatedAt = modelRun.plusSeconds(60),
+            location = location,
+            fields = listOf(
+                intervalField(GribForecastParameter.WIND_GUST_10M, modelRun),
+                intervalField(GribForecastParameter.PRECIPITATION_ACCUMULATION, modelRun),
+            ),
+        )
+
+        val point = forecast.hourly.single()
+        assertEquals(modelRun, point.windGustInterval?.start)
+        assertEquals(modelRun, point.precipitationInterval?.start)
+    }
+
+    @Test
     fun dewPointMayOnlyExceedTemperatureWithinRoundingTolerance() {
         val accepted = mapper.map(
             provider = ForecastProvider.NOAA_NOMADS,
@@ -59,6 +91,14 @@ class OfficialGribForecastMapperInvariantTest {
         }
     }
 
+    private fun map(field: DecodedGribField) = mapper.map(
+        provider = ForecastProvider.NOAA_NOMADS,
+        modelRun = modelRun,
+        generatedAt = modelRun.plusSeconds(60),
+        location = location,
+        fields = listOf(field),
+    )
+
     private fun temperature(value: Double) = DecodedGribField(
         parameter = GribForecastParameter.TEMPERATURE_2M,
         value = value,
@@ -71,5 +111,20 @@ class OfficialGribForecastMapperInvariantTest {
         value = value,
         unit = GribValueUnit.KELVIN,
         validTime = validTime,
+    )
+
+    private fun intervalField(
+        parameter: GribForecastParameter,
+        intervalStart: Instant,
+    ) = DecodedGribField(
+        parameter = parameter,
+        value = 1.0,
+        unit = when (parameter) {
+            GribForecastParameter.WIND_GUST_10M -> GribValueUnit.METRES_PER_SECOND
+            GribForecastParameter.PRECIPITATION_ACCUMULATION -> GribValueUnit.KILOGRAMS_PER_SQUARE_METRE
+            else -> error("Unsupported interval test parameter $parameter")
+        },
+        validTime = validTime,
+        intervalStart = intervalStart,
     )
 }
