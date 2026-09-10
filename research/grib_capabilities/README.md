@@ -24,7 +24,7 @@ The probe therefore records measured requirements first. A decoder implementatio
 - bounded bzip2 decompression;
 - strict UTC/cycle/forecast-hour inputs;
 - official-source HTTPS allowlisting and cross-host redirect rejection;
-- strict HTTP range metadata helpers.
+- strict HTTP response-size and range metadata helpers.
 
 Ordinary pull-request CI never depends on live weather-provider availability.
 
@@ -43,10 +43,10 @@ Network reads are bounded. Only HTTPS on the three explicit official hosts is ac
 The artifact contains:
 
 - `evidence.json` with source/final URLs, response status, SHA-256, byte sizes and extracted templates;
-- provider samples needed to reproduce the inspection;
+- representative provider samples needed to reproduce the inspection;
 - `SHA256SUMS` for the artifact payload files.
 
-For DWD, the official compressed `.grib2.bz2` response is the canonical downloaded sample. The decompressed GRIB2 content is inspected in memory and its SHA-256/size are recorded; retaining a second decompressed copy is unnecessary once the probe is finalized.
+For DWD, both the exact official `.grib2.bz2` response and the bounded decompressed GRIB2 sample are retained in the short-lived workflow artifact. Their separate hashes allow later decoder tests to distinguish transport compression from GRIB2 data representation.
 
 After a successful live run, commit only a compact evidence summary/artifact reference needed for long-term architectural decisions. Do not turn large operational GRIB files into normal Git history.
 
