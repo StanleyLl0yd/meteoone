@@ -30,6 +30,8 @@ A provider is a delivery system. A model is the underlying meteorological foreca
 
 The M1 direct-source transport and provenance boundary is documented in [`FORECAST_SOURCES.md`](FORECAST_SOURCES.md).
 
+The M1 Open-Meteo fallback and normalization path is documented in [`OPEN_METEO_FALLBACK.md`](OPEN_METEO_FALLBACK.md).
+
 ### Domain independence
 
 Domain code must not depend on Android, Retrofit, Room, Compose, or provider DTOs. The fusion engine should remain JVM-testable.
