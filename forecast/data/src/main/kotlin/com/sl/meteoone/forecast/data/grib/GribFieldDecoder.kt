@@ -33,8 +33,15 @@ data class DecodedGribField(
 ) {
     init {
         require(value.isFinite()) { "Decoded GRIB value must be finite" }
-        require(intervalStart == null || !intervalStart.isAfter(validTime)) {
-            "GRIB accumulation interval must not start after its valid time"
+        require(intervalStart == null || intervalStart.isBefore(validTime)) {
+            "GRIB interval must start before its valid time"
+        }
+        require(
+            intervalStart == null ||
+                parameter == GribForecastParameter.WIND_GUST_10M ||
+                parameter == GribForecastParameter.PRECIPITATION_ACCUMULATION,
+        ) {
+            "GRIB interval metadata is only supported for gust maxima and precipitation accumulation"
         }
     }
 }
