@@ -60,7 +60,7 @@ The result is bounded to 0..100%. No RH is fabricated when either temperature or
 - precipitation accumulation;
 - wind-gust maximum.
 
-The start must be strictly earlier than `validTime`. The mapper converts it to canonical `ForecastInterval(start, validTime)`.
+The start must be strictly earlier than `validTime`. At the official-source mapper boundary, a non-null start must also be greater than or equal to that forecast's `modelRun`; an interval from an earlier run is malformed input and is rejected. The mapper converts accepted metadata to canonical `ForecastInterval(start, validTime)`.
 
 Multiple GRIB messages for the same canonical parameter and valid time are **not** resolved in the mapper. They are rejected as duplicates. Provider-specific selection must first choose the correct product/time-range semantics. This is intentional: live NOAA probing has already measured multiple `APCP` and `TCDC` messages in a single field/level subset, so silently taking the first message would be unsafe.
 
