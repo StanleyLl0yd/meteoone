@@ -16,7 +16,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: grib-capability-${{ inputs.model_run }}-${{ inputs.forecast_hour }}
+  group: grib-capability-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -25,6 +25,9 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+    env:
+      MODEL_RUN: ${{ inputs.model_run }}
+      FORECAST_HOUR: ${{ inputs.forecast_hour }}
 
     steps:
       - name: Checkout
@@ -48,8 +51,8 @@ jobs:
           set -euo pipefail
           mkdir -p research-output/grib-capability
           python -m research.grib_capabilities.probe \
-            --run "${{ inputs.model_run }}" \
-            --forecast-hour "${{ inputs.forecast_hour }}" \
+            --run "$MODEL_RUN" \
+            --forecast-hour "$FORECAST_HOUR" \
             --output research-output/grib-capability/evidence.json \
             --samples-dir research-output/grib-capability/samples
           find research-output/grib-capability -type f -print0 \
@@ -60,7 +63,7 @@ jobs:
       - name: Upload evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: meteoone-m1-grib-capability-${{ inputs.model_run }}-f${{ inputs.forecast_hour }}
+          name: meteoone-m1-grib-capability-${{ github.run_id }}
           path: research-output/grib-capability
           if-no-files-found: error
           retention-days: 90
