@@ -78,5 +78,61 @@
     "longitude": 33.0827,
     "timezone_id": "Europe/Moscow",
     "climate_note": "Arctic / maritime influence"
+  },
+  {
+    "id": "tbilisi",
+    "name": "Tbilisi",
+    "latitude": 41.7151,
+    "longitude": 44.8271,
+    "timezone_id": "Asia/Tbilisi",
+    "climate_note": "South Caucasus / valley terrain and continental-subtropical transition"
+  },
+  {
+    "id": "yerevan",
+    "name": "Yerevan",
+    "latitude": 40.1792,
+    "longitude": 44.4991,
+    "timezone_id": "Asia/Yerevan",
+    "climate_note": "South Caucasus highland / dry continental"
+  },
+  {
+    "id": "tokyo",
+    "name": "Tokyo",
+    "latitude": 35.6762,
+    "longitude": 139.6503,
+    "timezone_id": "Asia/Tokyo",
+    "climate_note": "Pacific coast / humid subtropical and monsoon influence"
+  },
+  {
+    "id": "new-york",
+    "name": "New York",
+    "latitude": 40.7128,
+    "longitude": -74.006,
+    "timezone_id": "America/New_York",
+    "climate_note": "North American Atlantic coast / humid subtropical-continental transition"
+  },
+  {
+    "id": "paris",
+    "name": "Paris",
+    "latitude": 48.8566,
+    "longitude": 2.3522,
+    "timezone_id": "Europe/Paris",
+    "climate_note": "Western Europe / oceanic"
+  },
+  {
+    "id": "berlin",
+    "name": "Berlin",
+    "latitude": 52.52,
+    "longitude": 13.405,
+    "timezone_id": "Europe/Berlin",
+    "climate_note": "Central Europe / oceanic-continental transition"
+  },
+  {
+    "id": "dubai",
+    "name": "Dubai",
+    "latitude": 25.2048,
+    "longitude": 55.2708,
+    "timezone_id": "Asia/Dubai",
+    "climate_note": "Arabian Gulf coast / hot desert"
   }
 ]
