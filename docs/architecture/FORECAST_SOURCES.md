@@ -54,9 +54,11 @@ The current surface-field selection boundary is explicit:
 - `2d` — 2 m dew point;
 - `msl` — mean sea-level pressure;
 - `10u` / `10v` — 10 m wind components;
-- `10fg3` — maximum 10 m wind gust in the last 3 hours;
+- `10fg`, with documented `10fg3` and GRIB2-migration `max_i10fg` identities — maximum 10 m wind gust over the preceding post-processing interval;
 - `tp` — total precipitation;
 - `tcc` — total cloud cover.
+
+ECMWF's current open-data catalogue names the gust field `10fg` and notes that it appears as `10fg3` for forecast steps 3 through 144. ECMWF's GRIB2 migration documentation maps the legacy gust encodings to `max_i10fg` with an explicit time span. MeteoOne therefore accepts only these documented identifiers and still requires exactly one matching surface entry; aliases do not relax duplicate detection. The M1 capability probe remains the authority for which identity and GRIB templates are actually observed in the live target cycle.
 
 Relative humidity is not requested as a separate IFS field in this slice because it can be derived later from temperature and dew point with an explicitly tested mapper. Visibility is not claimed from the current IFS Open Data selection until a matching official field is verified. Missing fields therefore remain missing instead of being fabricated or borrowed from another provider under ECMWF provenance.
 
@@ -68,6 +70,7 @@ Official references:
 
 - <https://www.ecmwf.int/en/forecasts/datasets/open-data>
 - <https://confluence.ecmwf.int/spaces/DAC/pages/272310539/ECMWF+open+data+real-time+forecasts+from+IFS+and+AIFS>
+- <https://confluence.ecmwf.int/spaces/MTG2US/pages/554148197/Migration+to+GRIB2+-+changes+to+encoding+of+parameters>
 
 ## DWD ICON Open Data
 
