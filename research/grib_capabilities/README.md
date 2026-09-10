@@ -40,13 +40,17 @@ The workflow requests representative fields from:
 
 Network reads are bounded. Only HTTPS on the three explicit official hosts is accepted, cross-host redirects are rejected, and ECMWF range responses must return the requested `Content-Range`.
 
+The first live run on 2026-09-10 (`06Z`, `f006`) measured that a NOAA `APCP` surface subset can contain two concatenated GRIB2 messages. The probe therefore permits a narrowly bounded 1..4 messages for `total_precipitation` while every other sampled NOAA field still requires exactly one message. The multiple messages are preserved individually in `evidence.json`; they are not collapsed during capability measurement.
+
 The artifact contains:
 
 - `evidence.json` with source/final URLs, response status, SHA-256, byte sizes and extracted templates;
 - representative provider samples needed to reproduce the inspection;
-- `SHA256SUMS` for the artifact payload files.
+- `SHA256SUMS` for the artifact payload files when the complete probe succeeds.
 
-For DWD, both the exact official `.grib2.bz2` response and the bounded decompressed GRIB2 sample are retained in the short-lived workflow artifact. Their separate hashes allow later decoder tests to distinguish transport compression from GRIB2 data representation.
+For DWD, the exact official `.grib2.bz2` response is retained as the reproducibility sample. The decompressed GRIB2 is inspected in memory and its size and SHA-256 are recorded in `evidence.json`, avoiding a duplicate large artifact copy while retaining a deterministic integrity check.
+
+The upload step runs even after a probe failure so any partial provider samples remain available for diagnosis. A failed run is not accepted as final capability evidence.
 
 After a successful live run, commit only a compact evidence summary plus immutable run/artifact identifiers and digests needed for long-term architectural decisions. Do not turn large operational GRIB files into normal Git history. The workflow artifact itself is retained for 90 days and is evidence transport, not the permanent architecture record.
 
