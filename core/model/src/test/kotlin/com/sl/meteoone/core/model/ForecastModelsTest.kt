@@ -7,6 +7,18 @@ import kotlin.test.assertFailsWith
 
 class ForecastModelsTest {
     private val time = Instant.parse("2026-09-10T12:00:00Z")
+    private val origin = ForecastOrigin(
+        provider = ForecastProvider.NOAA_NOMADS,
+        modelFamily = ModelFamily.NOAA_GFS,
+        modelRun = time.minusSeconds(6 * 60 * 60),
+        generatedAt = time.minusSeconds(60),
+    )
+    private val location = ForecastLocation(
+        latitude = 59.94,
+        longitude = 30.31,
+        elevationMeters = 10,
+        timeZoneId = "Europe/Moscow",
+    )
 
     @Test
     fun forecastIntervalRequiresPositiveDuration() {
@@ -54,13 +66,48 @@ class ForecastModelsTest {
         }
     }
 
+    @Test
+    fun sourceForecastRequiresNonEmptyStrictlyIncreasingTimeline() {
+        val first = point(pointTime = time)
+        val second = point(pointTime = time.plusSeconds(3600))
+        val valid = SourceForecast(
+            origin = origin,
+            location = location,
+            hourly = listOf(first, second),
+        )
+        assertEquals(listOf(first, second), valid.hourly)
+
+        assertFailsWith<IllegalArgumentException> {
+            SourceForecast(
+                origin = origin,
+                location = location,
+                hourly = emptyList(),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            SourceForecast(
+                origin = origin,
+                location = location,
+                hourly = listOf(first, first),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            SourceForecast(
+                origin = origin,
+                location = location,
+                hourly = listOf(second, first),
+            )
+        }
+    }
+
     private fun point(
+        pointTime: Instant = time,
         precipitationMm: Double? = null,
         precipitationInterval: ForecastInterval? = null,
         windGustMps: Double? = null,
         windGustInterval: ForecastInterval? = null,
     ) = HourlyWeatherPoint(
-        time = time,
+        time = pointTime,
         temperatureC = null,
         feelsLikeC = null,
         dewPointC = null,

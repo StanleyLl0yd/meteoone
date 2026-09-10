@@ -102,7 +102,14 @@ data class SourceForecast(
     val origin: ForecastOrigin,
     val location: ForecastLocation,
     val hourly: List<HourlyWeatherPoint>,
-)
+) {
+    init {
+        require(hourly.isNotEmpty()) { "Source forecast must contain at least one hourly point" }
+        require(hourly.zipWithNext().all { (previous, next) -> previous.time.isBefore(next.time) }) {
+            "Source forecast hourly timestamps must be strictly increasing and unique"
+        }
+    }
+}
 
 enum class ModelAgreement {
     HIGH,
