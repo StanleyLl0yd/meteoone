@@ -1,6 +1,6 @@
 package com.sl.meteoone.forecast.data.noaa
 
-import com.sl.meteoone.core.model.ForecastLocation
+import com.sl.meteoone.core.model.ForecastCoordinate
 import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.ModelFamily
 import java.time.Duration
@@ -16,7 +16,7 @@ class NoaaGfsRequestPlannerTest {
         val run = Instant.parse("2026-09-10T06:00:00Z")
         val plan = NoaaGfsRequestPlanner.plan(
             modelRun = run,
-            location = location(latitude = 59.9343, longitude = 30.3351),
+            coordinate = coordinate(latitude = 59.9, longitude = 30.3),
             forecastHour = 72,
         )
 
@@ -53,7 +53,7 @@ class NoaaGfsRequestPlannerTest {
     fun normalizesWesternLongitudeToGfsDegreesEastGrid() {
         val plan = NoaaGfsRequestPlanner.plan(
             modelRun = Instant.parse("2026-09-10T00:00:00Z"),
-            location = location(latitude = 40.7128, longitude = -74.0060),
+            coordinate = coordinate(latitude = 40.7, longitude = -74.0),
             forecastHour = 0,
         )
 
@@ -66,7 +66,7 @@ class NoaaGfsRequestPlannerTest {
     fun wrapsNearestGridPointAcrossPrimeMeridian() {
         val plan = NoaaGfsRequestPlanner.plan(
             modelRun = Instant.parse("2026-09-10T18:00:00Z"),
-            location = location(latitude = 51.5, longitude = -0.1),
+            coordinate = coordinate(latitude = 51.5, longitude = -0.1),
             forecastHour = 1,
         )
 
@@ -80,30 +80,28 @@ class NoaaGfsRequestPlannerTest {
         assertFailsWith<IllegalArgumentException> {
             NoaaGfsRequestPlanner.plan(
                 modelRun = Instant.parse("2026-09-10T05:00:00Z"),
-                location = location(0.0, 0.0),
+                coordinate = coordinate(0.0, 0.0),
                 forecastHour = 0,
             )
         }
         assertFailsWith<IllegalArgumentException> {
             NoaaGfsRequestPlanner.plan(
                 modelRun = Instant.parse("2026-09-10T06:30:00Z"),
-                location = location(0.0, 0.0),
+                coordinate = coordinate(0.0, 0.0),
                 forecastHour = 0,
             )
         }
         assertFailsWith<IllegalArgumentException> {
             NoaaGfsRequestPlanner.plan(
                 modelRun = Instant.parse("2026-09-10T06:00:00Z"),
-                location = location(0.0, 0.0),
+                coordinate = coordinate(0.0, 0.0),
                 forecastHour = 73,
             )
         }
     }
 
-    private fun location(latitude: Double, longitude: Double) = ForecastLocation(
+    private fun coordinate(latitude: Double, longitude: Double) = ForecastCoordinate(
         latitude = latitude,
         longitude = longitude,
-        elevationMeters = null,
-        timeZoneId = "UTC",
     )
 }
