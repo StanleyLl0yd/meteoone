@@ -1,11 +1,10 @@
 package com.sl.meteoone.core.location
 
+import com.sl.meteoone.core.model.ForecastCoordinate
 import java.math.BigDecimal
 import java.math.RoundingMode
 
 object ForecastCoordinateNormalizer {
-    const val GRID_STEP_DEGREES: Double = 0.1
-
     fun normalize(
         latitude: Double,
         longitude: Double,
@@ -24,9 +23,12 @@ object ForecastCoordinateNormalizer {
     }
 
     private fun roundToForecastGrid(value: Double): Double {
+        val scale = decimalScale(ForecastCoordinate.GRID_STEP_DEGREES)
         val rounded = BigDecimal.valueOf(value)
-            .setScale(1, RoundingMode.HALF_UP)
+            .setScale(scale, RoundingMode.HALF_UP)
             .toDouble()
         return if (rounded == 0.0) 0.0 else rounded
     }
+
+    private fun decimalScale(step: Double): Int = BigDecimal.valueOf(step).stripTrailingZeros().scale()
 }
