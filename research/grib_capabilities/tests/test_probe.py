@@ -5,6 +5,7 @@ import unittest
 
 from research.grib_capabilities.grib2 import Grib2MessageInfo
 from research.grib_capabilities.probe import (
+    ECMWF_FIELDS,
     NOAA_MAX_MESSAGES,
     DownloadedSample,
     _decompress_bzip2_bounded,
@@ -60,6 +61,12 @@ class ProbeHelpersTest(unittest.TestCase):
 
     def test_noaa_multi_message_allowance_is_narrow(self) -> None:
         self.assertEqual(NOAA_MAX_MESSAGES, {"total_precipitation": 4})
+
+    def test_ecmwf_gust_candidates_match_documented_identifiers(self) -> None:
+        self.assertEqual(
+            ECMWF_FIELDS["wind_gust_10m"],
+            ("10fg", "10fg3", "max_i10fg"),
+        )
 
     def test_source_url_validation_allows_only_official_https_hosts(self) -> None:
         self.assertEqual(
