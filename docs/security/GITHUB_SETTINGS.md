@@ -1,56 +1,56 @@
 # GitHub repository security settings
 
-These settings require repository-owner administration and cannot be applied by the connected automation identity.
+These settings require repository-owner administration and must be verified against the live repository state before they are documented as enforced.
 
-A 2026-09-09 audit of this private repository confirmed that the repository rulesets API responds with a plan requirement to upgrade GitHub Pro or make the repository public. Do not claim ruleset enforcement is active until GitHub actually exposes and applies it.
+As of 2026-09-10, MeteoOne is public and repository ruleset enforcement is active.
 
-## Desired ruleset for `main`
+## Active ruleset for `main`
 
-When repository rulesets/branch protection are available, target the default branch with:
+The active `Protect main` repository ruleset targets the default branch and enforces:
 
-- require changes through a pull request;
-- require conversation resolution;
-- require strict status checks and an up-to-date branch once CI runtime is acceptable;
-- require linear history;
-- block force pushes/non-fast-forward updates;
-- block branch deletion;
-- no routine bypass actors;
-- do not require a human approval solely for a security score while the project has one human maintainer.
+- changes through a pull request;
+- conversation resolution;
+- strict required status checks with an up-to-date branch;
+- linear history;
+- no non-fast-forward updates;
+- no branch deletion;
+- squash as the allowed merge method;
+- no bypass actors;
+- zero mandatory human approvals, which avoids creating a fake approval gate for a single-maintainer repository.
 
-Use squash merge for ordinary feature/fix work. Disable merge/rebase methods when the repository plan/settings make squash-only enforcement practical.
-
-## Required checks
-
-After the security-hardening workflow has produced these contexts successfully, require:
+The currently required successful check contexts are:
 
 - `verify`;
 - `gitleaks`;
 - `Semgrep`.
 
-Do not configure a required context before verifying its exact emitted name.
+Do not configure a required context before verifying its exact emitted name and a successful real pull-request run.
 
-While GitHub Advanced Security / GitHub Code Security is unavailable for this private repository, do not require the skipped contexts:
+## CodeQL and Dependency Review
 
-- `Analyze Java/Kotlin`;
-- `dependency-review`.
+The public repository is eligible for GitHub CodeQL code scanning and Dependency Review without the previous private-repository plan limitation.
 
-When GHAS becomes available:
+CodeQL must analyze the Kotlin application through a real compiled build. The advanced workflow uses `java-kotlin` with manual build mode and runs the Android debug build after CodeQL initialization. Do not downgrade the application Kotlin toolchain merely to make the scanner pass, and do not treat a Java-only/no-build scan as Kotlin coverage.
 
-1. enable the applicable security product;
-2. set repository Actions variable `GHAS_ENABLED=true`;
-3. verify CodeQL and Dependency Review on a real PR;
-4. require the exact successful contexts;
-5. add code-scanning enforcement for medium-or-higher security alerts if the plan exposes that rule.
+Before adding CodeQL or Dependency Review to `Protect main`:
+
+1. run both on a real public pull request;
+2. verify that CodeQL successfully extracts and analyzes the current Kotlin toolchain;
+3. record the exact successful emitted check contexts;
+4. add only those proven-stable contexts to the required checks.
+
+If current CodeQL tooling does not support the repository's Kotlin compiler version, keep CodeQL non-required and document the upstream compatibility gap rather than weakening or downgrading the application toolchain.
 
 ## Security analysis settings
 
-Enable every feature available to the current plan:
+Current owner-side security configuration includes:
 
-- Dependency graph;
-- Dependabot alerts;
-- Dependabot security updates;
-- secret scanning / push protection when available;
-- private vulnerability reporting when available for the repository visibility/plan.
+- Dependency graph / dependency security features available to the repository;
+- Dependabot alerts and security updates;
+- secret scanning;
+- secret scanning push protection.
+
+Keep every available security feature enabled unless a documented operational reason requires otherwise.
 
 ## Release tags
 
@@ -64,6 +64,6 @@ Keep workflow permissions denied/read-only by default. Grant write permission on
 
 Production signing secrets must never be available to ordinary pull-request workflows. Use a separately protected release environment or another explicitly trusted release mechanism.
 
-## Current administrative gap
+## Remaining administrative work
 
-Issue #12 tracks owner-side repository settings. Repository-code controls are active independently, but branch/ruleset enforcement, signed-commit requirements, immutable release-tag enforcement, and plan-gated code-scanning enforcement remain unverified until GitHub exposes the corresponding administrative features.
+Issue #12 tracks the remaining owner-side security work. The `main` ruleset, secret scanning, and push protection are now verified active. Remaining work is limited to validating CodeQL/Dependency Review before making either a required gate and to the release signing/tag/attestation controls that become applicable before the first production release.
