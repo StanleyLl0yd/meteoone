@@ -1,6 +1,6 @@
 package com.sl.meteoone.forecast.data.noaa
 
-import com.sl.meteoone.core.model.ForecastLocation
+import com.sl.meteoone.core.model.ForecastCoordinate
 import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.ModelFamily
 import com.sl.meteoone.forecast.data.source.OfficialSourceRequest
@@ -46,7 +46,7 @@ object NoaaGfsRequestPlanner {
 
     fun plan(
         modelRun: Instant,
-        location: ForecastLocation,
+        coordinate: ForecastCoordinate,
         forecastHour: Int,
     ): PlannedForecastRequest {
         val runUtc = modelRun.atOffset(ZoneOffset.UTC)
@@ -59,8 +59,8 @@ object NoaaGfsRequestPlanner {
         }
 
         val gridPoint = SourceGridPoint(
-            latitude = snapLatitude(location.latitude),
-            longitudeDegreesEast = snapLongitude(location.longitude),
+            latitude = snapLatitude(coordinate.latitude),
+            longitudeDegreesEast = snapLongitude(coordinate.longitude),
         )
         val cycle = runUtc.hour.toString().padStart(2, '0')
         val runDate = buildString(8) {
