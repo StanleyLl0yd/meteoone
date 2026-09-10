@@ -23,12 +23,11 @@ object ForecastCoordinateNormalizer {
     }
 
     private fun roundToForecastGrid(value: Double): Double {
-        val scale = decimalScale(ForecastCoordinate.GRID_STEP_DEGREES)
+        val step = BigDecimal.valueOf(ForecastCoordinate.GRID_STEP_DEGREES)
         val rounded = BigDecimal.valueOf(value)
-            .setScale(scale, RoundingMode.HALF_UP)
+            .divide(step, 0, RoundingMode.HALF_UP)
+            .multiply(step)
             .toDouble()
         return if (rounded == 0.0) 0.0 else rounded
     }
-
-    private fun decimalScale(step: Double): Int = BigDecimal.valueOf(step).stripTrailingZeros().scale()
 }
