@@ -68,6 +68,45 @@ class ForecastModelsTest {
     }
 
     @Test
+    fun hourlyWeatherPointRejectsNonFiniteNumericValues() {
+        val base = point()
+        val invalidFactories = listOf<() -> HourlyWeatherPoint>(
+            { base.copy(temperatureC = Double.NaN) },
+            { base.copy(feelsLikeC = Double.POSITIVE_INFINITY) },
+            { base.copy(dewPointC = Double.NEGATIVE_INFINITY) },
+            { base.copy(humidityPercent = Double.NaN) },
+            { base.copy(pressureSeaLevelHpa = Double.POSITIVE_INFINITY) },
+            { base.copy(windSpeedMps = Double.NEGATIVE_INFINITY) },
+            { base.copy(windGustMps = Double.NaN) },
+            { base.copy(windDirectionDegrees = Double.POSITIVE_INFINITY) },
+            { base.copy(precipitationMm = Double.NEGATIVE_INFINITY) },
+            { base.copy(precipitationProbabilityPercent = Double.NaN) },
+            { base.copy(cloudCoverPercent = Double.POSITIVE_INFINITY) },
+            { base.copy(visibilityMeters = Double.NEGATIVE_INFINITY) },
+        )
+
+        invalidFactories.forEach { factory ->
+            assertFailsWith<IllegalArgumentException> { factory() }
+        }
+
+        val finite = base.copy(
+            temperatureC = -20.0,
+            feelsLikeC = -25.0,
+            dewPointC = -30.0,
+            humidityPercent = 0.0,
+            pressureSeaLevelHpa = 1000.0,
+            windSpeedMps = 0.0,
+            windGustMps = 0.0,
+            windDirectionDegrees = 0.0,
+            precipitationMm = 0.0,
+            precipitationProbabilityPercent = 0.0,
+            cloudCoverPercent = 0.0,
+            visibilityMeters = 0.0,
+        )
+        assertEquals(0.0, finite.visibilityMeters)
+    }
+
+    @Test
     fun intervalMetadataRequiresMatchingValueAndPointEnd() {
         val oneHour = ForecastInterval(
             start = time.minusSeconds(3600),

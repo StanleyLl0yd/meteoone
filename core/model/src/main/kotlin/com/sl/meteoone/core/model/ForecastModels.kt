@@ -89,6 +89,22 @@ data class HourlyWeatherPoint(
     val precipitationInterval: ForecastInterval? = null,
 ) {
     init {
+        require(
+            temperatureC.isNullOrFinite() &&
+                feelsLikeC.isNullOrFinite() &&
+                dewPointC.isNullOrFinite() &&
+                humidityPercent.isNullOrFinite() &&
+                pressureSeaLevelHpa.isNullOrFinite() &&
+                windSpeedMps.isNullOrFinite() &&
+                windGustMps.isNullOrFinite() &&
+                windDirectionDegrees.isNullOrFinite() &&
+                precipitationMm.isNullOrFinite() &&
+                precipitationProbabilityPercent.isNullOrFinite() &&
+                cloudCoverPercent.isNullOrFinite() &&
+                visibilityMeters.isNullOrFinite(),
+        ) {
+            "Hourly weather numeric values must be finite when present"
+        }
         require(windGustInterval == null || windGustMps != null) {
             "Wind-gust interval requires a wind-gust value"
         }
@@ -103,6 +119,8 @@ data class HourlyWeatherPoint(
         }
     }
 }
+
+private fun Double?.isNullOrFinite(): Boolean = this?.isFinite() ?: true
 
 data class SourceForecast(
     val origin: ForecastOrigin,
