@@ -15,28 +15,25 @@ Active controls:
 - Gitleaks scans pull requests, main, and a weekly schedule;
 - Semgrep security-audit/secrets rules run on pull requests, main, weekly schedule, and manual dispatch;
 - Qodana JVM Community runs on schedule/manual dispatch as defense in depth;
-- Dependabot covers Gradle and GitHub Actions.
+- Dependabot covers Gradle and GitHub Actions;
+- secret scanning and push protection are enabled for the public repository;
+- the active `Protect main` ruleset requires the proven `verify`, `gitleaks`, and `Semgrep` contexts.
 
 Qodana is deliberately not a merge gate because a secondary external/tooling failure should not deadlock normal development.
 
-## GitHub Advanced Security boundary
+## Dependency Review
 
-This repository is private. GitHub CodeQL code scanning and Dependency Review require GitHub Advanced Security / GitHub Code Security for the current repository plan.
+The repository is public, so the previous private-repository GitHub Advanced Security plan limitation no longer blocks Dependency Review.
 
-Their workflows remain ready and are gated by:
+Dependency Review was verified successfully on real public PR #17, including run `34456327413`. Its exact job/check context is `dependency-review`. It is therefore eligible to become a required `main` gate; the live ruleset must not be documented as requiring it until that owner-side ruleset update is actually applied and verified.
 
-`vars.GHAS_ENABLED == 'true'`
+## CodeQL compatibility boundary
 
-or by the repository becoming public.
+Kotlin is not considered covered by a Java-only/no-build database. MeteoOne therefore keeps CodeQL advanced setup configured for `java-kotlin` with a real compiled Android build rather than using `build-mode: none`.
 
-When the feature becomes available:
+A clean uncached validation on public PR #17 proved that the current scanner cannot analyze the application toolchain. CodeQL action `4.37.9` / CLI `2.27.0` rejected Kotlin `2.4.20` during `:core:model:compileKotlin` with `KotlinVersionTooRecentError` and the explicit message that CodeQL supports versions below `2.4.20` (run `34456327378`).
 
-1. enable the applicable GitHub security product;
-2. set repository Actions variable `GHAS_ENABLED=true`;
-3. verify CodeQL and Dependency Review both pass;
-4. make their real check contexts required for `main`.
-
-CodeQL uses `build-mode: none` deliberately because the current compiler-tracing path does not support the selected Kotlin 2.4.20 toolchain reliably. Source extraction avoids downgrading the application toolchain merely for a scanner.
+The application Kotlin version must not be downgraded merely to satisfy scanner compatibility. Automatic CodeQL jobs are therefore gated by repository variable `CODEQL_KOTLIN_SUPPORTED=true`; while it is unset/false, pull-request, push, and scheduled CodeQL jobs skip. `workflow_dispatch` remains available as an explicit compatibility probe. After a manual probe succeeds with the current application toolchain, set the variable, verify a real PR, and only then consider the exact CodeQL context for `main` protection.
 
 ## Dependency policy
 
@@ -49,7 +46,7 @@ Dependency updates are reviewed for:
 - license/distribution impact;
 - release APK/AAB behavior.
 
-Dependabot is an update mechanism, not a complete vulnerability gate. Until Dependency Review is available on this private repository, dependency vulnerability enforcement remains a documented plan-level gap rather than being replaced with a flaky external SaaS scanner.
+Dependabot is an update mechanism, not a complete vulnerability gate. Dependency Review supplies the native pull-request dependency-diff gate and has been verified operational on the public repository.
 
 ## Network boundary
 

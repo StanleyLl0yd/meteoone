@@ -1,56 +1,62 @@
 # GitHub repository security settings
 
-These settings require repository-owner administration and cannot be applied by the connected automation identity.
+These settings require repository-owner administration and must be verified against the live repository state before they are documented as enforced.
 
-A 2026-09-09 audit of this private repository confirmed that the repository rulesets API responds with a plan requirement to upgrade GitHub Pro or make the repository public. Do not claim ruleset enforcement is active until GitHub actually exposes and applies it.
+As of 2026-09-10, MeteoOne is public and repository ruleset enforcement is active.
 
-## Desired ruleset for `main`
+## Active ruleset for `main`
 
-When repository rulesets/branch protection are available, target the default branch with:
+The active `Protect main` repository ruleset targets the default branch and enforces:
 
-- require changes through a pull request;
-- require conversation resolution;
-- require strict status checks and an up-to-date branch once CI runtime is acceptable;
-- require linear history;
-- block force pushes/non-fast-forward updates;
-- block branch deletion;
-- no routine bypass actors;
-- do not require a human approval solely for a security score while the project has one human maintainer.
+- changes through a pull request;
+- conversation resolution;
+- strict required status checks with an up-to-date branch;
+- linear history;
+- no non-fast-forward updates;
+- no branch deletion;
+- squash as the allowed merge method;
+- no bypass actors;
+- zero mandatory human approvals, which avoids creating a fake approval gate for a single-maintainer repository.
 
-Use squash merge for ordinary feature/fix work. Disable merge/rebase methods when the repository plan/settings make squash-only enforcement practical.
-
-## Required checks
-
-After the security-hardening workflow has produced these contexts successfully, require:
+The currently verified live required successful check contexts are:
 
 - `verify`;
 - `gitleaks`;
 - `Semgrep`.
 
-Do not configure a required context before verifying its exact emitted name.
+Do not document a context as required before verifying both its exact emitted name and the live ruleset state.
 
-While GitHub Advanced Security / GitHub Code Security is unavailable for this private repository, do not require the skipped contexts:
+## Dependency Review
 
-- `Analyze Java/Kotlin`;
-- `dependency-review`.
+Dependency Review was verified successfully twice on real public PR #17. The latest validation is run `34456327413`, and the exact successful job/check context is `dependency-review`.
 
-When GHAS becomes available:
+This context is eligible to be added to `Protect main`. The connected GitHub automation does not expose repository-ruleset mutation, so this remains an owner-side ruleset action until the live ruleset is updated and re-read. Do not claim `dependency-review` is required before that verification.
 
-1. enable the applicable security product;
-2. set repository Actions variable `GHAS_ENABLED=true`;
-3. verify CodeQL and Dependency Review on a real PR;
-4. require the exact successful contexts;
-5. add code-scanning enforcement for medium-or-higher security alerts if the plan exposes that rule.
+## CodeQL
+
+CodeQL must analyze the Kotlin application through a real compiled build. A Java-only `build-mode: none` database is not accepted as Kotlin coverage.
+
+Public PR #17 tested a clean uncached compiled CodeQL path with action `4.37.9` / CLI `2.27.0`. Run `34456327378` reached real Kotlin compilation and failed because the CodeQL Kotlin interceptor rejected Kotlin `2.4.20` as too recent, explicitly reporting support only for versions below `2.4.20`.
+
+MeteoOne does not downgrade the application Kotlin toolchain merely to make a scanner pass. Automatic CodeQL execution is therefore gated by repository variable `CODEQL_KOTLIN_SUPPORTED=true`. `workflow_dispatch` remains the explicit compatibility probe. When a manual probe succeeds against the then-current application toolchain:
+
+1. set `CODEQL_KOTLIN_SUPPORTED=true`;
+2. verify CodeQL on a real pull request;
+3. record the exact successful check context;
+4. add that context to `Protect main` only after it is proven stable.
+
+Until then, CodeQL is an explicitly documented upstream compatibility gap, not a merge gate.
 
 ## Security analysis settings
 
-Enable every feature available to the current plan:
+Current owner-side security configuration includes:
 
-- Dependency graph;
-- Dependabot alerts;
-- Dependabot security updates;
-- secret scanning / push protection when available;
-- private vulnerability reporting when available for the repository visibility/plan.
+- Dependency graph / dependency security features available to the repository;
+- Dependabot alerts and security updates;
+- secret scanning;
+- secret scanning push protection.
+
+Keep every available security feature enabled unless a documented operational reason requires otherwise.
 
 ## Release tags
 
@@ -64,6 +70,6 @@ Keep workflow permissions denied/read-only by default. Grant write permission on
 
 Production signing secrets must never be available to ordinary pull-request workflows. Use a separately protected release environment or another explicitly trusted release mechanism.
 
-## Current administrative gap
+## Remaining administrative work
 
-Issue #12 tracks owner-side repository settings. Repository-code controls are active independently, but branch/ruleset enforcement, signed-commit requirements, immutable release-tag enforcement, and plan-gated code-scanning enforcement remain unverified until GitHub exposes the corresponding administrative features.
+Issue #12 tracks owner-side repository security settings. The `main` ruleset, secret scanning, and push protection are verified active. The immediate remaining owner action is adding the already-proven `dependency-review` context to `Protect main` and verifying the live ruleset. CodeQL compatibility is tracked separately from owner administration because the blocker is the upstream Kotlin extractor. Release signing/tag/attestation controls become applicable before the first production release.

@@ -1,31 +1,34 @@
 # MeteoOne security baseline
 
-Status: active repository-code baseline
+Status: active repository and CI baseline
 
 MeteoOne follows the same practical security principles as the maintainer's hardened repositories, adapted to a pre-release Android/Kotlin application with a standard-library Python research harness and no backend/native component.
 
 ## Repository and change flow
 
-Target repository policy:
+The public repository has an active `Protect main` ruleset that enforces:
 
-- changes reach `main` through pull requests;
-- force pushes and branch deletion are blocked;
-- conversations are resolved before merge;
-- required checks use exact contexts that are actually emitted;
-- squash/linear history is preferred for normal changes;
-- no fake approval requirement is added to a single-maintainer repository.
+- changes through pull requests;
+- blocked branch deletion and non-fast-forward updates;
+- conversation resolution before merge;
+- strict required checks with an up-to-date branch;
+- squash-only linear history;
+- no bypass actors;
+- no fake mandatory approval requirement for a single-maintainer repository.
 
-The current private repository plan/API does not expose repository rulesets through the connected automation. This is an administrative remaining gap, tracked in `docs/security/GITHUB_SETTINGS.md` and issue #12.
+Secret scanning and push protection are enabled.
 
 ## Merge security gates
 
-Controls that can run without GitHub Advanced Security:
+The currently verified live required `main` gates are:
 
 - `verify`: research/JVM tests, Android lint, debug APK, release AAB, CI supply-chain policy, app identity and canonical-icon integrity;
 - `gitleaks`: full-history secret scan;
 - `Semgrep`: blocking SAST/security rules.
 
-CodeQL Java/Kotlin and Dependency Review are configured but are not claimed as active gates while the private repository lacks the required GitHub security feature.
+Dependency Review is operational on the public repository. It passed real PR #17 with exact context `dependency-review` and is eligible to become required once that owner-side ruleset update is applied and verified.
+
+CodeQL is not a merge gate while its Kotlin extractor is incompatible with the application compiler. A clean uncached public-PR validation using CodeQL action `4.37.9` / CLI `2.27.0` rejected Kotlin `2.4.20` as too recent. MeteoOne does not downgrade Kotlin for scanner compatibility and does not accept Java-only/no-build analysis as Kotlin coverage. Automatic CodeQL jobs remain gated until a manual compatibility probe succeeds with the current application toolchain.
 
 Qodana is scheduled/manual defense in depth and is intentionally not required.
 
@@ -67,7 +70,7 @@ Before the first public/store release, the repository must implement and verify:
 
 - protected release environment/signing material;
 - release source tied to an exact verified `main` commit/tag;
-- immutable semver `v*` tags where the repository plan supports enforcement;
+- immutable semver `v*` tags where repository enforcement supports them;
 - signed APK and AAB with expected certificate fingerprint verification;
 - SHA-256 checksums;
 - R8 mapping preservation when applicable;
@@ -78,4 +81,4 @@ See `docs/release/SIGNING.md`.
 
 ## Deliberate non-controls
 
-The repository does not add multiple overlapping SAST products as blocking gates, fake approvals, or unstable external vulnerability scanners simply to increase a score. Every required control must protect a real threat boundary and remain operationally reliable.
+The repository does not add multiple overlapping SAST products as blocking gates, fake approvals, downgrade the application toolchain for scanner compatibility, or add unstable external vulnerability scanners simply to increase a score. Every required control must protect a real threat boundary and remain operationally reliable.
