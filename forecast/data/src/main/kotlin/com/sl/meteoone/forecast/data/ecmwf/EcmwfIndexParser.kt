@@ -3,9 +3,8 @@ package com.sl.meteoone.forecast.data.ecmwf
 import com.sl.meteoone.forecast.data.source.ByteRange
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 
 private const val MAX_INDEX_BYTES = 2 * 1024 * 1024
@@ -62,11 +61,33 @@ object EcmwfIndexParser {
         value: JsonObject,
         lineNumber: Int,
     ): EcmwfIndexEntry {
-        fun string(key: String): String =
-            value[key]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        fun primitive(key: String): JsonPrimitive =
+            value[key] as? JsonPrimitive
                 ?: throw IllegalArgumentException(
-                    "ECMWF index line $lineNumber is missing string field $key",
+                    "ECMWF index line $lineNumber is missing primitive field $key",
                 )
+
+        fun string(key: String): String {
+            val field = primitive(key)
+            require(field.isString) {
+                "ECMWF index line $lineNumber field $key must be a JSON string"
+            }
+            return field.content.takeIf { it.isNotBlank() }
+                ?: throw IllegalArgumentException(
+                    "ECMWF index line $lineNumber has an empty string field $key",
+                )
+        }
+
+        fun integer(key: String): Long {
+            val field = primitive(key)
+            require(!field.isString) {
+                "ECMWF index line $lineNumber field $key must be a JSON number"
+            }
+            return field.longOrNull
+                ?: throw IllegalArgumentException(
+                    "ECMWF index line $lineNumber has an invalid integer field $key",
+                )
+        }
 
         val step = string("step").toIntOrNull()
             ?: throw IllegalArgumentException(
@@ -74,17 +95,11 @@ object EcmwfIndexParser {
             )
         require(step >= 0) { "ECMWF index line $lineNumber has a negative step" }
 
-        val offset = value["_offset"]?.jsonPrimitive?.longOrNull
-            ?: throw IllegalArgumentException(
-                "ECMWF index line $lineNumber has an invalid _offset",
-            )
-        val length = value["_length"]?.jsonPrimitive?.longOrNull
-            ?: throw IllegalArgumentException(
-                "ECMWF index line $lineNumber has an invalid _length",
-            )
-
         val range = try {
-            ByteRange(offset = offset, length = length)
+            ByteRange(
+                offset = integer("_offset"),
+                length = integer("_length"),
+            )
         } catch (error: IllegalArgumentException) {
             throw IllegalArgumentException(
                 "ECMWF index line $lineNumber has an invalid byte range",
