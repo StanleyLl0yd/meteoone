@@ -92,11 +92,24 @@ class OpenMeteoForecastMapper {
                 }
             }
 
+            val windSpeedMps = windSpeed[index].bounded(
+                name = "wind_speed_10m",
+                minimum = 0.0,
+                maximum = MAX_WIND_MPS,
+            )
             val windGustMps = windGust[index].bounded(
                 name = "wind_gusts_10m",
                 minimum = 0.0,
                 maximum = MAX_WIND_MPS,
             )
+            val windDirectionDegrees = windDirection[index]
+                .bounded(
+                    name = "wind_direction_10m",
+                    minimum = 0.0,
+                    maximum = FULL_CIRCLE_DEGREES,
+                )
+                ?.let { if (it == FULL_CIRCLE_DEGREES) 0.0 else it }
+                ?.takeUnless { windSpeedMps == 0.0 }
             val precipitationMm = precipitation[index].bounded(
                 name = "precipitation",
                 minimum = 0.0,
@@ -122,19 +135,9 @@ class OpenMeteoForecastMapper {
                     minimum = MIN_MSLP_HPA,
                     maximum = MAX_MSLP_HPA,
                 ),
-                windSpeedMps = windSpeed[index].bounded(
-                    name = "wind_speed_10m",
-                    minimum = 0.0,
-                    maximum = MAX_WIND_MPS,
-                ),
+                windSpeedMps = windSpeedMps,
                 windGustMps = windGustMps,
-                windDirectionDegrees = windDirection[index]
-                    .bounded(
-                        name = "wind_direction_10m",
-                        minimum = 0.0,
-                        maximum = FULL_CIRCLE_DEGREES,
-                    )
-                    ?.let { if (it == FULL_CIRCLE_DEGREES) 0.0 else it },
+                windDirectionDegrees = windDirectionDegrees,
                 precipitationMm = precipitationMm,
                 precipitationProbabilityPercent = null,
                 cloudCoverPercent = cloudCover[index].bounded(

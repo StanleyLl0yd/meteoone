@@ -46,6 +46,7 @@ The normalized forecast uses:
 - the caller-provided privacy-normalized forecast location; Open-Meteo's returned grid-cell coordinate is validated but is not treated as a new user location;
 - one-hour precipitation intervals ending at each forecast timestamp, matching the API's preceding-hour precipitation-sum semantics;
 - model-specific wind-gust intervals ending at each forecast timestamp: one hour for NOAA GFS and DWD ICON Global, three hours for ECMWF IFS, matching the corresponding Open-Meteo model documentation;
+- no wind direction when the normalized provider wind speed is exactly `0.0`; this removes undefined calm-wind direction without introducing a meteorological calm threshold, while a missing wind-speed value does not erase an independently present direction;
 - coarse `WeatherCondition` values derived from WMO weather codes.
 
 Missing JSON values remain missing. A missing gust therefore has no interval metadata. Unknown weather codes normalize to `WeatherCondition.UNKNOWN`; values are never fabricated from another provider.

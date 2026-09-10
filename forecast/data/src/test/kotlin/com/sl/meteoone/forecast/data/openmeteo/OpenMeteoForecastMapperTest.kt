@@ -127,6 +127,42 @@ class OpenMeteoForecastMapperTest {
     }
 
     @Test
+    fun dropsDirectionOnlyForExactZeroWindSpeed() {
+        val calm = map(
+            payload = payload(
+                values = mapOf(
+                    "wind_speed_10m" to "0.0",
+                    "wind_direction_10m" to "270.0",
+                ),
+            ),
+        ).hourly.first()
+        assertEquals(0.0, calm.windSpeedMps)
+        assertNull(calm.windDirectionDegrees)
+
+        val moving = map(
+            payload = payload(
+                values = mapOf(
+                    "wind_speed_10m" to "0.1",
+                    "wind_direction_10m" to "270.0",
+                ),
+            ),
+        ).hourly.first()
+        assertEquals(0.1, moving.windSpeedMps)
+        assertEquals(270.0, moving.windDirectionDegrees)
+
+        val unknownSpeed = map(
+            payload = payload(
+                values = mapOf(
+                    "wind_speed_10m" to "null",
+                    "wind_direction_10m" to "270.0",
+                ),
+            ),
+        ).hourly.first()
+        assertNull(unknownSpeed.windSpeedMps)
+        assertEquals(270.0, unknownSpeed.windDirectionDegrees)
+    }
+
+    @Test
     fun acceptsSelectedModelSuffixAndMissingOptionalSeries() {
         val suffixed = payload().replace(
             "\"temperature_2m\":[",
