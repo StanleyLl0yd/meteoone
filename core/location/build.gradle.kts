@@ -21,5 +21,7 @@ android {
 }
 
 dependencies {
+    api(project(":core:model"))
+
     testImplementation(libs.kotlin.test.junit)
 }
