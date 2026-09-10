@@ -24,7 +24,9 @@ The probe therefore records measured requirements first. A decoder implementatio
 - bounded bzip2 decompression;
 - strict UTC/cycle/forecast-hour inputs;
 - official-source HTTPS allowlisting and cross-host redirect rejection;
-- strict HTTP response-size and range metadata helpers.
+- strict HTTP response-size and range metadata helpers;
+- bounded multi-message NOAA measurement;
+- partial-evidence payload behavior.
 
 Ordinary pull-request CI never depends on live weather-provider availability.
 
@@ -40,17 +42,19 @@ The workflow requests representative fields from:
 
 Network reads are bounded. Only HTTPS on the three explicit official hosts is accepted, cross-host redirects are rejected, and ECMWF range responses must return the requested `Content-Range`.
 
-The first live run on 2026-09-10 (`06Z`, `f006`) measured that a NOAA `APCP` surface subset can contain two concatenated GRIB2 messages. The probe therefore permits a narrowly bounded 1..4 messages for `total_precipitation` while every other sampled NOAA field still requires exactly one message. The multiple messages are preserved individually in `evidence.json`; they are not collapsed during capability measurement.
+The first two live runs on 2026-09-10 (`06Z`, `f006`) measured that NOAA/NOMADS field/level subsets are not guaranteed to contain exactly one GRIB message: `APCP` and `TCDC` each returned two concatenated messages. Because the purpose of this tool is capability measurement rather than production field selection, the resilient probe accepts a hard maximum of four messages for any sampled NOAA field and records every message's PDT/DRT/GDT. Production adapters must later select the required semantic message explicitly; they must not treat all measured messages as interchangeable.
+
+The resilient probe continues to the next provider after a provider-specific failure. `evidence.json` schema version 2 records `success`, provider-level `errors`, every successfully returned sample and the measured template summary. The workflow still exits non-zero if any provider failed, so partial evidence cannot be mistaken for a complete capability matrix.
 
 The artifact contains:
 
-- `evidence.json` with source/final URLs, response status, SHA-256, byte sizes and extracted templates;
+- `evidence.json` with source/final URLs, response status, SHA-256, byte sizes, extracted templates and any provider-level failures;
 - representative provider samples needed to reproduce the inspection;
-- `SHA256SUMS` for the artifact payload files when the complete probe succeeds.
+- `SHA256SUMS` for all payload files except the manifest itself.
 
 For DWD, the exact official `.grib2.bz2` response is retained as the reproducibility sample. The decompressed GRIB2 is inspected in memory and its size and SHA-256 are recorded in `evidence.json`, avoiding a duplicate large artifact copy while retaining a deterministic integrity check.
 
-The upload step runs even after a probe failure so any partial provider samples remain available for diagnosis. A failed run is not accepted as final capability evidence.
+The upload step runs even after a probe failure so partial provider samples remain available for diagnosis. A failed run is not accepted as final capability evidence.
 
 After a successful live run, commit only a compact evidence summary plus immutable run/artifact identifiers and digests needed for long-term architectural decisions. Do not turn large operational GRIB files into normal Git history. The workflow artifact itself is retained for 90 days and is evidence transport, not the permanent architecture record.
 
