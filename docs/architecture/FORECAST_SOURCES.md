@@ -16,6 +16,8 @@ MeteoOne separates a forecast model from the service that delivers that model. A
 
 The same model family delivered by two provider paths remains one independent fusion evidence group. For example, GFS delivered by NOMADS and GFS delivered by Open-Meteo are two provider observations of `NOAA_GFS`, not two ensemble members.
 
+The shared `PlannedForecastRequest` direct-source boundary validates each provider/model-family pair against `OfficialProviderIdentity`, so impossible or non-official provenance cannot enter an official request plan.
+
 ## NOAA/NCEP GFS
 
 M1 uses the official NOMADS GFS 0.25 degree GRIB Filter path.
