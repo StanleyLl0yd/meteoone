@@ -48,7 +48,7 @@ The artifact contains:
 
 For DWD, both the exact official `.grib2.bz2` response and the bounded decompressed GRIB2 sample are retained in the short-lived workflow artifact. Their separate hashes allow later decoder tests to distinguish transport compression from GRIB2 data representation.
 
-After a successful live run, commit only a compact evidence summary/artifact reference needed for long-term architectural decisions. Do not turn large operational GRIB files into normal Git history.
+After a successful live run, commit only a compact evidence summary plus immutable run/artifact identifiers and digests needed for long-term architectural decisions. Do not turn large operational GRIB files into normal Git history. The workflow artifact itself is retained for 90 days and is evidence transport, not the permanent architecture record.
 
 ## Decoder acceptance gate
 
