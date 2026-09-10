@@ -63,7 +63,11 @@ object NoaaGfsRequestPlanner {
             longitudeDegreesEast = snapLongitude(location.longitude),
         )
         val cycle = runUtc.hour.toString().padStart(2, '0')
-        val runDate = "%04d%02d%02d".format(runUtc.year, runUtc.monthValue, runUtc.dayOfMonth)
+        val runDate = buildString(8) {
+            append(runUtc.year.toString().padStart(4, '0'))
+            append(runUtc.monthValue.toString().padStart(2, '0'))
+            append(runUtc.dayOfMonth.toString().padStart(2, '0'))
+        }
         val forecastHourToken = forecastHour.toString().padStart(3, '0')
         val fileName = "gfs.t${cycle}z.pgrb2.0p25.f$forecastHourToken"
         val directory = "/gfs.$runDate/$cycle/atmos"
