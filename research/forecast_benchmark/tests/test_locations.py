@@ -26,6 +26,14 @@ EXPECTED_M0_IDS = {
     "murmansk",
 }
 
+EXPECTED_CURRENT_RUSSIA_IDS = {
+    "saint-petersburg",
+    "moscow",
+    "kazan",
+    "novosibirsk",
+    "vladivostok",
+}
+
 EXPECTED_GLOBAL_IDS = {
     "tbilisi",
     "yerevan",
@@ -38,13 +46,14 @@ EXPECTED_GLOBAL_IDS = {
 
 
 class LocationSetTest(unittest.TestCase):
-    def test_default_verification_set_contains_m0_and_global_locations(self) -> None:
+    def test_default_verification_set_contains_selected_russia_and_global_locations(self) -> None:
         locations = load_locations(DEFAULT_LOCATIONS)
         ids = {location.id for location in locations}
 
-        self.assertEqual(len(locations), 17)
+        self.assertEqual(len(locations), 12)
         self.assertEqual(len(ids), len(locations))
-        self.assertEqual(ids, EXPECTED_M0_IDS | EXPECTED_GLOBAL_IDS)
+        self.assertEqual(ids, EXPECTED_CURRENT_RUSSIA_IDS | EXPECTED_GLOBAL_IDS)
+        self.assertTrue(EXPECTED_CURRENT_RUSSIA_IDS.issubset(EXPECTED_M0_IDS))
 
     def test_m0_russia_set_is_preserved_byte_for_byte(self) -> None:
         digest = hashlib.sha256(M0_RUSSIA_LOCATIONS.read_bytes()).hexdigest()

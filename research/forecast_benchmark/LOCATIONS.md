@@ -1,23 +1,18 @@
 # Verification locations
 
-MeteoOne keeps two distinct location sets so current verification can expand without rewriting the completed M0 evidence base.
+MeteoOne keeps two distinct location sets so current verification can evolve without rewriting the completed M0 evidence base.
 
 ## Current standing verification set
 
-`locations.json` is the default current verification set. As of 2026-09-10 it contains 17 geographically and climatically diverse points:
+`locations.json` is the default current verification set. As of 2026-09-10 it contains 12 geographically and climatically diverse points: 5 Russian locations plus 7 international control points.
 
 | ID | City | Region / purpose |
 | --- | --- | --- |
 | `saint-petersburg` | Saint Petersburg | Baltic / maritime-influenced north-west Russia |
 | `moscow` | Moscow | central European Russia |
-| `kazan` | Kazan | Volga continental |
-| `yekaterinburg` | Yekaterinburg | Urals continental |
-| `novosibirsk` | Novosibirsk | West Siberia |
-| `krasnoyarsk` | Krasnoyarsk | Central Siberia |
-| `sochi` | Sochi | Black Sea / complex terrain |
-| `vladivostok` | Vladivostok | Pacific / monsoon influence |
-| `yakutsk` | Yakutsk | extreme continental |
-| `murmansk` | Murmansk | Arctic / maritime influence |
+| `kazan` | Kazan | Volga region / central Russia |
+| `novosibirsk` | Novosibirsk | West Siberia / continental interior |
+| `vladivostok` | Vladivostok | Russian Far East / Pacific monsoon influence |
 | `tbilisi` | Tbilisi | South Caucasus valley terrain |
 | `yerevan` | Yerevan | South Caucasus highland / dry continental |
 | `tokyo` | Tokyo | Pacific humid subtropical / monsoon |
@@ -26,7 +21,7 @@ MeteoOne keeps two distinct location sets so current verification can expand wit
 | `berlin` | Berlin | central European transition climate |
 | `dubai` | Dubai | Arabian Gulf hot desert |
 
-These points are intended for M1 live source validation, cross-provider comparison, mapper regressions and later verification campaigns. Their presence does not retroactively change any completed M0 metric.
+The compact Russian subset intentionally keeps Saint Petersburg and Moscow plus representative central, Siberian and Far-Eastern points without over-weighting Russia in routine M1 verification. These points are intended for live source validation, cross-provider comparison, mapper regressions and later verification campaigns. Their presence or removal from the standing set does not retroactively change any completed M0 metric.
 
 ## Frozen M0 Russia set
 
@@ -43,7 +38,7 @@ The historical campaign remains:
 - 00 UTC initialization;
 - 72-hour horizon.
 
-Do not describe M0 as a 17-location benchmark and do not recompute its published metrics merely because the standing verification set later expanded.
+Do not describe M0 as a 12-location benchmark and do not recompute its published metrics merely because the standing verification set later changed.
 
 ## Reproducing the M0 location selection
 
