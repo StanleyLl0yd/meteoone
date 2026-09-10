@@ -1,31 +1,34 @@
 # MeteoOne security baseline
 
-Status: active repository-code baseline
+Status: active repository and CI baseline
 
 MeteoOne follows the same practical security principles as the maintainer's hardened repositories, adapted to a pre-release Android/Kotlin application with a standard-library Python research harness and no backend/native component.
 
 ## Repository and change flow
 
-Target repository policy:
+The public repository has an active `Protect main` ruleset that enforces:
 
-- changes reach `main` through pull requests;
-- force pushes and branch deletion are blocked;
-- conversations are resolved before merge;
-- required checks use exact contexts that are actually emitted;
-- squash/linear history is preferred for normal changes;
-- no fake approval requirement is added to a single-maintainer repository.
+- changes through pull requests;
+- blocked branch deletion and non-fast-forward updates;
+- conversation resolution before merge;
+- strict required checks with an up-to-date branch;
+- squash-only linear history;
+- no bypass actors;
+- no fake mandatory approval requirement for a single-maintainer repository.
 
-The current private repository plan/API does not expose repository rulesets through the connected automation. This is an administrative remaining gap, tracked in `docs/security/GITHUB_SETTINGS.md` and issue #12.
+Secret scanning and push protection are enabled.
 
 ## Merge security gates
 
-Controls that can run without GitHub Advanced Security:
+The currently required `main` gates are:
 
 - `verify`: research/JVM tests, Android lint, debug APK, release AAB, CI supply-chain policy, app identity and canonical-icon integrity;
 - `gitleaks`: full-history secret scan;
 - `Semgrep`: blocking SAST/security rules.
 
-CodeQL Java/Kotlin and Dependency Review are configured but are not claimed as active gates while the private repository lacks the required GitHub security feature.
+Dependency Review and CodeQL are available for the public repository but are not made required until each exact context has succeeded on a real pull request.
+
+CodeQL must perform a compiled Kotlin analysis. The application Kotlin toolchain is not downgraded for scanner compatibility, and a Java-only/no-build scan is not accepted as Kotlin coverage. If the current CodeQL extractor does not support the repository compiler version, that remains a documented upstream tooling gap until support advances.
 
 Qodana is scheduled/manual defense in depth and is intentionally not required.
 
@@ -67,7 +70,7 @@ Before the first public/store release, the repository must implement and verify:
 
 - protected release environment/signing material;
 - release source tied to an exact verified `main` commit/tag;
-- immutable semver `v*` tags where the repository plan supports enforcement;
+- immutable semver `v*` tags where repository enforcement supports them;
 - signed APK and AAB with expected certificate fingerprint verification;
 - SHA-256 checksums;
 - R8 mapping preservation when applicable;
