@@ -1,5 +1,6 @@
 package com.sl.meteoone.core.model
 
+import java.time.Duration
 import java.time.Instant
 
 enum class ForecastProvider {
@@ -38,6 +39,18 @@ data class ForecastLocation(
     }
 }
 
+data class ForecastInterval(
+    val start: Instant,
+    val end: Instant,
+) {
+    init {
+        require(start.isBefore(end)) { "Forecast interval start must be before its end" }
+    }
+
+    val duration: Duration
+        get() = Duration.between(start, end)
+}
+
 enum class WeatherCondition {
     UNKNOWN,
     CLEAR,
@@ -66,7 +79,24 @@ data class HourlyWeatherPoint(
     val cloudCoverPercent: Double?,
     val visibilityMeters: Double?,
     val condition: WeatherCondition = WeatherCondition.UNKNOWN,
-)
+    val windGustInterval: ForecastInterval? = null,
+    val precipitationInterval: ForecastInterval? = null,
+) {
+    init {
+        require(windGustInterval == null || windGustMps != null) {
+            "Wind-gust interval requires a wind-gust value"
+        }
+        require(precipitationInterval == null || precipitationMm != null) {
+            "Precipitation interval requires a precipitation value"
+        }
+        require(windGustInterval == null || windGustInterval.end == time) {
+            "Wind-gust interval must end at the weather-point time"
+        }
+        require(precipitationInterval == null || precipitationInterval.end == time) {
+            "Precipitation interval must end at the weather-point time"
+        }
+    }
+}
 
 data class SourceForecast(
     val origin: ForecastOrigin,
