@@ -1,5 +1,6 @@
 package com.sl.meteoone.forecast.domain
 
+import com.sl.meteoone.core.model.ForecastInterval
 import com.sl.meteoone.core.model.ForecastOrigin
 import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.FusedForecast
@@ -61,6 +62,17 @@ class ForecastFusionEngine {
             },
         )
 
+        val windGust = fuseIntervalScalar(
+            evidenceGroups = evidenceGroups.values,
+            valueSelector = { it.windGustMps },
+            intervalSelector = { it.windGustInterval },
+        )
+        val precipitation = fuseIntervalScalar(
+            evidenceGroups = evidenceGroups.values,
+            valueSelector = { it.precipitationMm },
+            intervalSelector = { it.precipitationInterval },
+        )
+
         val first = points.first().point
         val weather = HourlyWeatherPoint(
             time = first.time,
@@ -70,13 +82,15 @@ class ForecastFusionEngine {
             humidityPercent = fuseScalar { it.humidityPercent },
             pressureSeaLevelHpa = fuseScalar { it.pressureSeaLevelHpa },
             windSpeedMps = fuseScalar { it.windSpeedMps },
-            windGustMps = fuseScalar { it.windGustMps },
+            windGustMps = windGust.value,
             windDirectionDegrees = windDirection,
-            precipitationMm = fuseScalar { it.precipitationMm },
+            precipitationMm = precipitation.value,
             precipitationProbabilityPercent = fuseScalar { it.precipitationProbabilityPercent },
             cloudCoverPercent = fuseScalar { it.cloudCoverPercent },
             visibilityMeters = fuseScalar { it.visibilityMeters },
             condition = WeatherCondition.UNKNOWN,
+            windGustInterval = windGust.interval,
+            precipitationInterval = precipitation.interval,
         )
 
         return FusedHourlyForecast(
@@ -85,6 +99,77 @@ class ForecastFusionEngine {
             independentEvidenceCount = evidenceGroups.size,
             agreement = temperatureAgreement(temperatureValues),
         )
+    }
+
+    private fun fuseIntervalScalar(
+        evidenceGroups: Collection<List<SourcePoint>>,
+        valueSelector: (HourlyWeatherPoint) -> Double?,
+        intervalSelector: (HourlyWeatherPoint) -> ForecastInterval?,
+    ): IntervalScalarFusion {
+        val candidates = buildSet {
+            evidenceGroups.forEach { group ->
+                group.forEach { sourcePoint ->
+                    if (valueSelector(sourcePoint.point) != null) {
+                        add(IntervalKey(intervalSelector(sourcePoint.point)))
+                    }
+                }
+            }
+        }
+        if (candidates.isEmpty()) {
+            return IntervalScalarFusion(value = null, interval = null)
+        }
+
+        val ranked = candidates.map { key ->
+            IntervalCandidate(
+                key = key,
+                independentEvidenceSupport = evidenceGroups.count { group ->
+                    group.any { sourcePoint ->
+                        valueSelector(sourcePoint.point) != null &&
+                            intervalSelector(sourcePoint.point) == key.interval
+                    }
+                },
+            )
+        }.sortedWith(::compareIntervalCandidates)
+
+        val selected = ranked.first().key.interval
+        val evidenceValues = evidenceGroups.mapNotNull { group ->
+            median(
+                group.mapNotNull { sourcePoint ->
+                    if (intervalSelector(sourcePoint.point) == selected) {
+                        valueSelector(sourcePoint.point)
+                    } else {
+                        null
+                    }
+                },
+            )
+        }
+
+        return IntervalScalarFusion(
+            value = evidenceValues.takeIf { it.isNotEmpty() }?.average(),
+            interval = selected,
+        )
+    }
+
+    private fun compareIntervalCandidates(
+        left: IntervalCandidate,
+        right: IntervalCandidate,
+    ): Int {
+        val support = right.independentEvidenceSupport.compareTo(left.independentEvidenceSupport)
+        if (support != 0) return support
+
+        val leftInterval = left.key.interval
+        val rightInterval = right.key.interval
+        if ((leftInterval == null) != (rightInterval == null)) {
+            return if (leftInterval != null) -1 else 1
+        }
+        if (leftInterval != null && rightInterval != null) {
+            val duration = leftInterval.duration.compareTo(rightInterval.duration)
+            if (duration != 0) return duration
+
+            val start = rightInterval.start.compareTo(leftInterval.start)
+            if (start != 0) return start
+        }
+        return 0
     }
 
     private fun evidenceKey(origin: ForecastOrigin): EvidenceKey =
@@ -149,5 +234,19 @@ class ForecastFusionEngine {
     private data class EvidenceKey(
         val modelFamily: ModelFamily? = null,
         val provider: ForecastProvider? = null,
+    )
+
+    private data class IntervalKey(
+        val interval: ForecastInterval?,
+    )
+
+    private data class IntervalCandidate(
+        val key: IntervalKey,
+        val independentEvidenceSupport: Int,
+    )
+
+    private data class IntervalScalarFusion(
+        val value: Double?,
+        val interval: ForecastInterval?,
     )
 }
