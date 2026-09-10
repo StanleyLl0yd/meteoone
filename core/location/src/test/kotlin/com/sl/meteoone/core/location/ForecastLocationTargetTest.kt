@@ -1,5 +1,6 @@
 package com.sl.meteoone.core.location
 
+import com.sl.meteoone.core.model.ForecastCoordinate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
