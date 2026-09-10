@@ -48,6 +48,8 @@ Normal pull-request workflows must not receive production signing material. Rele
 
 Exact device coordinates are transient sensitive data. They must not be persisted, logged, included in analytics, crash reports, issue fixtures, snapshots, or debug dumps. Persist only the normalized forecast location/grid cell required for product behavior.
 
+The current foreground acquisition path requests only `ACCESS_COARSE_LOCATION`, normalizes the result before it leaves `:core:location`, and does not request precise or background location. Adding either permission requires a new privacy/security review.
+
 ## Network security
 
 Production Android traffic must use authenticated TLS; the application manifest forbids cleartext traffic.

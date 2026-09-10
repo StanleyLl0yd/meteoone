@@ -47,6 +47,7 @@ android {
 
 dependencies {
     implementation(project(":core:model"))
+    implementation(project(":core:location"))
     implementation(project(":forecast:domain"))
 
     implementation(platform(libs.androidx.compose.bom))
