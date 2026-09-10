@@ -12,15 +12,19 @@ private const val MAX_SELECTED_FIELD_BYTES = 16L * 1024L * 1024L
 
 enum class EcmwfSurfaceField(
     val parameter: String,
+    val parameterAliases: Set<String> = emptySet(),
 ) {
     TEMPERATURE_2M("2t"),
     DEW_POINT_2M("2d"),
     PRESSURE_MEAN_SEA_LEVEL("msl"),
     WIND_U_10M("10u"),
     WIND_V_10M("10v"),
-    WIND_GUST_10M_LAST_3H("10fg3"),
+    WIND_GUST_10M_LAST_3H("10fg", setOf("10fg3")),
     TOTAL_PRECIPITATION("tp"),
     TOTAL_CLOUD_COVER("tcc"),
+    ;
+
+    val acceptedParameters: Set<String> = setOf(parameter) + parameterAliases
 }
 
 data class EcmwfFieldRangePlan(
@@ -49,10 +53,10 @@ object EcmwfIfsFieldSelector {
             .sortedBy { it.ordinal }
             .map { field ->
                 val matches = entries.filter { entry ->
-                    entry.levelType == "sfc" && entry.parameter == field.parameter
+                    entry.levelType == "sfc" && entry.parameter in field.acceptedParameters
                 }
                 require(matches.size == 1) {
-                    "Expected exactly one ECMWF surface entry for ${field.parameter}, found ${matches.size}"
+                    "Expected exactly one ECMWF surface entry for ${field.acceptedParameters}, found ${matches.size}"
                 }
 
                 val range = matches.single().range

@@ -59,7 +59,7 @@ ECMWF_FIELDS = {
     "pressure_mean_sea_level": ("msl",),
     "wind_u_10m": ("10u",),
     "wind_v_10m": ("10v",),
-    "wind_gust_10m": ("10fg3", "max_i10fg"),
+    "wind_gust_10m": ("10fg", "10fg3", "max_i10fg"),
     "total_precipitation": ("tp",),
     "total_cloud_cover": ("tcc",),
 }
