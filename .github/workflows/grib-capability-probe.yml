@@ -1,0 +1,67 @@
+name: GRIB Capability Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_run:
+        description: "Common official model run, ISO UTC (for example 2026-09-10T06:00Z)"
+        required: true
+        type: string
+      forecast_hour:
+        description: "Common 3-hour forecast step from 3 through 72"
+        required: true
+        default: "6"
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: grib-capability-${{ inputs.model_run }}-${{ inputs.forecast_hour }}
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Verify CI supply-chain policy
+        run: python3 scripts/verify_ci_supply_chain.py
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13"
+
+      - name: Unit tests
+        run: python -m unittest discover -s research/grib_capabilities/tests -v
+
+      - name: Probe official GRIB sources
+        run: |
+          set -euo pipefail
+          mkdir -p research-output/grib-capability
+          python -m research.grib_capabilities.probe \
+            --run "${{ inputs.model_run }}" \
+            --forecast-hour "${{ inputs.forecast_hour }}" \
+            --output research-output/grib-capability/evidence.json \
+            --samples-dir research-output/grib-capability/samples
+          find research-output/grib-capability -type f -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            > research-output/grib-capability/SHA256SUMS
+
+      - name: Upload evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: meteoone-m1-grib-capability-${{ inputs.model_run }}-f${{ inputs.forecast_hour }}
+          path: research-output/grib-capability
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
