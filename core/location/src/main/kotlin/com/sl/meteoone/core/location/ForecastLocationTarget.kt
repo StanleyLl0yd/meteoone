@@ -1,5 +1,7 @@
 package com.sl.meteoone.core.location
 
+import com.sl.meteoone.core.model.ForecastCoordinate
+
 sealed interface ForecastLocationTarget {
     data object CurrentDevice : ForecastLocationTarget
 
