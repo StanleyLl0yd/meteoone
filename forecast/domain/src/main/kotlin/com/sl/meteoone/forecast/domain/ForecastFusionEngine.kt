@@ -88,7 +88,7 @@ class ForecastFusionEngine {
             precipitationProbabilityPercent = fuseScalar { it.precipitationProbabilityPercent },
             cloudCoverPercent = fuseScalar { it.cloudCoverPercent },
             visibilityMeters = fuseScalar { it.visibilityMeters },
-            condition = WeatherCondition.UNKNOWN,
+            condition = fuseCondition(evidenceGroups.values),
             windGustInterval = windGust.interval,
             precipitationInterval = precipitation.interval,
         )
@@ -172,6 +172,28 @@ class ForecastFusionEngine {
             if (start != 0) return start
         }
         return 0
+    }
+
+    private fun fuseCondition(
+        evidenceGroups: Collection<List<SourcePoint>>,
+    ): WeatherCondition {
+        val votes = evidenceGroups.mapNotNull { group ->
+            group
+                .map { it.point.condition }
+                .filter { it != WeatherCondition.UNKNOWN }
+                .distinct()
+                .singleOrNull()
+        }
+        if (votes.isEmpty()) {
+            return WeatherCondition.UNKNOWN
+        }
+
+        val counts = votes.groupingBy { it }.eachCount()
+        val highestCount = counts.values.max()
+        return counts.entries
+            .singleOrNull { it.value == highestCount }
+            ?.key
+            ?: WeatherCondition.UNKNOWN
     }
 
     private fun evidenceKey(origin: ForecastOrigin): EvidenceKey =
