@@ -21,15 +21,19 @@ Active controls:
 
 Qodana is deliberately not a merge gate because a secondary external/tooling failure should not deadlock normal development.
 
-## CodeQL and Dependency Review
+## Dependency Review
 
-The repository is public, so the previous private-repository GitHub Advanced Security plan limitation no longer blocks CodeQL code scanning or Dependency Review.
+The repository is public, so the previous private-repository GitHub Advanced Security plan limitation no longer blocks Dependency Review.
 
-Dependency Review remains configured for pull requests and becomes a required `main` gate only after its exact context succeeds on a real public pull request.
+Dependency Review was verified successfully on real public PR #17, including run `34456327413`. Its exact job/check context is `dependency-review`. It is therefore eligible to become a required `main` gate; the live ruleset must not be documented as requiring it until that owner-side ruleset update is actually applied and verified.
 
-CodeQL uses advanced setup for `java-kotlin` with a compiled build. Kotlin is not considered covered by a Java-only/no-build database: CodeQL initialization therefore precedes a manual Android `:app:assembleDebug` build, followed by analysis.
+## CodeQL compatibility boundary
 
-The application Kotlin version must not be downgraded merely to satisfy scanner compatibility. If CodeQL cannot extract the current Kotlin compiler version, keep the scan non-required, record the upstream compatibility gap, and retest when CodeQL support advances.
+Kotlin is not considered covered by a Java-only/no-build database. MeteoOne therefore keeps CodeQL advanced setup configured for `java-kotlin` with a real compiled Android build rather than using `build-mode: none`.
+
+A clean uncached validation on public PR #17 proved that the current scanner cannot analyze the application toolchain. CodeQL action `4.37.9` / CLI `2.27.0` rejected Kotlin `2.4.20` during `:core:model:compileKotlin` with `KotlinVersionTooRecentError` and the explicit message that CodeQL supports versions below `2.4.20` (run `34456327378`).
+
+The application Kotlin version must not be downgraded merely to satisfy scanner compatibility. Automatic CodeQL jobs are therefore gated by repository variable `CODEQL_KOTLIN_SUPPORTED=true`; while it is unset/false, pull-request, push, and scheduled CodeQL jobs skip. `workflow_dispatch` remains available as an explicit compatibility probe. After a manual probe succeeds with the current application toolchain, set the variable, verify a real PR, and only then consider the exact CodeQL context for `main` protection.
 
 ## Dependency policy
 
@@ -42,7 +46,7 @@ Dependency updates are reviewed for:
 - license/distribution impact;
 - release APK/AAB behavior.
 
-Dependabot is an update mechanism, not a complete vulnerability gate. Dependency Review supplies the native pull-request dependency-diff gate once its real public-repository context has been verified stable.
+Dependabot is an update mechanism, not a complete vulnerability gate. Dependency Review supplies the native pull-request dependency-diff gate and has been verified operational on the public repository.
 
 ## Network boundary
 
