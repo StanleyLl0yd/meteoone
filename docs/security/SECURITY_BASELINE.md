@@ -20,15 +20,15 @@ Secret scanning and push protection are enabled.
 
 ## Merge security gates
 
-The currently required `main` gates are:
+The currently verified live required `main` gates are:
 
 - `verify`: research/JVM tests, Android lint, debug APK, release AAB, CI supply-chain policy, app identity and canonical-icon integrity;
 - `gitleaks`: full-history secret scan;
 - `Semgrep`: blocking SAST/security rules.
 
-Dependency Review and CodeQL are available for the public repository but are not made required until each exact context has succeeded on a real pull request.
+Dependency Review is operational on the public repository. It passed real PR #17 with exact context `dependency-review` and is eligible to become required once that owner-side ruleset update is applied and verified.
 
-CodeQL must perform a compiled Kotlin analysis. The application Kotlin toolchain is not downgraded for scanner compatibility, and a Java-only/no-build scan is not accepted as Kotlin coverage. If the current CodeQL extractor does not support the repository compiler version, that remains a documented upstream tooling gap until support advances.
+CodeQL is not a merge gate while its Kotlin extractor is incompatible with the application compiler. A clean uncached public-PR validation using CodeQL action `4.37.9` / CLI `2.27.0` rejected Kotlin `2.4.20` as too recent. MeteoOne does not downgrade Kotlin for scanner compatibility and does not accept Java-only/no-build analysis as Kotlin coverage. Automatic CodeQL jobs remain gated until a manual compatibility probe succeeds with the current application toolchain.
 
 Qodana is scheduled/manual defense in depth and is intentionally not required.
 
@@ -81,4 +81,4 @@ See `docs/release/SIGNING.md`.
 
 ## Deliberate non-controls
 
-The repository does not add multiple overlapping SAST products as blocking gates, fake approvals, or unstable external vulnerability scanners simply to increase a score. Every required control must protect a real threat boundary and remain operationally reliable.
+The repository does not add multiple overlapping SAST products as blocking gates, fake approvals, downgrade the application toolchain for scanner compatibility, or add unstable external vulnerability scanners simply to increase a score. Every required control must protect a real threat boundary and remain operationally reliable.
