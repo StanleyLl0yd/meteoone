@@ -18,28 +18,34 @@ The active `Protect main` repository ruleset targets the default branch and enfo
 - no bypass actors;
 - zero mandatory human approvals, which avoids creating a fake approval gate for a single-maintainer repository.
 
-The currently required successful check contexts are:
+The currently verified live required successful check contexts are:
 
 - `verify`;
 - `gitleaks`;
 - `Semgrep`.
 
-Do not configure a required context before verifying its exact emitted name and a successful real pull-request run.
+Do not document a context as required before verifying both its exact emitted name and the live ruleset state.
 
-## CodeQL and Dependency Review
+## Dependency Review
 
-The public repository is eligible for GitHub CodeQL code scanning and Dependency Review without the previous private-repository plan limitation.
+Dependency Review was verified successfully twice on real public PR #17. The latest validation is run `34456327413`, and the exact successful job/check context is `dependency-review`.
 
-CodeQL must analyze the Kotlin application through a real compiled build. The advanced workflow uses `java-kotlin` with manual build mode and runs the Android debug build after CodeQL initialization. Do not downgrade the application Kotlin toolchain merely to make the scanner pass, and do not treat a Java-only/no-build scan as Kotlin coverage.
+This context is eligible to be added to `Protect main`. The connected GitHub automation does not expose repository-ruleset mutation, so this remains an owner-side ruleset action until the live ruleset is updated and re-read. Do not claim `dependency-review` is required before that verification.
 
-Before adding CodeQL or Dependency Review to `Protect main`:
+## CodeQL
 
-1. run both on a real public pull request;
-2. verify that CodeQL successfully extracts and analyzes the current Kotlin toolchain;
-3. record the exact successful emitted check contexts;
-4. add only those proven-stable contexts to the required checks.
+CodeQL must analyze the Kotlin application through a real compiled build. A Java-only `build-mode: none` database is not accepted as Kotlin coverage.
 
-If current CodeQL tooling does not support the repository's Kotlin compiler version, keep CodeQL non-required and document the upstream compatibility gap rather than weakening or downgrading the application toolchain.
+Public PR #17 tested a clean uncached compiled CodeQL path with action `4.37.9` / CLI `2.27.0`. Run `34456327378` reached real Kotlin compilation and failed because the CodeQL Kotlin interceptor rejected Kotlin `2.4.20` as too recent, explicitly reporting support only for versions below `2.4.20`.
+
+MeteoOne does not downgrade the application Kotlin toolchain merely to make a scanner pass. Automatic CodeQL execution is therefore gated by repository variable `CODEQL_KOTLIN_SUPPORTED=true`. `workflow_dispatch` remains the explicit compatibility probe. When a manual probe succeeds against the then-current application toolchain:
+
+1. set `CODEQL_KOTLIN_SUPPORTED=true`;
+2. verify CodeQL on a real pull request;
+3. record the exact successful check context;
+4. add that context to `Protect main` only after it is proven stable.
+
+Until then, CodeQL is an explicitly documented upstream compatibility gap, not a merge gate.
 
 ## Security analysis settings
 
@@ -66,4 +72,4 @@ Production signing secrets must never be available to ordinary pull-request work
 
 ## Remaining administrative work
 
-Issue #12 tracks the remaining owner-side security work. The `main` ruleset, secret scanning, and push protection are now verified active. Remaining work is limited to validating CodeQL/Dependency Review before making either a required gate and to the release signing/tag/attestation controls that become applicable before the first production release.
+Issue #12 tracks owner-side repository security settings. The `main` ruleset, secret scanning, and push protection are verified active. The immediate remaining owner action is adding the already-proven `dependency-review` context to `Protect main` and verifying the live ruleset. CodeQL compatibility is tracked separately from owner administration because the blocker is the upstream Kotlin extractor. Release signing/tag/attestation controls become applicable before the first production release.
