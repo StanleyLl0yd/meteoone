@@ -8,9 +8,12 @@ from research.grib_capabilities.probe import (
     DownloadedSample,
     _decompress_bzip2_bounded,
     _forecast_hour,
+    _parse_content_length,
     _parse_run,
     _template_summary,
+    _validate_content_range,
     _validate_ecmwf_entry,
+    _validate_source_url,
 )
 
 
@@ -31,21 +34,84 @@ class ProbeHelpersTest(unittest.TestCase):
     def test_run_parser_requires_exact_operational_utc_cycle(self) -> None:
         parsed = _parse_run("2026-09-10T06:00Z")
         self.assertEqual(parsed.isoformat(), "2026-09-10T06:00:00+00:00")
+        self.assertEqual(
+            _parse_run("2026-09-10T06:00+00:00").isoformat(),
+            "2026-09-10T06:00:00+00:00",
+        )
 
         for invalid in (
             "2026-09-10T03:00Z",
             "2026-09-10T06:30Z",
             "2026-09-10T06:00",
+            "2026-09-10T09:00+03:00",
         ):
-            with self.assertRaises(Exception):
-                _parse_run(invalid)
+            with self.subTest(value=invalid):
+                with self.assertRaises(Exception):
+                    _parse_run(invalid)
 
     def test_forecast_hour_requires_common_three_hour_step(self) -> None:
         self.assertEqual(_forecast_hour("3"), 3)
         self.assertEqual(_forecast_hour("72"), 72)
         for invalid in ("0", "1", "73", "x"):
-            with self.assertRaises(Exception):
-                _forecast_hour(invalid)
+            with self.subTest(value=invalid):
+                with self.assertRaises(Exception):
+                    _forecast_hour(invalid)
+
+    def test_source_url_validation_allows_only_official_https_hosts(self) -> None:
+        self.assertEqual(
+            _validate_source_url("https://data.ecmwf.int/forecasts/x"),
+            "data.ecmwf.int",
+        )
+        self.assertEqual(
+            _validate_source_url("https://nomads.ncep.noaa.gov/cgi-bin/filter"),
+            "nomads.ncep.noaa.gov",
+        )
+        self.assertEqual(
+            _validate_source_url("https://opendata.dwd.de/weather/nwp/icon/"),
+            "opendata.dwd.de",
+        )
+
+        for invalid in (
+            "file:///tmp/example",
+            "http://data.ecmwf.int/forecasts/x",
+            "https://example.invalid/x",
+            "https://data.ecmwf.int:8443/x",
+        ):
+            with self.subTest(url=invalid):
+                with self.assertRaises(RuntimeError):
+                    _validate_source_url(invalid)
+
+    def test_source_url_validation_rejects_cross_host_redirect(self) -> None:
+        with self.assertRaises(RuntimeError):
+            _validate_source_url(
+                "https://opendata.dwd.de/weather/nwp/icon/",
+                expected_host="data.ecmwf.int",
+            )
+
+    def test_content_length_rejects_non_numeric_and_negative_values(self) -> None:
+        self.assertEqual(
+            _parse_content_length("123", url="https://data.ecmwf.int/x"),
+            123,
+        )
+        for invalid in ("abc", "-1"):
+            with self.subTest(value=invalid):
+                with self.assertRaises(RuntimeError):
+                    _parse_content_length(invalid, url="https://data.ecmwf.int/x")
+
+    def test_content_range_must_match_requested_bytes(self) -> None:
+        _validate_content_range("bytes 10-19/100", start=10, end=19)
+        _validate_content_range("bytes 10-19/*", start=10, end=19)
+
+        for invalid in (
+            None,
+            "garbage",
+            "bytes 11-19/100",
+            "bytes 10-20/100",
+            "bytes 10-19/19",
+        ):
+            with self.subTest(value=invalid):
+                with self.assertRaises(RuntimeError):
+                    _validate_content_range(invalid, start=10, end=19)
 
     def test_ecmwf_provenance_validation_rejects_mismatch(self) -> None:
         entry = {
