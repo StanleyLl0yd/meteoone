@@ -12,6 +12,7 @@ from .probe import (
     DownloadedSample,
     ECMWF_FIELDS,
     MAX_ECMWF_FIELD_BYTES,
+    MAX_ECMWF_INDEX_BYTES,
     MAX_NOAA_RESPONSE_BYTES,
     NOAA_FIELDS,
     NOAA_REQUEST_SPACING_SECONDS,
@@ -102,16 +103,28 @@ def probe_ecmwf_resilient(
     samples_dir: Path,
 ) -> tuple[list[DownloadedSample], list[dict[str, str]], dict[str, object]]:
     date, cycle, _ = _run_tokens(model_run)
-    index_path = samples_dir / "ecmwf" / "index.jsonl"
-    index_url, grib_url, entries = _load_ecmwf_index(
-        model_run,
-        forecast_hour,
-        raw_output=index_path,
+    index_url, grib_url, entries = _load_ecmwf_index(model_run, forecast_hour)
+
+    # Fetch the already validated, bounded index once more only for immutable evidence.
+    # Keeping this concern in the resilient research wrapper avoids changing the stable
+    # production-like transport/parser helper merely to persist diagnostic bytes.
+    index_raw, index_status, final_index_url = _fetch_bounded(
+        index_url,
+        max_bytes=MAX_ECMWF_INDEX_BYTES,
+        require_status=200,
     )
-    index_raw = index_path.read_bytes()
+    index_path = _save_sample(
+        samples_dir,
+        "ecmwf",
+        "index",
+        index_raw,
+        ".jsonl",
+    )
     diagnostics: dict[str, object] = {
         "index_url": index_url,
-        "index_size": len(index_raw),
+        "final_index_url": final_index_url,
+        "index_status": index_status,
+        "index_size": index_path.stat().st_size,
         "index_sha256": _sha256(index_raw),
         "surface_param_values": _surface_param_values(entries),
     }
