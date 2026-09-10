@@ -170,6 +170,71 @@ class ForecastModelsTest {
         }
     }
 
+    @Test
+    fun fusedHourlyForecastRequiresPositiveCountsWithoutAssumingTheirOrdering() {
+        val fused = FusedHourlyForecast(
+            weather = point(),
+            providerCount = 1,
+            independentEvidenceCount = 1,
+            agreement = ModelAgreement.INSUFFICIENT,
+        )
+
+        fused.copy(providerCount = 1, independentEvidenceCount = 2)
+        fused.copy(providerCount = 2, independentEvidenceCount = 1)
+
+        assertFailsWith<IllegalArgumentException> {
+            fused.copy(providerCount = 0)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            fused.copy(providerCount = -1)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            fused.copy(independentEvidenceCount = 0)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            fused.copy(independentEvidenceCount = -1)
+        }
+    }
+
+    @Test
+    fun fusedForecastRequiresNonEmptyStrictlyIncreasingTimeline() {
+        val first = FusedHourlyForecast(
+            weather = point(pointTime = time),
+            providerCount = 1,
+            independentEvidenceCount = 1,
+            agreement = ModelAgreement.INSUFFICIENT,
+        )
+        val second = first.copy(weather = point(pointTime = time.plusSeconds(3600)))
+        val valid = FusedForecast(
+            location = location,
+            generatedAt = time,
+            hourly = listOf(first, second),
+        )
+        assertEquals(listOf(first, second), valid.hourly)
+
+        assertFailsWith<IllegalArgumentException> {
+            FusedForecast(
+                location = location,
+                generatedAt = time,
+                hourly = emptyList(),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            FusedForecast(
+                location = location,
+                generatedAt = time,
+                hourly = listOf(first, first),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            FusedForecast(
+                location = location,
+                generatedAt = time,
+                hourly = listOf(second, first),
+            )
+        }
+    }
+
     private fun point(
         pointTime: Instant = time,
         precipitationMm: Double? = null,
