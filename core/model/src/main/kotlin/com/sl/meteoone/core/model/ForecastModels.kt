@@ -5,6 +5,9 @@ import java.time.Instant
 enum class ForecastProvider {
     OPEN_METEO,
     MET_NORWAY,
+    NOAA_NOMADS,
+    ECMWF_OPEN_DATA,
+    DWD_OPEN_DATA,
     UNKNOWN,
 }
 

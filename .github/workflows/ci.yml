@@ -76,6 +76,7 @@ jobs:
           --stacktrace
           :core:model:test
           :forecast:domain:test
+          :forecast:data:test
           :app:lintDebug
           :app:assembleDebug
           :app:bundleRelease

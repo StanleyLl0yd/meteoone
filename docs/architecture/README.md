@@ -28,6 +28,8 @@ Compose UI
 
 A provider is a delivery system. A model is the underlying meteorological forecast family. Two providers exposing the same model must not be treated as independent ensemble votes.
 
+The M1 direct-source transport and provenance boundary is documented in [`FORECAST_SOURCES.md`](FORECAST_SOURCES.md).
+
 ### Domain independence
 
 Domain code must not depend on Android, Retrofit, Room, Compose, or provider DTOs. The fusion engine should remain JVM-testable.
@@ -68,5 +70,7 @@ Before sufficient verification data exists, the UI exposes qualitative model agr
 :feature:settings
 :feature:about
 ```
+
+`:forecast:data` is introduced in M1 because direct NOAA, ECMWF and DWD adapters now create a real provider/transport/normalization boundary. The remaining modules are created only when their roadmap responsibilities become concrete.
 
 The exact split may be adjusted only when real dependency boundaries justify it.
