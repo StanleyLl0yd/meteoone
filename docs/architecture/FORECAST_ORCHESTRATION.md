@@ -25,6 +25,14 @@ Provider identity and model-family identity are intentionally separate. NOAA GFS
 
 They are not independent meteorological votes. `ForecastFusionEngine` remains the authority for family-level de-duplication, so alternate providers for the same `ModelFamily` contribute one independent fusion vote while still remaining visible as distinct provider paths.
 
+## Categorical weather conditions
+
+Canonical `WeatherCondition` values use the same independent-evidence grouping as scalar fusion. `UNKNOWN` represents missing or unresolved categorical evidence and does not vote.
+
+Within one model-family evidence group, one distinct non-`UNKNOWN` condition becomes that family's categorical vote. If alternate provider deliveries for the same family disagree on non-`UNKNOWN` conditions, that family is unresolved for the condition field rather than receiving multiple provider votes.
+
+Across resolved independent evidence groups, the fusion engine selects a condition only when one category has a unique plurality. A categorical tie remains `WeatherCondition.UNKNOWN`; MeteoOne does not invent a severity ordering or arbitrary weather-state tie-break before measured evidence justifies one.
+
 ## M1 boundary
 
 This layer does not execute HTTP requests and does not define coroutine, cancellation, retry/backoff, rate-limit, provider-health, persistence, cache, stale-data, or UI policy. Those concerns remain outside this M1 domain boundary or belong to later milestones.
