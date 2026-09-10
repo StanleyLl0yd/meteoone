@@ -97,22 +97,32 @@ class ResilientProbeTest(unittest.TestCase):
             _ecmwf_entry("2t", 0),
             _ecmwf_entry("tcc", 6),
         ]
+        index_raw = b'{"param":"2t"}\n{"param":"tcc"}\n'
 
         def fake_load(
             model_run: datetime,
             forecast_hour: int,
-            *,
-            raw_output: Path | None = None,
         ) -> tuple[str, str, list[dict[str, object]]]:
             del model_run, forecast_hour
-            assert raw_output is not None
-            raw_output.parent.mkdir(parents=True, exist_ok=True)
-            raw_output.write_bytes(b'{"param":"2t"}\n{"param":"tcc"}\n')
             return (
                 "https://data.ecmwf.int/example.index",
                 "https://data.ecmwf.int/example.grib2",
                 entries,
             )
+
+        def fake_fetch(
+            url: str,
+            *,
+            max_bytes: int,
+            headers: dict[str, str] | None = None,
+            require_status: int | None = None,
+            expected_range: tuple[int, int] | None = None,
+        ) -> tuple[bytes, int, str]:
+            del max_bytes, require_status, expected_range
+            if url.endswith(".index"):
+                return index_raw, 200, url
+            self.assertIsNotNone(headers)
+            return b"sample", 206, url
 
         with tempfile.TemporaryDirectory() as directory:
             samples_dir = Path(directory)
@@ -132,11 +142,7 @@ class ResilientProbeTest(unittest.TestCase):
                 ),
                 patch(
                     "research.grib_capabilities.probe_resilient._fetch_bounded",
-                    return_value=(
-                        b"sample",
-                        206,
-                        "https://data.ecmwf.int/example.grib2",
-                    ),
+                    side_effect=fake_fetch,
                 ),
                 patch(
                     "research.grib_capabilities.probe_resilient.inspect_grib2",
@@ -156,8 +162,12 @@ class ResilientProbeTest(unittest.TestCase):
             self.assertEqual(len(errors), 1)
             self.assertEqual(errors[0]["field"], "wind_gust_10m")
             self.assertEqual(diagnostics["surface_param_values"], ["2t", "tcc"])
-            self.assertEqual(diagnostics["index_size"], 31)
-            self.assertTrue((samples_dir / "ecmwf" / "index.jsonl").is_file())
+            self.assertEqual(diagnostics["index_size"], len(index_raw))
+            self.assertEqual(diagnostics["index_status"], 200)
+            self.assertEqual(
+                (samples_dir / "ecmwf" / "index.jsonl").read_bytes(),
+                index_raw,
+            )
 
     def test_partial_payload_records_provider_failure(self) -> None:
         sample = DownloadedSample(
