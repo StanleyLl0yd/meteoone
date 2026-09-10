@@ -147,10 +147,26 @@ data class FusedHourlyForecast(
     val providerCount: Int,
     val independentEvidenceCount: Int,
     val agreement: ModelAgreement,
-)
+) {
+    init {
+        require(providerCount >= 1) { "Fused hourly forecast must include at least one provider" }
+        require(independentEvidenceCount >= 1) {
+            "Fused hourly forecast must include at least one independent evidence group"
+        }
+    }
+}
 
 data class FusedForecast(
     val location: ForecastLocation,
     val generatedAt: Instant,
     val hourly: List<FusedHourlyForecast>,
-)
+) {
+    init {
+        require(hourly.isNotEmpty()) { "Fused forecast must contain at least one hourly point" }
+        require(hourly.zipWithNext().all { (previous, next) ->
+            previous.weather.time.isBefore(next.weather.time)
+        }) {
+            "Fused forecast hourly timestamps must be strictly increasing and unique"
+        }
+    }
+}
