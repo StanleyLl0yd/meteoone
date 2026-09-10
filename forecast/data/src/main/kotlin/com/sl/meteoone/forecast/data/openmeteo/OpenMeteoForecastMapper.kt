@@ -92,6 +92,11 @@ class OpenMeteoForecastMapper {
                 }
             }
 
+            val windGustMps = windGust[index].bounded(
+                name = "wind_gusts_10m",
+                minimum = 0.0,
+                maximum = MAX_WIND_MPS,
+            )
             val precipitationMm = precipitation[index].bounded(
                 name = "precipitation",
                 minimum = 0.0,
@@ -122,11 +127,7 @@ class OpenMeteoForecastMapper {
                     minimum = 0.0,
                     maximum = MAX_WIND_MPS,
                 ),
-                windGustMps = windGust[index].bounded(
-                    name = "wind_gusts_10m",
-                    minimum = 0.0,
-                    maximum = MAX_WIND_MPS,
-                ),
+                windGustMps = windGustMps,
                 windDirectionDegrees = windDirection[index]
                     .bounded(
                         name = "wind_direction_10m",
@@ -147,7 +148,12 @@ class OpenMeteoForecastMapper {
                     maximum = MAX_VISIBILITY_METRES,
                 ),
                 condition = mapWeatherCondition(weatherCode[index]),
-                windGustInterval = null,
+                windGustInterval = windGustMps?.let {
+                    ForecastInterval(
+                        start = time.minusSeconds(request.model.windGustIntervalHours * SECONDS_PER_HOUR),
+                        end = time,
+                    )
+                },
                 precipitationInterval = precipitationMm?.let {
                     ForecastInterval(
                         start = time.minusSeconds(SECONDS_PER_HOUR),

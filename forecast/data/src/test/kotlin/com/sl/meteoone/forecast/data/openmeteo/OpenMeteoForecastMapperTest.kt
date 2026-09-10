@@ -69,7 +69,11 @@ class OpenMeteoForecastMapperTest {
         assertEquals(45.0, first.cloudCoverPercent)
         assertEquals(9000.0, first.visibilityMeters)
         assertEquals(WeatherCondition.HEAVY_RAIN, first.condition)
-        assertNull(first.windGustInterval)
+        assertEquals(
+            Instant.ofEpochSecond(firstEpochSecond - 3600),
+            first.windGustInterval?.start,
+        )
+        assertEquals(first.time, first.windGustInterval?.end)
         assertEquals(
             Instant.ofEpochSecond(firstEpochSecond - 3600),
             first.precipitationInterval?.start,
@@ -95,6 +99,30 @@ class OpenMeteoForecastMapperTest {
             assertEquals(ForecastProvider.OPEN_METEO, forecast.origin.provider)
             assertEquals(modelFamily, forecast.origin.modelFamily)
             assertNull(forecast.origin.modelRun)
+        }
+    }
+
+    @Test
+    fun mapsModelSpecificWindGustIntervals() {
+        val expectedHours = mapOf(
+            OpenMeteoModel.ECMWF_IFS to 3L,
+            OpenMeteoModel.DWD_ICON_GLOBAL to 1L,
+            OpenMeteoModel.NOAA_GFS_GLOBAL to 1L,
+        )
+
+        expectedHours.forEach { (model, hours) ->
+            val first = mapper.map(
+                request = request(model),
+                generatedAt = generatedAt,
+                location = location,
+                payload = payload(),
+            ).hourly.first()
+
+            assertEquals(
+                Instant.ofEpochSecond(firstEpochSecond - hours * 3600),
+                first.windGustInterval?.start,
+            )
+            assertEquals(first.time, first.windGustInterval?.end)
         }
     }
 
@@ -140,6 +168,7 @@ class OpenMeteoForecastMapperTest {
         assertNull(first.pressureSeaLevelHpa)
         assertNull(first.windSpeedMps)
         assertNull(first.windGustMps)
+        assertNull(first.windGustInterval)
         assertNull(first.windDirectionDegrees)
         assertNull(first.precipitationMm)
         assertNull(first.precipitationProbabilityPercent)

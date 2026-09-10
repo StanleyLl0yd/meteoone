@@ -28,18 +28,22 @@ internal val OPEN_METEO_HOURLY_FIELDS = listOf(
 enum class OpenMeteoModel(
     val apiId: String,
     val modelFamily: ModelFamily,
+    val windGustIntervalHours: Long,
 ) {
     ECMWF_IFS(
         apiId = "ecmwf_ifs",
         modelFamily = ModelFamily.ECMWF_IFS,
+        windGustIntervalHours = 3,
     ),
     DWD_ICON_GLOBAL(
         apiId = "icon_global",
         modelFamily = ModelFamily.DWD_ICON,
+        windGustIntervalHours = 1,
     ),
     NOAA_GFS_GLOBAL(
         apiId = "ncep_gfs_global",
         modelFamily = ModelFamily.NOAA_GFS,
+        windGustIntervalHours = 1,
     ),
 }
 
