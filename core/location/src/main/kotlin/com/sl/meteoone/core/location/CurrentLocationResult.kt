@@ -1,5 +1,7 @@
 package com.sl.meteoone.core.location
 
+import com.sl.meteoone.core.model.ForecastCoordinate
+
 sealed interface CurrentLocationResult {
     data class Available(
         val coordinate: ForecastCoordinate,
