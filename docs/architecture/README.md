@@ -42,6 +42,8 @@ Persistent local state is the UI source of truth. Network refresh updates persis
 
 A provider failure must not make the application unusable when another valid forecast or a usable cached forecast exists.
 
+The M1 partial-provider coordination policy is documented in [`FORECAST_ORCHESTRATION.md`](FORECAST_ORCHESTRATION.md).
+
 ### Privacy by design
 
 Exact location is transient. Forecast requests use a normalized location appropriate for weather-model resolution and cache efficiency. Exact coordinates are never persisted.
