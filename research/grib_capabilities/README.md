@@ -26,6 +26,8 @@ The probe therefore records measured requirements first. A decoder implementatio
 - official-source HTTPS allowlisting and cross-host redirect rejection;
 - strict HTTP response-size and range metadata helpers;
 - bounded multi-message NOAA measurement;
+- exact ECMWF index evidence retention;
+- field-level ECMWF failure isolation;
 - partial-evidence payload behavior.
 
 Ordinary pull-request CI never depends on live weather-provider availability.
@@ -42,13 +44,26 @@ The workflow requests representative fields from:
 
 Network reads are bounded. Only HTTPS on the three explicit official hosts is accepted, cross-host redirects are rejected, and ECMWF range responses must return the requested `Content-Range`.
 
-The first two live runs on 2026-09-10 (`06Z`, `f006`) measured that NOAA/NOMADS field/level subsets are not guaranteed to contain exactly one GRIB message: `APCP` and `TCDC` each returned two concatenated messages. Because the purpose of this tool is capability measurement rather than production field selection, the resilient probe accepts a hard maximum of four messages for any sampled NOAA field and records every message's PDT/DRT/GDT. Production adapters must later select the required semantic message explicitly; they must not treat all measured messages as interchangeable.
+Live runs on 2026-09-10 measured that NOAA/NOMADS field/level subsets are not guaranteed to contain exactly one GRIB message: `APCP` and `TCDC` at `f006` each returned two concatenated messages. Because the purpose of this tool is capability measurement rather than production field selection, the resilient probe accepts a hard maximum of four messages for any sampled NOAA field and records every message's PDT/DRT/GDT. Production adapters must later select the required semantic message explicitly; they must not treat all measured messages as interchangeable.
 
-The resilient probe continues to the next provider after a provider-specific failure. `evidence.json` schema version 2 records `success`, provider-level `errors`, every successfully returned sample and the measured template summary. The workflow still exits non-zero if any provider failed, so partial evidence cannot be mistaken for a complete capability matrix.
+A mature `00Z f006` run confirmed ECMWF `.index` + byte-range transport and retained five exact ECMWF samples before the then-current gust alias failed to match. Those five point fields measured `GDT 0 / PDT 0 / DRT 42`, confirming CCSDS/AEC packing independently of documentation.
+
+The resilient probe continues after independent provider failures. For ECMWF it also continues after an individual field-selection or field-download failure so one unresolved parameter name cannot hide the capability evidence for later fields.
+
+`evidence.json` schema version 3 records:
+
+- overall `success`;
+- provider/field-level errors;
+- every successfully returned sample;
+- provider template summaries;
+- ECMWF index diagnostics, including exact index SHA-256/size and all observed surface `param` values.
+
+The workflow still exits non-zero if any provider or required field failed, so partial evidence cannot be mistaken for a complete capability matrix.
 
 The artifact contains:
 
-- `evidence.json` with source/final URLs, response status, SHA-256, byte sizes, extracted templates and any provider-level failures;
+- `evidence.json` with source/final URLs, response status, SHA-256, byte sizes, extracted templates, diagnostics and failures;
+- the exact bounded ECMWF `index.jsonl` used for schema diagnosis;
 - representative provider samples needed to reproduce the inspection;
 - `SHA256SUMS` for all payload files except the manifest itself.
 
