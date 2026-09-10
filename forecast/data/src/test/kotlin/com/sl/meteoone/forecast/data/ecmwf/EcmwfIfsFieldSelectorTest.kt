@@ -47,17 +47,46 @@ class EcmwfIfsFieldSelectorTest {
     fun exposesExplicitRequiredSurfaceParameterMapping() {
         assertEquals(
             mapOf(
-                EcmwfSurfaceField.TEMPERATURE_2M to "2t",
-                EcmwfSurfaceField.DEW_POINT_2M to "2d",
-                EcmwfSurfaceField.PRESSURE_MEAN_SEA_LEVEL to "msl",
-                EcmwfSurfaceField.WIND_U_10M to "10u",
-                EcmwfSurfaceField.WIND_V_10M to "10v",
-                EcmwfSurfaceField.WIND_GUST_10M_LAST_3H to "10fg3",
-                EcmwfSurfaceField.TOTAL_PRECIPITATION to "tp",
-                EcmwfSurfaceField.TOTAL_CLOUD_COVER to "tcc",
+                EcmwfSurfaceField.TEMPERATURE_2M to setOf("2t"),
+                EcmwfSurfaceField.DEW_POINT_2M to setOf("2d"),
+                EcmwfSurfaceField.PRESSURE_MEAN_SEA_LEVEL to setOf("msl"),
+                EcmwfSurfaceField.WIND_U_10M to setOf("10u"),
+                EcmwfSurfaceField.WIND_V_10M to setOf("10v"),
+                EcmwfSurfaceField.WIND_GUST_10M_LAST_3H to setOf("10fg", "10fg3", "max_i10fg"),
+                EcmwfSurfaceField.TOTAL_PRECIPITATION to setOf("tp"),
+                EcmwfSurfaceField.TOTAL_CLOUD_COVER to setOf("tcc"),
             ),
-            EcmwfSurfaceField.entries.associateWith { it.parameter },
+            EcmwfSurfaceField.entries.associateWith { it.acceptedParameters },
         )
+    }
+
+    @Test
+    fun acceptsEveryDocumentedWindGustIdentifier() {
+        for (parameter in listOf("10fg", "10fg3", "max_i10fg")) {
+            val selected = EcmwfIfsFieldSelector.select(
+                indexContent = line(param = parameter),
+                plan = plan,
+                fields = setOf(EcmwfSurfaceField.WIND_GUST_10M_LAST_3H),
+            )
+
+            assertEquals(EcmwfSurfaceField.WIND_GUST_10M_LAST_3H, selected.single().field)
+        }
+    }
+
+    @Test
+    fun rejectsAmbiguousWindGustIdentifiers() {
+        val index = listOf(
+            line(param = "10fg", offset = 0),
+            line(param = "10fg3", offset = 10),
+        ).joinToString("\n")
+
+        assertFailsWith<IllegalArgumentException> {
+            EcmwfIfsFieldSelector.select(
+                indexContent = index,
+                plan = plan,
+                fields = setOf(EcmwfSurfaceField.WIND_GUST_10M_LAST_3H),
+            )
+        }
     }
 
     @Test
