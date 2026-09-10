@@ -32,6 +32,9 @@ jobs:
       - name: Verify canonical app icon
         run: python3 scripts/verify_app_icon.py
 
+      - name: Verify location privacy boundary
+        run: python3 scripts/verify_location_privacy.py
+
       - name: Verify application identity
         run: |
           set -euo pipefail
