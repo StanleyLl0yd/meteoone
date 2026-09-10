@@ -4,11 +4,12 @@ import argparse
 import bz2
 import hashlib
 import json
+import re
 import time
 import urllib.parse
 import urllib.request
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -25,6 +26,14 @@ MAX_ECMWF_FIELD_BYTES = 16 * 1024 * 1024
 MAX_DWD_COMPRESSED_BYTES = 8 * 1024 * 1024
 MAX_DWD_DECOMPRESSED_BYTES = 64 * 1024 * 1024
 NOAA_REQUEST_SPACING_SECONDS = 10
+ALLOWED_SOURCE_HOSTS = frozenset(
+    {
+        "nomads.ncep.noaa.gov",
+        "data.ecmwf.int",
+        "opendata.dwd.de",
+    }
+)
+CONTENT_RANGE = re.compile(r"^bytes (?P<start>\d+)-(?P<end>\d+)/(?P<total>\d+|\*)$")
 
 NOAA_FIELDS = {
     "temperature_2m": ("TMP", "2_m_above_ground"),
@@ -88,29 +97,89 @@ def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _validate_source_url(url: str, *, expected_host: str | None = None) -> str:
+    parsed = urllib.parse.urlsplit(url)
+    try:
+        port = parsed.port
+    except ValueError as error:
+        raise RuntimeError("Official-source URL has an invalid port") from error
+
+    host = parsed.hostname
+    if (
+        parsed.scheme != "https"
+        or host not in ALLOWED_SOURCE_HOSTS
+        or parsed.username is not None
+        or parsed.password is not None
+        or port not in (None, 443)
+    ):
+        raise RuntimeError("Official-source URL must use HTTPS on an approved host")
+    if expected_host is not None and host != expected_host:
+        raise RuntimeError("Cross-host redirect from an official source is forbidden")
+    return host
+
+
+def _parse_content_length(value: str, *, url: str) -> int:
+    try:
+        length = int(value)
+    except ValueError as error:
+        raise RuntimeError(f"Response from {url} has an invalid Content-Length") from error
+    if length < 0:
+        raise RuntimeError(f"Response from {url} has a negative Content-Length")
+    return length
+
+
+def _validate_content_range(value: str | None, *, start: int, end: int) -> None:
+    if value is None:
+        raise RuntimeError("ECMWF range response is missing Content-Range")
+    match = CONTENT_RANGE.fullmatch(value.strip())
+    if match is None:
+        raise RuntimeError("ECMWF range response has an invalid Content-Range")
+    if int(match.group("start")) != start or int(match.group("end")) != end:
+        raise RuntimeError("ECMWF range response does not match the requested byte range")
+    total = match.group("total")
+    if total != "*" and int(total) <= end:
+        raise RuntimeError("ECMWF Content-Range declares an impossible total length")
+
+
 def _fetch_bounded(
     url: str,
     *,
     max_bytes: int,
     headers: dict[str, str] | None = None,
     require_status: int | None = None,
+    expected_range: tuple[int, int] | None = None,
 ) -> tuple[bytes, int, str]:
+    if max_bytes <= 0:
+        raise ValueError("max_bytes must be positive")
+    origin_host = _validate_source_url(url)
     request_headers = {"User-Agent": USER_AGENT, "Accept-Encoding": "identity"}
     if headers:
         request_headers.update(headers)
     request = urllib.request.Request(url, headers=request_headers)
 
-    with urllib.request.urlopen(request, timeout=30) as response:
+    with urllib.request.urlopen(  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+        request,
+        timeout=30,
+    ) as response:
         status = response.status
         final_url = response.geturl()
+        _validate_source_url(final_url, expected_host=origin_host)
         if require_status is not None and status != require_status:
             raise RuntimeError(
                 f"Expected HTTP {require_status} from {url}, received {status}"
             )
         declared_length = response.headers.get("Content-Length")
-        if declared_length is not None and int(declared_length) > max_bytes:
-            raise RuntimeError(
-                f"Response from {url} declares {declared_length} bytes; limit is {max_bytes}"
+        if declared_length is not None:
+            parsed_length = _parse_content_length(declared_length, url=url)
+            if parsed_length > max_bytes:
+                raise RuntimeError(
+                    f"Response from {url} declares {parsed_length} bytes; limit is {max_bytes}"
+                )
+        if expected_range is not None:
+            _validate_content_range(
+                response.headers.get("Content-Range"),
+                start=expected_range[0],
+                end=expected_range[1],
             )
         payload = response.read(max_bytes + 1)
 
@@ -165,6 +234,7 @@ def probe_noaa(
         raw, status, final_url = _fetch_bounded(
             url,
             max_bytes=MAX_NOAA_RESPONSE_BYTES,
+            require_status=200,
         )
         messages = inspect_grib2(raw)
         if len(messages) != 1:
@@ -200,7 +270,11 @@ def _load_ecmwf_index(
     )
     index_url = f"{prefix}.index"
     grib_url = f"{prefix}.grib2"
-    raw, _, _ = _fetch_bounded(index_url, max_bytes=MAX_ECMWF_INDEX_BYTES)
+    raw, _, _ = _fetch_bounded(
+        index_url,
+        max_bytes=MAX_ECMWF_INDEX_BYTES,
+        require_status=200,
+    )
     try:
         text = raw.decode("utf-8", errors="strict")
     except UnicodeDecodeError as error:
@@ -294,6 +368,7 @@ def probe_ecmwf(
             max_bytes=length,
             headers={"Range": f"bytes={offset}-{end}"},
             require_status=206,
+            expected_range=(offset, end),
         )
         if len(raw) != length:
             raise RuntimeError(
@@ -360,6 +435,7 @@ def probe_dwd(
         compressed, status, final_url = _fetch_bounded(
             url,
             max_bytes=MAX_DWD_COMPRESSED_BYTES,
+            require_status=200,
         )
         raw = _decompress_bzip2_bounded(
             compressed,
@@ -398,6 +474,8 @@ def _parse_run(value: str) -> datetime:
         ) from error
     if parsed.tzinfo is None:
         raise argparse.ArgumentTypeError("run must include an explicit UTC offset")
+    if parsed.utcoffset() != timedelta(0):
+        raise argparse.ArgumentTypeError("run must use UTC (Z or +00:00)")
     parsed = parsed.astimezone(timezone.utc)
     if parsed.minute or parsed.second or parsed.microsecond:
         raise argparse.ArgumentTypeError("run must be aligned to an exact UTC hour")
