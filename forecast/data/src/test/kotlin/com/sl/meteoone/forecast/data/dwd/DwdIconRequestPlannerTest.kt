@@ -34,16 +34,16 @@ class DwdIconRequestPlannerTest {
         val modelRun = Instant.parse("2026-09-10T12:00:00Z")
 
         val expected = mapOf(
-            DwdIconField.TEMPERATURE_2M to "t_2m" to "T_2M",
-            DwdIconField.DEW_POINT_2M to "td_2m" to "TD_2M",
-            DwdIconField.RELATIVE_HUMIDITY_2M to "relhum_2m" to "RELHUM_2M",
-            DwdIconField.PRESSURE_MEAN_SEA_LEVEL to "pmsl" to "PMSL",
-            DwdIconField.WIND_U_10M to "u_10m" to "U_10M",
-            DwdIconField.WIND_V_10M to "v_10m" to "V_10M",
-            DwdIconField.WIND_MAX_10M to "vmax_10m" to "VMAX_10M",
-            DwdIconField.TOTAL_PRECIPITATION to "tot_prec" to "TOT_PREC",
-            DwdIconField.TOTAL_CLOUD_COVER to "clct" to "CLCT",
-            DwdIconField.WEATHER_CODE to "ww" to "WW",
+            DwdIconField.TEMPERATURE_2M to ("t_2m" to "T_2M"),
+            DwdIconField.DEW_POINT_2M to ("td_2m" to "TD_2M"),
+            DwdIconField.RELATIVE_HUMIDITY_2M to ("relhum_2m" to "RELHUM_2M"),
+            DwdIconField.PRESSURE_MEAN_SEA_LEVEL to ("pmsl" to "PMSL"),
+            DwdIconField.WIND_U_10M to ("u_10m" to "U_10M"),
+            DwdIconField.WIND_V_10M to ("v_10m" to "V_10M"),
+            DwdIconField.WIND_MAX_10M to ("vmax_10m" to "VMAX_10M"),
+            DwdIconField.TOTAL_PRECIPITATION to ("tot_prec" to "TOT_PREC"),
+            DwdIconField.TOTAL_CLOUD_COVER to ("clct" to "CLCT"),
+            DwdIconField.WEATHER_CODE to ("ww" to "WW"),
         )
 
         for ((field, pathParts) in expected) {
