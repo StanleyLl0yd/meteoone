@@ -2,7 +2,9 @@ package com.sl.meteoone.forecast.data.dwd
 
 import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.ModelFamily
+import com.sl.meteoone.forecast.data.source.OfficialProviderIdentity
 import com.sl.meteoone.forecast.data.source.OfficialSourceRequest
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
 
@@ -35,7 +37,26 @@ data class DwdIconRequestPlan(
     val validTime: Instant,
     val forecastHour: Int,
     val field: DwdIconField,
-)
+) {
+    init {
+        require(provider == ForecastProvider.DWD_OPEN_DATA) {
+            "DWD request plan must use the DWD Open Data provider"
+        }
+        val expectedModelFamily = requireNotNull(OfficialProviderIdentity.modelFamily(provider)) {
+            "DWD request plan provider must be a direct official model source"
+        }
+        require(modelFamily == expectedModelFamily) {
+            "DWD request plan must use model family $expectedModelFamily"
+        }
+        require(forecastHour >= 0) { "Forecast hour must not be negative" }
+        require(Duration.between(modelRun, validTime) == Duration.ofHours(forecastHour.toLong())) {
+            "DWD forecast valid time must equal model run plus forecast hour"
+        }
+        require(forecastHour >= field.firstForecastHour) {
+            "${field.name} is not available at forecast hour $forecastHour"
+        }
+    }
+}
 
 object DwdIconRequestPlanner {
     fun plan(
