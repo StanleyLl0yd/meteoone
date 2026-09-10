@@ -50,15 +50,19 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p research-output/grib-capability
-          python -m research.grib_capabilities.probe \
+          set +e
+          python -m research.grib_capabilities.probe_resilient \
             --run "$MODEL_RUN" \
             --forecast-hour "$FORECAST_HOUR" \
             --output research-output/grib-capability/evidence.json \
             --samples-dir research-output/grib-capability/samples
-          find research-output/grib-capability -type f -print0 \
+          probe_status=$?
+          set -e
+          find research-output/grib-capability -type f ! -name SHA256SUMS -print0 \
             | sort -z \
             | xargs -0 sha256sum \
             > research-output/grib-capability/SHA256SUMS
+          exit "$probe_status"
 
       - name: Upload evidence
         if: ${{ always() }}
