@@ -48,6 +48,8 @@ Current Cycle 50r1 behavior was re-verified on 2026-09-10. All four deterministi
 
 For the M1 0–72 h window, deterministic IFS output is available every three hours. MeteoOne therefore must not pretend that the official direct source is hourly. Hourly product normalization is a later data-mapping concern and must preserve accumulation semantics rather than fabricating observed model steps.
 
+`EcmwfIfsRequestPlan` validates ECMWF Open Data / IFS provenance and requires its `validTime` to equal `modelRun + forecastHour`; operational cycle, horizon and three-hour cadence policy remain planner responsibilities.
+
 ECMWF publishes a JSON-lines `.index` beside each GRIB file. Every record describes one GRIB field and includes `_offset` and `_length`, allowing a client to retrieve selected fields with individual HTTP byte-range requests. The M1 data layer parses that index under a 2 MiB bound, validates the expected deterministic `domain=g`, `class=od`, `type=fc`, `stream=oper`, model date/cycle and forecast step, and only then emits a bounded single-field `Range` request. Multipart ranges are intentionally not assumed because ECMWF notes that they are not supported by all servers.
 
 The current surface-field selection boundary is explicit:

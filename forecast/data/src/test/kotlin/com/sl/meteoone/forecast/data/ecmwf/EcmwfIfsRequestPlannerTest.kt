@@ -28,6 +28,30 @@ class EcmwfIfsRequestPlannerTest {
     }
 
     @Test
+    fun requestPlanRejectsInvalidIdentityAndTemporalMetadata() {
+        val plan = EcmwfIfsRequestPlanner.plan(
+            modelRun = Instant.parse("2026-09-10T06:00:00Z"),
+            forecastHour = 6,
+        )
+
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(provider = ForecastProvider.DWD_OPEN_DATA, modelFamily = ModelFamily.DWD_ICON)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(modelFamily = ModelFamily.NOAA_GFS)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(forecastHour = -1)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(validTime = plan.validTime.minusSeconds(3600))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(validTime = plan.validTime.plusSeconds(3600))
+        }
+    }
+
+    @Test
     fun acceptsThreeHourlyStepsThroughM1Horizon() {
         val modelRun = Instant.parse("2026-09-10T00:00:00Z")
 

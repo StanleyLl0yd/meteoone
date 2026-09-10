@@ -2,8 +2,10 @@ package com.sl.meteoone.forecast.data.ecmwf
 
 import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.ModelFamily
+import com.sl.meteoone.forecast.data.source.OfficialProviderIdentity
 import com.sl.meteoone.forecast.data.source.OfficialSourceRequest
 import java.net.URI
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
 
@@ -25,7 +27,23 @@ data class EcmwfIfsRequestPlan(
     val modelRun: Instant,
     val validTime: Instant,
     val forecastHour: Int,
-)
+) {
+    init {
+        require(provider == ForecastProvider.ECMWF_OPEN_DATA) {
+            "ECMWF request plan must use the ECMWF Open Data provider"
+        }
+        val expectedModelFamily = requireNotNull(OfficialProviderIdentity.modelFamily(provider)) {
+            "ECMWF request plan provider must be a direct official model source"
+        }
+        require(modelFamily == expectedModelFamily) {
+            "ECMWF request plan must use model family $expectedModelFamily"
+        }
+        require(forecastHour >= 0) { "Forecast hour must not be negative" }
+        require(Duration.between(modelRun, validTime) == Duration.ofHours(forecastHour.toLong())) {
+            "ECMWF forecast valid time must equal model run plus forecast hour"
+        }
+    }
+}
 
 object EcmwfIfsRequestPlanner {
     fun plan(
