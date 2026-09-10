@@ -3,10 +3,11 @@
 
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET
+import re
+from html import unescape
 from pathlib import Path
 
-ANDROID_NAME = "{http://schemas.android.com/apk/res/android}name"
+ANDROID_NAMESPACE = "http://schemas.android.com/apk/res/android"
 COARSE = "android.permission.ACCESS_COARSE_LOCATION"
 FORBIDDEN = {
     "android.permission.ACCESS_FINE_LOCATION",
@@ -14,19 +15,43 @@ FORBIDDEN = {
 }
 LOCATION_MANIFEST = Path("core/location/src/main/AndroidManifest.xml")
 LOCATION_SOURCE_ROOT = Path("core/location/src/main")
+DOCTYPE_OR_ENTITY_RE = re.compile(r"<!\s*(?:DOCTYPE|ENTITY)\b", re.IGNORECASE)
+XMLNS_RE = re.compile(
+    r"\bxmlns:(?P<prefix>[A-Za-z_][\w.-]*)\s*=\s*"
+    r"(?P<quote>['\"])(?P<value>.*?)(?P=quote)",
+    re.DOTALL,
+)
+PERMISSION_TAG_RE = re.compile(
+    r"<uses-permission(?:-sdk-23)?\b"
+    r"(?P<attributes>(?:[^>'\"]|'[^']*'|\"[^\"]*\")*)>",
+    re.DOTALL,
+)
+ATTRIBUTE_RE = re.compile(
+    r"(?P<name>[A-Za-z_][\w.:-]*)\s*=\s*"
+    r"(?P<quote>['\"])(?P<value>.*?)(?P=quote)",
+    re.DOTALL,
+)
 
 
 def manifest_permissions(path: Path) -> set[str]:
-    try:
-        root = ET.parse(path).getroot()
-    except ET.ParseError as error:
-        raise SystemExit(f"{path}: invalid Android manifest XML: {error}") from error
+    text = path.read_text(encoding="utf-8")
+    if DOCTYPE_OR_ENTITY_RE.search(text):
+        raise SystemExit(f"{path}: DTD/entity declarations are not allowed")
 
-    return {
-        value
-        for element in root.findall("uses-permission")
-        if (value := element.get(ANDROID_NAME)) is not None
+    android_prefixes = {
+        match.group("prefix")
+        for match in XMLNS_RE.finditer(text)
+        if unescape(match.group("value")) == ANDROID_NAMESPACE
     }
+    android_name_attributes = {f"{prefix}:name" for prefix in android_prefixes}
+
+    permissions: set[str] = set()
+    for tag in PERMISSION_TAG_RE.finditer(text):
+        for attribute in ATTRIBUTE_RE.finditer(tag.group("attributes")):
+            if attribute.group("name") in android_name_attributes:
+                permissions.add(unescape(attribute.group("value")))
+                break
+    return permissions
 
 
 def main() -> None:
