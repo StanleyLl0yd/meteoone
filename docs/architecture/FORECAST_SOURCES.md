@@ -46,7 +46,21 @@ Current Cycle 50r1 behavior was re-verified on 2026-09-10. All four deterministi
 
 For the M1 0–72 h window, deterministic IFS output is available every three hours. MeteoOne therefore must not pretend that the official direct source is hourly. Hourly product normalization is a later data-mapping concern and must preserve accumulation semantics rather than fabricating observed model steps.
 
-ECMWF publishes a JSON-lines `.index` beside each GRIB file. Every record describes one GRIB field and includes `_offset` and `_length`, allowing a client to retrieve selected fields with individual HTTP byte-range requests. The M1 planner therefore returns the bounded index request and the associated GRIB URI separately; field-range selection is a subsequent adapter stage.
+ECMWF publishes a JSON-lines `.index` beside each GRIB file. Every record describes one GRIB field and includes `_offset` and `_length`, allowing a client to retrieve selected fields with individual HTTP byte-range requests. The M1 data layer parses that index under a 2 MiB bound, validates the expected deterministic `domain=g`, `class=od`, `type=fc`, `stream=oper`, model date/cycle and forecast step, and only then emits a bounded single-field `Range` request. Multipart ranges are intentionally not assumed because ECMWF notes that they are not supported by all servers.
+
+The current surface-field selection boundary is explicit:
+
+- `2t` — 2 m temperature;
+- `2d` — 2 m dew point;
+- `msl` — mean sea-level pressure;
+- `10u` / `10v` — 10 m wind components;
+- `10fg3` — maximum 10 m wind gust in the last 3 hours;
+- `tp` — total precipitation;
+- `tcc` — total cloud cover.
+
+Relative humidity is not requested as a separate IFS field in this slice because it can be derived later from temperature and dew point with an explicitly tested mapper. Visibility is not claimed from the current IFS Open Data selection until a matching official field is verified. Missing fields therefore remain missing instead of being fabricated or borrowed from another provider under ECMWF provenance.
+
+The index parser ignores unrelated JSON keys but fails closed on malformed records, missing/invalid byte ranges, arithmetic overflow, duplicate selected fields, wrong level type, wrong run provenance or selected fields larger than the configured single-field transport bound.
 
 Open-data reuse must preserve the applicable ECMWF attribution and licence requirements; current Open Data documentation identifies CC BY 4.0 together with ECMWF terms.
 
@@ -81,7 +95,7 @@ The intended boundary is:
 
 ```text
 official provider request plan
-    -> bounded HTTPS response
+    -> bounded HTTPS response / indexed byte range
     -> GRIB field decoder
     -> provider-specific normalization/mapping
     -> SourceForecast
