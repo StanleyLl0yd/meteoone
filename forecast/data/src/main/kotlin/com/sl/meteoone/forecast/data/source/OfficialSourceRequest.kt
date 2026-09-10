@@ -41,7 +41,9 @@ data class PlannedForecastRequest(
     val gridPoint: SourceGridPoint,
 ) {
     init {
-        require(!validTime.isBefore(modelRun))
         require(forecastHour >= 0)
+        require(Duration.between(modelRun, validTime) == Duration.ofHours(forecastHour.toLong())) {
+            "Forecast valid time must equal model run plus forecast hour"
+        }
     }
 }
