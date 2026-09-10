@@ -93,6 +93,50 @@ class ForecastFusionEngineTest {
     }
 
     @Test
+    fun oppositeIndependentWindDirectionsRemainUnresolved() {
+        val result = engine.fuse(
+            listOf(
+                source(
+                    ForecastProvider.NOAA_NOMADS,
+                    ModelFamily.NOAA_GFS,
+                    temperature = 10.0,
+                    windDirection = 0.0,
+                ),
+                source(
+                    ForecastProvider.DWD_OPEN_DATA,
+                    ModelFamily.DWD_ICON,
+                    temperature = 10.0,
+                    windDirection = 180.0,
+                ),
+            ),
+        )
+
+        assertNull(result.hourly.single().weather.windDirectionDegrees)
+    }
+
+    @Test
+    fun oppositeDeliveriesInsideOneModelFamilyRemainUnresolved() {
+        val result = engine.fuse(
+            listOf(
+                source(
+                    ForecastProvider.NOAA_NOMADS,
+                    ModelFamily.NOAA_GFS,
+                    temperature = 10.0,
+                    windDirection = 0.0,
+                ),
+                source(
+                    ForecastProvider.OPEN_METEO,
+                    ModelFamily.NOAA_GFS,
+                    temperature = 10.0,
+                    windDirection = 180.0,
+                ),
+            ),
+        )
+
+        assertNull(result.hourly.single().weather.windDirectionDegrees)
+    }
+
+    @Test
     fun missingValuesAreNotFabricated() {
         val result = engine.fuse(
             listOf(

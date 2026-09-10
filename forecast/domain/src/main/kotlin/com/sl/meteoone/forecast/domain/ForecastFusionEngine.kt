@@ -13,7 +13,10 @@ import com.sl.meteoone.core.model.WeatherCondition
 import java.time.Instant
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.sin
+
+private const val DIRECTION_VECTOR_EPSILON = 1e-12
 
 class ForecastFusionEngine {
     fun fuse(sources: List<SourceForecast>): FusedForecast {
@@ -238,7 +241,9 @@ class ForecastFusionEngine {
         val x = values.sumOf { cos(Math.toRadians(normalizeDegrees(it))) }
         val y = values.sumOf { sin(Math.toRadians(normalizeDegrees(it))) }
 
-        if (x == 0.0 && y == 0.0) {
+        // This is only a floating-point cancellation guard. It is intentionally
+        // far below any meteorologically meaningful directional disagreement.
+        if (hypot(x, y) <= DIRECTION_VECTOR_EPSILON * values.size) {
             return null
         }
 
