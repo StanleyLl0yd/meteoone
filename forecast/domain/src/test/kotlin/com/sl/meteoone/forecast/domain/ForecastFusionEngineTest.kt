@@ -41,6 +41,22 @@ class ForecastFusionEngineTest {
     }
 
     @Test
+    fun directAndFallbackDeliveryOfGfsStillCountsAsOneSignal() {
+        val result = engine.fuse(
+            listOf(
+                source(ForecastProvider.NOAA_NOMADS, ModelFamily.NOAA_GFS, temperature = 8.0),
+                source(ForecastProvider.OPEN_METEO, ModelFamily.NOAA_GFS, temperature = 12.0),
+                source(ForecastProvider.DWD_OPEN_DATA, ModelFamily.DWD_ICON, temperature = 20.0),
+            ),
+        )
+
+        val hour = result.hourly.single()
+        assertEquals(15.0, hour.weather.temperatureC)
+        assertEquals(3, hour.providerCount)
+        assertEquals(2, hour.independentEvidenceCount)
+    }
+
+    @Test
     fun unknownModelsRemainProviderSpecificEvidence() {
         val result = engine.fuse(
             listOf(
