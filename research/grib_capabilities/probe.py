@@ -269,6 +269,8 @@ def probe_noaa(
 def _load_ecmwf_index(
     model_run: datetime,
     forecast_hour: int,
+    *,
+    raw_output: Path | None = None,
 ) -> tuple[str, str, list[dict[str, Any]]]:
     date, cycle, _ = _run_tokens(model_run)
     prefix = (
@@ -282,6 +284,9 @@ def _load_ecmwf_index(
         max_bytes=MAX_ECMWF_INDEX_BYTES,
         require_status=200,
     )
+    if raw_output is not None:
+        raw_output.parent.mkdir(parents=True, exist_ok=True)
+        raw_output.write_bytes(raw)
     try:
         text = raw.decode("utf-8", errors="strict")
     except UnicodeDecodeError as error:
@@ -430,15 +435,13 @@ def probe_dwd(
     date, cycle, run_token = _run_tokens(model_run)
     del date
     forecast_token = f"{forecast_hour:03d}"
-    base = f"https://opendata.dwd.de/weather/nwp/icon/grib/{cycle}"
     samples: list[DownloadedSample] = []
 
-    for field, (directory, token) in DWD_FIELDS.items():
-        filename = (
-            f"icon_global_icosahedral_single-level_{run_token}_"
-            f"{forecast_token}_{token}.grib2.bz2"
+    for field, (directory, variable) in DWD_FIELDS.items():
+        url = (
+            f"https://opendata.dwd.de/weather/nwp/icon/grib/{cycle}/{directory}/"
+            f"icon_global_icosahedral_single-level_{run_token}_{forecast_token}_{variable}.grib2.bz2"
         )
-        url = f"{base}/{directory}/{filename}"
         compressed, status, final_url = _fetch_bounded(
             url,
             max_bytes=MAX_DWD_COMPRESSED_BYTES,
@@ -471,73 +474,66 @@ def probe_dwd(
     return samples
 
 
-def _parse_run(value: str) -> datetime:
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError as error:
-        raise argparse.ArgumentTypeError(
-            "run must be an ISO UTC timestamp such as 2026-09-10T06:00Z"
-        ) from error
-    if parsed.tzinfo is None:
-        raise argparse.ArgumentTypeError("run must include an explicit UTC offset")
-    if parsed.utcoffset() != timedelta(0):
-        raise argparse.ArgumentTypeError("run must use UTC (Z or +00:00)")
-    parsed = parsed.astimezone(timezone.utc)
-    if parsed.minute or parsed.second or parsed.microsecond:
-        raise argparse.ArgumentTypeError("run must be aligned to an exact UTC hour")
-    if parsed.hour not in {0, 6, 12, 18}:
-        raise argparse.ArgumentTypeError("run must use a 00, 06, 12, or 18 UTC cycle")
-    return parsed
-
-
-def _forecast_hour(value: str) -> int:
-    try:
-        hour = int(value)
-    except ValueError as error:
-        raise argparse.ArgumentTypeError("forecast hour must be an integer") from error
-    if not 3 <= hour <= 72 or hour % 3 != 0:
-        raise argparse.ArgumentTypeError(
-            "forecast hour must be a 3-hour step from 3 through 72"
-        )
-    return hour
-
-
 def _template_summary(samples: Iterable[DownloadedSample]) -> dict[str, list[int]]:
-    grid = set()
-    product = set()
-    data = set()
+    grid: set[int] = set()
+    product: set[int] = set()
+    representation: set[int] = set()
     for sample in samples:
         for message in sample.messages:
             grid.add(message.grid_definition_template)
             product.add(message.product_definition_template)
-            data.add(message.data_representation_template)
+            representation.add(message.data_representation_template)
     return {
         "grid_definition_templates": sorted(grid),
         "product_definition_templates": sorted(product),
-        "data_representation_templates": sorted(data),
+        "data_representation_templates": sorted(representation),
     }
 
 
+def _parse_run(value: str) -> datetime:
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:00Z", value):
+        raise argparse.ArgumentTypeError(
+            "--run must use exact UTC form YYYY-MM-DDTHH:00Z"
+        )
+    try:
+        parsed = datetime.strptime(value, "%Y-%m-%dT%H:%MZ").replace(tzinfo=timezone.utc)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("--run is not a valid UTC timestamp") from error
+    if parsed.hour not in {0, 6, 12, 18}:
+        raise argparse.ArgumentTypeError("--run must use an operational 00/06/12/18Z cycle")
+    return parsed
+
+
+def _parse_forecast_hour(value: str) -> int:
+    try:
+        hour = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("--forecast-hour must be an integer") from error
+    if hour not in range(3, 73, 3):
+        raise argparse.ArgumentTypeError(
+            "--forecast-hour must be a common 3-hour step from 3 through 72"
+        )
+    return hour
+
+
 def parser() -> argparse.ArgumentParser:
-    result = argparse.ArgumentParser(
-        description="Probe current official GRIB2 source template requirements"
-    )
-    result.add_argument("--run", required=True, type=_parse_run)
-    result.add_argument("--forecast-hour", default=6, type=_forecast_hour)
-    result.add_argument("--output", required=True, type=Path)
-    result.add_argument("--samples-dir", required=True, type=Path)
-    return result
+    cli = argparse.ArgumentParser(description=__doc__)
+    cli.add_argument("--run", type=_parse_run, required=True)
+    cli.add_argument("--forecast-hour", type=_parse_forecast_hour, required=True)
+    cli.add_argument("--output", type=Path, required=True)
+    cli.add_argument("--samples-dir", type=Path, required=True)
+    return cli
 
 
 def main() -> None:
     args = parser().parse_args()
     args.samples_dir.mkdir(parents=True, exist_ok=True)
 
-    samples = [
-        *probe_noaa(args.run, args.forecast_hour, args.samples_dir),
-        *probe_ecmwf(args.run, args.forecast_hour, args.samples_dir),
-        *probe_dwd(args.run, args.forecast_hour, args.samples_dir),
-    ]
+    samples: list[DownloadedSample] = []
+    samples.extend(probe_noaa(args.run, args.forecast_hour, args.samples_dir))
+    samples.extend(probe_ecmwf(args.run, args.forecast_hour, args.samples_dir))
+    samples.extend(probe_dwd(args.run, args.forecast_hour, args.samples_dir))
+
     payload = {
         "schema_version": 1,
         "probed_at": datetime.now(timezone.utc)
