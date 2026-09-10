@@ -87,6 +87,33 @@ def probe_noaa_resilient(
     return samples
 
 
+def _parse_retained_ecmwf_index(raw: bytes) -> list[dict[str, object]]:
+    try:
+        text = raw.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as error:
+        raise RuntimeError("Retained ECMWF index is not valid UTF-8") from error
+
+    entries: list[dict[str, object]] = []
+    for line_number, raw_line in enumerate(text.splitlines(), start=1):
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError as error:
+            raise RuntimeError(
+                f"Invalid retained ECMWF JSON on line {line_number}"
+            ) from error
+        if not isinstance(value, dict):
+            raise RuntimeError(
+                f"Retained ECMWF index line {line_number} is not an object"
+            )
+        entries.append(value)
+    if not entries:
+        raise RuntimeError("Retained ECMWF index is empty")
+    return entries
+
+
 def _surface_param_values(entries: list[dict[str, object]]) -> list[str]:
     return sorted(
         {
@@ -103,16 +130,18 @@ def probe_ecmwf_resilient(
     samples_dir: Path,
 ) -> tuple[list[DownloadedSample], list[dict[str, str]], dict[str, object]]:
     date, cycle, _ = _run_tokens(model_run)
-    index_url, grib_url, entries = _load_ecmwf_index(model_run, forecast_hour)
+    index_url, grib_url, _ = _load_ecmwf_index(model_run, forecast_hour)
 
     # Fetch the already validated, bounded index once more only for immutable evidence.
-    # Keeping this concern in the resilient research wrapper avoids changing the stable
-    # production-like transport/parser helper merely to persist diagnostic bytes.
+    # The retained bytes are parsed again and become the sole entries used below, so
+    # field selection always corresponds exactly to the artifact even if an operational
+    # listing were to change between the two bounded GETs.
     index_raw, index_status, final_index_url = _fetch_bounded(
         index_url,
         max_bytes=MAX_ECMWF_INDEX_BYTES,
         require_status=200,
     )
+    entries = _parse_retained_ecmwf_index(index_raw)
     index_path = _save_sample(
         samples_dir,
         "ecmwf",
