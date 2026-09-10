@@ -47,6 +47,11 @@ NOAA_FIELDS = {
     "total_cloud_cover": ("TCDC", "entire_atmosphere"),
     "visibility": ("VIS", "surface"),
 }
+# Measured on GFS 0.25 f006: APCP can contain more than one interval message.
+# Keep the allowance narrow and bounded; point-like fields still require exactly one.
+NOAA_MAX_MESSAGES = {
+    "total_precipitation": 4,
+}
 
 ECMWF_FIELDS = {
     "temperature_2m": ("2t",),
@@ -237,9 +242,11 @@ def probe_noaa(
             require_status=200,
         )
         messages = inspect_grib2(raw)
-        if len(messages) != 1:
+        max_messages = NOAA_MAX_MESSAGES.get(field, 1)
+        if not 1 <= len(messages) <= max_messages:
             raise RuntimeError(
-                f"NOAA field {field} returned {len(messages)} GRIB messages; expected 1"
+                f"NOAA field {field} returned {len(messages)} GRIB messages; "
+                f"expected 1..{max_messages}"
             )
         _save_sample(samples_dir, "noaa", field, raw, ".grib2")
         samples.append(
@@ -447,7 +454,6 @@ def probe_dwd(
                 f"DWD field {field} returned {len(messages)} GRIB messages; expected 1"
             )
         _save_sample(samples_dir, "dwd", field, compressed, ".grib2.bz2")
-        _save_sample(samples_dir, "dwd", field, raw, ".grib2")
         samples.append(
             DownloadedSample(
                 provider="DWD_OPEN_DATA",

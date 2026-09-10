@@ -5,6 +5,7 @@ import unittest
 
 from research.grib_capabilities.grib2 import Grib2MessageInfo
 from research.grib_capabilities.probe import (
+    NOAA_MAX_MESSAGES,
     DownloadedSample,
     _decompress_bzip2_bounded,
     _forecast_hour,
@@ -56,6 +57,9 @@ class ProbeHelpersTest(unittest.TestCase):
             with self.subTest(value=invalid):
                 with self.assertRaises(Exception):
                     _forecast_hour(invalid)
+
+    def test_noaa_multi_message_allowance_is_narrow(self) -> None:
+        self.assertEqual(NOAA_MAX_MESSAGES, {"total_precipitation": 4})
 
     def test_source_url_validation_allows_only_official_https_hosts(self) -> None:
         self.assertEqual(
