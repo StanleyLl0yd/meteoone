@@ -1,5 +1,6 @@
 package com.sl.meteoone.forecast.domain
 
+import com.sl.meteoone.core.model.ForecastInterval
 import com.sl.meteoone.core.model.ForecastLocation
 import com.sl.meteoone.core.model.ForecastOrigin
 import com.sl.meteoone.core.model.ForecastProvider
@@ -126,6 +127,173 @@ class ForecastFusionEngineTest {
     }
 
     @Test
+    fun precipitationOnlyCombinesMatchingIntervals() {
+        val oneHour = interval(hours = 1)
+        val threeHours = interval(hours = 3)
+        val result = engine.fuse(
+            listOf(
+                source(
+                    ForecastProvider.NOAA_NOMADS,
+                    ModelFamily.NOAA_GFS,
+                    temperature = 10.0,
+                    precipitation = 2.0,
+                    precipitationInterval = oneHour,
+                ),
+                source(
+                    ForecastProvider.DWD_OPEN_DATA,
+                    ModelFamily.DWD_ICON,
+                    temperature = 10.0,
+                    precipitation = 4.0,
+                    precipitationInterval = oneHour,
+                ),
+                source(
+                    ForecastProvider.ECMWF_OPEN_DATA,
+                    ModelFamily.ECMWF_IFS,
+                    temperature = 10.0,
+                    precipitation = 9.0,
+                    precipitationInterval = threeHours,
+                ),
+            ),
+        )
+
+        val weather = result.hourly.single().weather
+        assertEquals(3.0, weather.precipitationMm)
+        assertEquals(oneHour, weather.precipitationInterval)
+    }
+
+    @Test
+    fun duplicateProviderDeliveryCannotWinIntervalSelection() {
+        val oneHour = interval(hours = 1)
+        val threeHours = interval(hours = 3)
+        val result = engine.fuse(
+            listOf(
+                source(
+                    ForecastProvider.NOAA_NOMADS,
+                    ModelFamily.NOAA_GFS,
+                    temperature = 10.0,
+                    precipitation = 9.0,
+                    precipitationInterval = threeHours,
+                ),
+                source(
+                    ForecastProvider.OPEN_METEO,
+                    ModelFamily.NOAA_GFS,
+                    temperature = 10.0,
+                    precipitation = 11.0,
+                    precipitationInterval = threeHours,
+                ),
+                source(
+                    ForecastProvider.DWD_OPEN_DATA,
+                    ModelFamily.DWD_ICON,
+                    temperature = 10.0,
+                    precipitation = 2.0,
+                    precipitationInterval = oneHour,
+                ),
+                source(
+                    ForecastProvider.ECMWF_OPEN_DATA,
+                    ModelFamily.ECMWF_IFS,
+                    temperature = 10.0,
+                    precipitation = 4.0,
+                    precipitationInterval = oneHour,
+                ),
+            ),
+        )
+
+        val weather = result.hourly.single().weather
+        assertEquals(3.0, weather.precipitationMm)
+        assertEquals(oneHour, weather.precipitationInterval)
+    }
+
+    @Test
+    fun shorterExplicitIntervalWinsDeterministicTie() {
+        val oneHour = interval(hours = 1)
+        val threeHours = interval(hours = 3)
+        val result = engine.fuse(
+            listOf(
+                source(
+                    ForecastProvider.NOAA_NOMADS,
+                    ModelFamily.NOAA_GFS,
+                    temperature = 10.0,
+                    precipitation = 2.0,
+                    precipitationInterval = oneHour,
+                ),
+                source(
+                    ForecastProvider.ECMWF_OPEN_DATA,
+                    ModelFamily.ECMWF_IFS,
+                    temperature = 10.0,
+                    precipitation = 9.0,
+                    precipitationInterval = threeHours,
+                ),
+            ),
+        )
+
+        val weather = result.hourly.single().weather
+        assertEquals(2.0, weather.precipitationMm)
+        assertEquals(oneHour, weather.precipitationInterval)
+    }
+
+    @Test
+    fun explicitIntervalWinsTieAgainstUnknownInterval() {
+        val oneHour = interval(hours = 1)
+        val result = engine.fuse(
+            listOf(
+                source(
+                    ForecastProvider.NOAA_NOMADS,
+                    ModelFamily.NOAA_GFS,
+                    temperature = 10.0,
+                    precipitation = 8.0,
+                    precipitationInterval = null,
+                ),
+                source(
+                    ForecastProvider.DWD_OPEN_DATA,
+                    ModelFamily.DWD_ICON,
+                    temperature = 10.0,
+                    precipitation = 2.0,
+                    precipitationInterval = oneHour,
+                ),
+            ),
+        )
+
+        val weather = result.hourly.single().weather
+        assertEquals(2.0, weather.precipitationMm)
+        assertEquals(oneHour, weather.precipitationInterval)
+    }
+
+    @Test
+    fun windGustOnlyCombinesMatchingIntervals() {
+        val oneHour = interval(hours = 1)
+        val threeHours = interval(hours = 3)
+        val result = engine.fuse(
+            listOf(
+                source(
+                    ForecastProvider.NOAA_NOMADS,
+                    ModelFamily.NOAA_GFS,
+                    temperature = 10.0,
+                    windGust = 8.0,
+                    windGustInterval = oneHour,
+                ),
+                source(
+                    ForecastProvider.DWD_OPEN_DATA,
+                    ModelFamily.DWD_ICON,
+                    temperature = 10.0,
+                    windGust = 10.0,
+                    windGustInterval = oneHour,
+                ),
+                source(
+                    ForecastProvider.ECMWF_OPEN_DATA,
+                    ModelFamily.ECMWF_IFS,
+                    temperature = 10.0,
+                    windGust = 20.0,
+                    windGustInterval = threeHours,
+                ),
+            ),
+        )
+
+        val weather = result.hourly.single().weather
+        assertEquals(9.0, weather.windGustMps)
+        assertEquals(oneHour, weather.windGustInterval)
+    }
+
+    @Test
     fun agreementIsQualitativeAndRequiresIndependentEvidence() {
         assertEquals(ModelAgreement.INSUFFICIENT, fuseTemperatures(10.0).agreement)
         assertEquals(ModelAgreement.HIGH, fuseTemperatures(10.0, 11.0).agreement)
@@ -153,12 +321,21 @@ class ForecastFusionEngineTest {
             },
         ).hourly.single()
 
+    private fun interval(hours: Long) = ForecastInterval(
+        start = time.minusSeconds(hours * 3600),
+        end = time,
+    )
+
     private fun source(
         provider: ForecastProvider,
         model: ModelFamily,
         temperature: Double,
         windDirection: Double? = null,
         precipitationProbability: Double? = null,
+        precipitation: Double? = null,
+        precipitationInterval: ForecastInterval? = null,
+        windGust: Double? = null,
+        windGustInterval: ForecastInterval? = null,
     ) = SourceForecast(
         origin = ForecastOrigin(
             provider = provider,
@@ -176,12 +353,14 @@ class ForecastFusionEngineTest {
                 humidityPercent = null,
                 pressureSeaLevelHpa = null,
                 windSpeedMps = null,
-                windGustMps = null,
+                windGustMps = windGust,
                 windDirectionDegrees = windDirection,
-                precipitationMm = null,
+                precipitationMm = precipitation,
                 precipitationProbabilityPercent = precipitationProbability,
                 cloudCoverPercent = null,
                 visibilityMeters = null,
+                windGustInterval = windGustInterval,
+                precipitationInterval = precipitationInterval,
             ),
         ),
     )
