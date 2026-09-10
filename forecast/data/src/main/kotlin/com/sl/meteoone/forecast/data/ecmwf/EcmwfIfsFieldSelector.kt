@@ -19,7 +19,7 @@ enum class EcmwfSurfaceField(
     PRESSURE_MEAN_SEA_LEVEL("msl"),
     WIND_U_10M("10u"),
     WIND_V_10M("10v"),
-    WIND_GUST_10M_LAST_3H("10fg", setOf("10fg3", "max_i10fg")),
+    WIND_GUST_10M_LAST_3H("10fg", setOf("10fg3")),
     TOTAL_PRECIPITATION("tp"),
     TOTAL_CLOUD_COVER("tcc"),
     ;
