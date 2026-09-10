@@ -66,8 +66,11 @@ jobs:
       - name: Install Android SDK packages
         run: android sdk install platforms/android-37.0 build-tools/37.0.0
 
-      - name: Research unit tests
+      - name: Forecast benchmark unit tests
         run: python -m unittest discover -s research/forecast_benchmark/tests -v
+
+      - name: GRIB capability unit tests
+        run: python -m unittest discover -s research/grib_capabilities/tests -v
 
       - name: Verify
         run: >-
