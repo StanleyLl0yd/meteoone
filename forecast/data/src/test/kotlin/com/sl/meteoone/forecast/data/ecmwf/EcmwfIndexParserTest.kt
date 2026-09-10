@@ -16,8 +16,8 @@ class EcmwfIndexParserTest {
 
         assertEquals(2, entries.size)
         assertEquals("2t", entries[0].parameter)
-        assertEquals(17_459_800, entries[0].range.offset)
-        assertEquals(609_046, entries[0].range.length)
+        assertEquals(17_459_800L, entries[0].range.offset)
+        assertEquals(609_046L, entries[0].range.length)
         assertEquals("msl", entries[1].parameter)
     }
 
@@ -45,6 +45,25 @@ class EcmwfIndexParserTest {
         assertFailsWith<IllegalArgumentException> {
             EcmwfIndexParser.parse(
                 """{"domain":"g","date":"20260910","time":"0000","class":"od","type":"fc","stream":"oper","step":"x","levtype":"sfc","param":"2t","_offset":0,"_length":1}""",
+            )
+        }
+    }
+
+    @Test
+    fun rejectsWrongJsonTypesInsteadOfCoercingThem() {
+        assertFailsWith<IllegalArgumentException> {
+            EcmwfIndexParser.parse(
+                """{"domain":"g","date":"20260910","time":"0000","class":"od","type":"fc","stream":"oper","step":0,"levtype":"sfc","param":"2t","_offset":0,"_length":1}""",
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            EcmwfIndexParser.parse(
+                """{"domain":"g","date":"20260910","time":"0000","class":"od","type":"fc","stream":"oper","step":"0","levtype":"sfc","param":"2t","_offset":"0","_length":1}""",
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            EcmwfIndexParser.parse(
+                """{"domain":"g","date":"20260910","time":"0000","class":"od","type":"fc","stream":"oper","step":"0","levtype":"sfc","param":2,"_offset":0,"_length":1}""",
             )
         }
     }
