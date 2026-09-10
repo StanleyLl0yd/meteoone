@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from datetime import datetime, timezone
@@ -97,7 +98,9 @@ class ResilientProbeTest(unittest.TestCase):
             _ecmwf_entry("2t", 0),
             _ecmwf_entry("tcc", 6),
         ]
-        index_raw = b'{"param":"2t"}\n{"param":"tcc"}\n'
+        index_raw = (
+            "\n".join(json.dumps(entry, sort_keys=True) for entry in entries) + "\n"
+        ).encode("utf-8")
 
         def fake_load(
             model_run: datetime,
