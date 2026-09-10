@@ -25,6 +25,9 @@ class OfficialGribForecastMapper {
         val modelFamily = requireNotNull(OfficialProviderIdentity.modelFamily(provider)) {
             "Provider $provider is not a direct official model source"
         }
+        require(!generatedAt.isBefore(modelRun)) {
+            "Forecast generation time must not precede the model run"
+        }
         require(fields.all { !it.validTime.isBefore(modelRun) }) {
             "Decoded GRIB valid time must not precede the model run"
         }
@@ -65,6 +68,11 @@ class OfficialGribForecastMapper {
         val dewPointC = field(GribForecastParameter.DEW_POINT_2M)
             ?.value
             ?.kelvinToCelsius()
+        if (temperatureC != null && dewPointC != null) {
+            require(dewPointC <= temperatureC + MAX_DEW_POINT_ABOVE_TEMPERATURE_C) {
+                "2 m dew point must not materially exceed 2 m temperature"
+            }
+        }
         val directHumidity = field(GribForecastParameter.RELATIVE_HUMIDITY_2M)?.value
         val humidityPercent = directHumidity ?: relativeHumidityPercent(
             temperatureC = temperatureC,
@@ -218,6 +226,7 @@ class OfficialGribForecastMapper {
         const val PASCALS_PER_HECTOPASCAL = 100.0
         const val FULL_CIRCLE_DEGREES = 360.0
         const val CALM_WIND_EPSILON_MPS = 1e-9
+        const val MAX_DEW_POINT_ABOVE_TEMPERATURE_C = 0.5
 
         // Magnus approximation over the operational near-surface temperature range.
         const val MAGNUS_A = 17.625
