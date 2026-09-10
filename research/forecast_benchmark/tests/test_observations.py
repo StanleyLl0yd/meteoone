@@ -5,6 +5,7 @@ from datetime import date
 
 from research.forecast_benchmark.model import Location
 from research.forecast_benchmark.observations import (
+    TextHttpClient,
     parse_global_hourly,
     parse_station_history,
     select_station,
@@ -19,6 +20,15 @@ LOCATION = Location(
     timezone_id="Europe/Moscow",
     climate_note="fixture",
 )
+
+
+class TextHttpClientSecurityTest(unittest.TestCase):
+    def test_rejects_non_https_and_unapproved_hosts(self) -> None:
+        client = TextHttpClient()
+        with self.assertRaises(ValueError):
+            client.get_text("file:///etc/passwd")
+        with self.assertRaises(ValueError):
+            client.get_text("https://example.test/data.csv")
 
 
 class StationSelectionTest(unittest.TestCase):

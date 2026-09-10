@@ -74,6 +74,7 @@ class Wis2HttpClient:
         url: str,
         params: Mapping[str, str],
     ) -> RawJsonResponse:
+        _validate_wis2_url(url)
         query = urllib.parse.urlencode(params, safe=",")
         request_url = f"{url}?{query}"
         request = urllib.request.Request(
@@ -88,10 +89,11 @@ class Wis2HttpClient:
         last_error: BaseException | None = None
         for attempt in range(1, self.max_attempts + 1):
             try:
-                with urllib.request.urlopen(
+                with urllib.request.urlopen(  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
                     request,
                     timeout=self.timeout_seconds,
                 ) as response:
+                    _validate_wis2_url(response.geturl())
                     body = response.read()
                     if response.status != 200:
                         raise RuntimeError(
@@ -136,6 +138,25 @@ class Wis2HttpClient:
 
         raise RuntimeError(
             f"Failed to fetch {request_url}: {last_error}"
+        )
+
+
+def _validate_wis2_url(url: str) -> None:
+    parsed = urllib.parse.urlsplit(url)
+    try:
+        port = parsed.port
+    except ValueError as error:
+        raise ValueError("invalid URL port") from error
+    if (
+        parsed.scheme != "http"
+        or parsed.hostname != "wis2box.mecom.ru"
+        or parsed.username is not None
+        or parsed.password is not None
+        or port not in (None, 80)
+        or not parsed.path.startswith("/oapi/collections/")
+    ):
+        raise ValueError(
+            "WIS2 URL must use the approved research-only HTTP endpoint"
         )
 
 

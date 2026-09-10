@@ -25,6 +25,9 @@ OPEN_METEO_LIVE_URL = "https://api.open-meteo.com/v1/forecast"
 OPEN_METEO_SINGLE_RUN_URL = "https://single-runs-api.open-meteo.com/v1/forecast"
 MET_NORWAY_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
 RETRYABLE_HTTP_STATUS = frozenset({408, 425, 429, 500, 502, 503, 504})
+FORECAST_HTTP_HOSTS = frozenset(
+    {"api.open-meteo.com", "single-runs-api.open-meteo.com", "api.met.no"}
+)
 
 HOURLY_FIELDS = (
     "temperature_2m",
@@ -80,6 +83,7 @@ class JsonHttpClient:
         max_attempts: int = 3,
         backoff_seconds: float = 1.0,
         sleep: Callable[[float], None] = time.sleep,
+        allowed_hosts: frozenset[str] = FORECAST_HTTP_HOSTS,
     ) -> None:
         if timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive")
@@ -90,9 +94,13 @@ class JsonHttpClient:
         self.timeout_seconds = timeout_seconds
         self.max_attempts = max_attempts
         self.backoff_seconds = backoff_seconds
+        if not allowed_hosts:
+            raise ValueError("allowed_hosts must not be empty")
         self.sleep = sleep
+        self.allowed_hosts = allowed_hosts
 
     def get(self, url: str, params: Mapping[str, str]) -> dict[str, Any]:
+        origin_host = _validate_https_url(url, self.allowed_hosts)
         query = urllib.parse.urlencode(params, safe=",")
         request_url = f"{url}?{query}"
         request = urllib.request.Request(
@@ -107,10 +115,15 @@ class JsonHttpClient:
         last_error: BaseException | None = None
         for attempt in range(1, self.max_attempts + 1):
             try:
-                with urllib.request.urlopen(
+                with urllib.request.urlopen(  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
                     request,
                     timeout=self.timeout_seconds,
                 ) as response:
+                    _validate_https_url(
+                        response.geturl(),
+                        self.allowed_hosts,
+                        expected_host=origin_host,
+                    )
                     if response.status != 200:
                         raise RuntimeError(
                             f"HTTP {response.status} for {request_url}"
@@ -150,6 +163,31 @@ class JsonHttpClient:
                 )
 
         raise RuntimeError(f"Failed to fetch {request_url}: {last_error}")
+
+
+def _validate_https_url(
+    url: str,
+    allowed_hosts: frozenset[str],
+    *,
+    expected_host: str | None = None,
+) -> str:
+    parsed = urllib.parse.urlsplit(url)
+    try:
+        port = parsed.port
+    except ValueError as error:
+        raise ValueError("invalid URL port") from error
+    host = parsed.hostname
+    if (
+        parsed.scheme != "https"
+        or host not in allowed_hosts
+        or parsed.username is not None
+        or parsed.password is not None
+        or port not in (None, 443)
+    ):
+        raise ValueError("URL must use HTTPS and an approved forecast host")
+    if expected_host is not None and host != expected_host:
+        raise ValueError("cross-host HTTP redirect is forbidden")
+    return host
 
 
 class OpenMeteoAdapter:

@@ -12,9 +12,20 @@ local.properties
 # Signing and secrets
 *.jks
 *.keystore
+*.pem
+*.key
+*.p12
+*.pfx
+key.properties
+keystore.properties
 secrets.properties
 .env
 .env.*
+.secrets/
+.netrc
+.npmrc
+.pypirc
+service-account*.json
 
 # Generated / local
 captures/

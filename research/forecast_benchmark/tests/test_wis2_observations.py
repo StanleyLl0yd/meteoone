@@ -246,7 +246,7 @@ class _FakeResponse:
         return self.body
 
     def geturl(self) -> str:
-        return "https://example.test/final"
+        return f"{WIS2_ITEMS_URL}?f=json"
 
 
 class Wis2HttpClientTest(unittest.TestCase):
@@ -271,12 +271,19 @@ class Wis2HttpClientTest(unittest.TestCase):
             ],
         ):
             response = client.get_json(
-                "https://example.test/items",
+                WIS2_ITEMS_URL,
                 {"f": "json"},
             )
 
         self.assertEqual(response.payload, {"features": []})
         self.assertEqual(sleeps, [0.25])
+
+    def test_rejects_other_schemes_and_hosts(self) -> None:
+        client = Wis2HttpClient()
+        with self.assertRaises(ValueError):
+            client.get_json("file:///etc/passwd", {})
+        with self.assertRaises(ValueError):
+            client.get_json("http://example.test/items", {})
 
 
 class _FakeHttp:

@@ -1,51 +1,69 @@
 # GitHub repository security settings
 
-The connected automation identity does not have repository-administration permission, so these settings must be applied by the repository owner in GitHub.
+These settings require repository-owner administration and cannot be applied by the connected automation identity.
 
-## Ruleset for `main`
+A 2026-09-09 audit of this private repository confirmed that the repository rulesets API responds with a plan requirement to upgrade GitHub Pro or make the repository public. Do not claim ruleset enforcement is active until GitHub actually exposes and applies it.
 
-Create a branch ruleset targeting the default branch with:
+## Desired ruleset for `main`
+
+When repository rulesets/branch protection are available, target the default branch with:
 
 - require changes through a pull request;
-- require one approval only when a second human maintainer is available; do not add fake self-approval requirements;
-- require conversation resolution before merge;
-- require status checks to pass;
-- require the branch to be up to date before merge once CI runtime is acceptable;
-- block force pushes;
+- require conversation resolution;
+- require strict status checks and an up-to-date branch once CI runtime is acceptable;
+- require linear history;
+- block force pushes/non-fast-forward updates;
 - block branch deletion;
-- do not allow bypass except for repository recovery/emergency administration.
+- no routine bypass actors;
+- do not require a human approval solely for a security score while the project has one human maintainer.
 
-Required checks for the current private-repository baseline:
+Use squash merge for ordinary feature/fix work. Disable merge/rebase methods when the repository plan/settings make squash-only enforcement practical.
 
-- `verify` from the CI workflow;
-- `gitleaks` from Secret Scan.
+## Required checks
 
-Do not require the currently skipped CodeQL or Dependency Review jobs until GitHub Advanced Security / GitHub Code Security is enabled.
+After the security-hardening workflow has produced these contexts successfully, require:
 
-## Security analysis
+- `verify`;
+- `gitleaks`;
+- `Semgrep`.
 
-Enable all features available to the current repository plan:
+Do not configure a required context before verifying its exact emitted name.
+
+While GitHub Advanced Security / GitHub Code Security is unavailable for this private repository, do not require the skipped contexts:
+
+- `Analyze Java/Kotlin`;
+- `dependency-review`.
+
+When GHAS becomes available:
+
+1. enable the applicable security product;
+2. set repository Actions variable `GHAS_ENABLED=true`;
+3. verify CodeQL and Dependency Review on a real PR;
+4. require the exact successful contexts;
+5. add code-scanning enforcement for medium-or-higher security alerts if the plan exposes that rule.
+
+## Security analysis settings
+
+Enable every feature available to the current plan:
 
 - Dependency graph;
 - Dependabot alerts;
 - Dependabot security updates;
-- private vulnerability reporting when/if the repository becomes public.
+- secret scanning / push protection when available;
+- private vulnerability reporting when available for the repository visibility/plan.
 
-For this private repository, GitHub Dependency Review and CodeQL require GitHub Advanced Security / GitHub Code Security. If enabled later:
+## Release tags
 
-1. enable the GitHub security product;
-2. create repository Actions variable `GHAS_ENABLED=true`;
-3. verify CodeQL and Dependency Review both pass;
-4. add their checks to the `main` ruleset.
+There are currently no GitHub Releases and no release-tag lifecycle to protect.
 
-## Actions
+Before the first release that uses `vX.Y.Z` tags, add a tag rule targeting `refs/tags/v*` that prevents deletion and non-fast-forward/tag movement. A release tag must become immutable after creation.
 
-Keep workflow permissions read-only by default. Grant write permission only at job scope where a specific trusted workflow requires it.
+## Actions and secrets
 
-Production signing secrets must not be added to ordinary repository Actions secrets used by pull-request workflows. Release signing belongs in a separately protected release environment or trusted self-hosted runner.
+Keep workflow permissions denied/read-only by default. Grant write permission only to the smallest trusted job that requires it.
 
-## Merge policy
+Production signing secrets must never be available to ordinary pull-request workflows. Use a separately protected release environment or another explicitly trusted release mechanism.
 
-Use squash merge for normal feature/fix pull requests so `main` remains concise. Keep merge commits only when preserving a meaningful multi-commit history is necessary.
+## Current administrative gap
 
-Delete merged short-lived branches after merge.
+Issue #12 tracks owner-side repository settings. Repository-code controls are active independently, but branch/ruleset enforcement, signed-commit requirements, immutable release-tag enforcement, and plan-gated code-scanning enforcement remain unverified until GitHub exposes the corresponding administrative features.

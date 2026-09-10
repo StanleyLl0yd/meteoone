@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import io
 import math
+import urllib.parse
 import urllib.request
 from dataclasses import asdict, dataclass
 from datetime import date, datetime
@@ -108,6 +109,7 @@ class TextHttpClient:
         self.timeout_seconds = timeout_seconds
 
     def get_text(self, url: str) -> str:
+        _validate_ncei_url(url)
         request = urllib.request.Request(
             url,
             headers={
@@ -116,10 +118,30 @@ class TextHttpClient:
             },
             method="GET",
         )
-        with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
+        with urllib.request.urlopen(  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+            request,
+            timeout=self.timeout_seconds,
+        ) as response:
+            _validate_ncei_url(response.geturl())
             if response.status != 200:
                 raise RuntimeError(f"HTTP {response.status} for {url}")
             return response.read().decode("utf-8-sig")
+
+
+def _validate_ncei_url(url: str) -> None:
+    parsed = urllib.parse.urlsplit(url)
+    try:
+        port = parsed.port
+    except ValueError as error:
+        raise ValueError("invalid URL port") from error
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname != "www.ncei.noaa.gov"
+        or parsed.username is not None
+        or parsed.password is not None
+        or port not in (None, 443)
+    ):
+        raise ValueError("NCEI URL must use HTTPS on www.ncei.noaa.gov")
 
 
 class NceiIsdAdapter:

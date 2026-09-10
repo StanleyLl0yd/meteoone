@@ -326,11 +326,23 @@ Release signing material must remain outside Git.
 
 Normal pull-request CI must not receive production signing material.
 
-Use least-privilege CI permissions.
+GitHub Actions security requirements:
 
-Pin third-party GitHub Actions to immutable revisions where practical.
+- use deny-by-default or least-privilege `GITHUB_TOKEN` permissions;
+- pin every external Action to a full immutable 40-character commit SHA;
+- pin workflow containers by immutable SHA-256 digest;
+- do not persist checkout credentials unless an explicitly reviewed trusted write job requires it;
+- do not use `pull_request_target` to execute untrusted contribution code;
+- do not inherit reusable-workflow secrets broadly;
+- treat CI/dependency/release changes as supply-chain-sensitive changes.
 
-See `SECURITY.md` and `docs/release/SIGNING.md`.
+Downloaded executable/tool archives must use HTTPS, a fixed version, and checksum/signature verification before execution when a package manager or pinned trusted Action is not available.
+
+Production Android networking must not use cleartext HTTP. The documented Roshydromet WIS2 HTTP endpoint is a research-only M0 observation exception and must never become a production transport path.
+
+Before a major milestone or release, review dependencies, workflows, secret/signing boundaries, relevant security scans, and release integrity. Do not add unstable or irrelevant scanners merely to increase control count.
+
+See `SECURITY.md`, `docs/security/SECURITY_BASELINE.md`, and `docs/release/SIGNING.md`.
 
 ## Release signing and artifacts
 
