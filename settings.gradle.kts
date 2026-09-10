@@ -21,3 +21,4 @@ rootProject.name = "MeteoOne"
 include(":app")
 include(":core:model")
 include(":forecast:domain")
+include(":forecast:data")
