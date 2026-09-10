@@ -1,10 +1,10 @@
 package com.sl.meteoone.forecast.data.source
 
+import com.sl.meteoone.core.model.ForecastProvider
+import com.sl.meteoone.core.model.ModelFamily
 import java.net.URI
 import java.time.Duration
 import java.time.Instant
-import com.sl.meteoone.core.model.ForecastProvider
-import com.sl.meteoone.core.model.ModelFamily
 
 private const val MAX_SOURCE_RESPONSE_BYTES = 64L * 1024L * 1024L
 
@@ -41,6 +41,12 @@ data class PlannedForecastRequest(
     val gridPoint: SourceGridPoint,
 ) {
     init {
+        val expectedModelFamily = requireNotNull(OfficialProviderIdentity.modelFamily(provider)) {
+            "Provider $provider is not a direct official model source"
+        }
+        require(modelFamily == expectedModelFamily) {
+            "Provider $provider must use model family $expectedModelFamily"
+        }
         require(forecastHour >= 0)
         require(Duration.between(modelRun, validTime) == Duration.ofHours(forecastHour.toLong())) {
             "Forecast valid time must equal model run plus forecast hour"

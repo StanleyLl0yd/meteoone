@@ -48,6 +48,35 @@ class OfficialSourceRequestTest {
     }
 
     @Test
+    fun plannedForecastRequestRequiresOfficialProviderModelIdentity() {
+        val modelRun = Instant.parse("2026-09-10T06:00:00Z")
+        val valid = plannedForecastRequest(
+            modelRun = modelRun,
+            validTime = modelRun.plusSeconds(6 * 3600),
+            forecastHour = 6,
+        )
+        assertEquals(ForecastProvider.NOAA_NOMADS, valid.provider)
+        assertEquals(ModelFamily.NOAA_GFS, valid.modelFamily)
+
+        assertFailsWith<IllegalArgumentException> {
+            plannedForecastRequest(
+                modelRun = modelRun,
+                validTime = modelRun.plusSeconds(6 * 3600),
+                forecastHour = 6,
+                modelFamily = ModelFamily.ECMWF_IFS,
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plannedForecastRequest(
+                modelRun = modelRun,
+                validTime = modelRun.plusSeconds(6 * 3600),
+                forecastHour = 6,
+                provider = ForecastProvider.OPEN_METEO,
+            )
+        }
+    }
+
+    @Test
     fun plannedForecastRequestRequiresExactForecastHourValidTime() {
         val modelRun = Instant.parse("2026-09-10T06:00:00Z")
         val exact = plannedForecastRequest(
@@ -84,13 +113,15 @@ class OfficialSourceRequestTest {
         modelRun: Instant,
         validTime: Instant,
         forecastHour: Int,
+        provider: ForecastProvider = ForecastProvider.NOAA_NOMADS,
+        modelFamily: ModelFamily = ModelFamily.NOAA_GFS,
     ) = PlannedForecastRequest(
         request = OfficialSourceRequest(
             uri = URI.create("https://example.test/forecast"),
             maxResponseBytes = 1024,
         ),
-        provider = ForecastProvider.NOAA_NOMADS,
-        modelFamily = ModelFamily.NOAA_GFS,
+        provider = provider,
+        modelFamily = modelFamily,
         modelRun = modelRun,
         validTime = validTime,
         forecastHour = forecastHour,
