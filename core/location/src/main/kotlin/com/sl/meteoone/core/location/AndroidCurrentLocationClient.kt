@@ -43,7 +43,11 @@ class AndroidCurrentLocationClient(
             timeoutCallback?.let(mainHandler::removeCallbacks)
             cancellationSignal?.cancel()
             legacyListener?.let { listener ->
-                runCatching { locationManager.removeUpdates(listener) }
+                try {
+                    locationManager.removeUpdates(listener)
+                } catch (_: RuntimeException) {
+                    // Cleanup is best-effort after the result has already been decided.
+                }
             }
             callback(result)
         }
@@ -57,11 +61,8 @@ class AndroidCurrentLocationClient(
         val hasCoarsePermission =
             appContext.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) ==
                 PackageManager.PERMISSION_GRANTED
-        val hasFinePermission =
-            appContext.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) ==
-                PackageManager.PERMISSION_GRANTED
 
-        if (!hasCoarsePermission && !hasFinePermission) {
+        if (!hasCoarsePermission) {
             mainHandler.post {
                 finish(
                     CurrentLocationResult.Unavailable(
@@ -72,8 +73,7 @@ class AndroidCurrentLocationClient(
             return handle
         }
 
-        val provider = selectProvider(hasFinePermission)
-        if (provider == null) {
+        if (!isNetworkProviderEnabled()) {
             mainHandler.post {
                 finish(
                     CurrentLocationResult.Unavailable(
@@ -92,7 +92,6 @@ class AndroidCurrentLocationClient(
             if (completed.get()) return@post
             try {
                 requestPlatformLocation(
-                    provider = provider,
                     onCancellationSignal = { cancellationSignal = it },
                     onLegacyListener = { legacyListener = it },
                     onLocation = { location ->
@@ -121,22 +120,15 @@ class AndroidCurrentLocationClient(
         return handle
     }
 
-    private fun selectProvider(hasFinePermission: Boolean): String? {
-        if (isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-            return LocationManager.NETWORK_PROVIDER
+    private fun isNetworkProviderEnabled(): Boolean =
+        try {
+            locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        } catch (_: RuntimeException) {
+            false
         }
-        if (hasFinePermission && isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            return LocationManager.GPS_PROVIDER
-        }
-        return null
-    }
-
-    private fun isProviderEnabled(provider: String): Boolean =
-        runCatching { locationManager.isProviderEnabled(provider) }.getOrDefault(false)
 
     @SuppressLint("MissingPermission")
     private fun requestPlatformLocation(
-        provider: String,
         onCancellationSignal: (CancellationSignal) -> Unit,
         onLegacyListener: (LocationListener) -> Unit,
         onLocation: (Location?) -> Unit,
@@ -146,11 +138,12 @@ class AndroidCurrentLocationClient(
             onCancellationSignal(cancellationSignal)
             val executor = Executor { runnable -> mainHandler.post(runnable) }
             locationManager.getCurrentLocation(
-                provider,
+                LocationManager.NETWORK_PROVIDER,
                 cancellationSignal,
                 executor,
-                onLocation,
-            )
+            ) { location ->
+                onLocation(location)
+            }
             return
         }
 
@@ -172,18 +165,22 @@ class AndroidCurrentLocationClient(
         }
         onLegacyListener(listener)
         @Suppress("DEPRECATION")
-        locationManager.requestSingleUpdate(provider, listener, Looper.getMainLooper())
+        locationManager.requestSingleUpdate(
+            LocationManager.NETWORK_PROVIDER,
+            listener,
+            Looper.getMainLooper(),
+        )
     }
 
     private fun normalizeLocation(location: Location): CurrentLocationResult =
-        runCatching {
+        try {
             CurrentLocationResult.Available(
                 ForecastCoordinateNormalizer.normalize(
                     latitude = location.latitude,
                     longitude = location.longitude,
                 ),
             )
-        }.getOrElse {
+        } catch (_: IllegalArgumentException) {
             CurrentLocationResult.Unavailable(CurrentLocationResult.Reason.PLATFORM_FAILURE)
         }
 
