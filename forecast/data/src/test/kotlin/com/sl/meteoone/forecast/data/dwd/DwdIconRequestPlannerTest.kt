@@ -30,6 +30,47 @@ class DwdIconRequestPlannerTest {
     }
 
     @Test
+    fun requestPlanRejectsInvalidIdentityTimeAndFieldAvailability() {
+        val modelRun = Instant.parse("2026-09-10T06:00:00Z")
+        val plan = DwdIconRequestPlanner.plan(
+            modelRun = modelRun,
+            forecastHour = 1,
+            field = DwdIconField.TEMPERATURE_2M,
+        )
+
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(
+                provider = ForecastProvider.ECMWF_OPEN_DATA,
+                modelFamily = ModelFamily.ECMWF_IFS,
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(modelFamily = ModelFamily.NOAA_GFS)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(
+                forecastHour = -1,
+                validTime = modelRun.minusSeconds(3600),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(validTime = plan.validTime.minusSeconds(3600))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(validTime = plan.validTime.plusSeconds(3600))
+        }
+
+        val zeroHour = DwdIconRequestPlanner.plan(
+            modelRun = modelRun,
+            forecastHour = 0,
+            field = DwdIconField.TEMPERATURE_2M,
+        )
+        assertFailsWith<IllegalArgumentException> {
+            zeroHour.copy(field = DwdIconField.WIND_MAX_10M)
+        }
+    }
+
+    @Test
     fun plansEveryRequiredFieldWithOfficialDirectoryAndToken() {
         val modelRun = Instant.parse("2026-09-10T12:00:00Z")
 
