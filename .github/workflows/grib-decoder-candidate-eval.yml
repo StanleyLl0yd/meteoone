@@ -369,6 +369,7 @@ jobs:
             -DANDROID_PLATFORM="android-$ANDROID_API" \
             -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON \
             -DCMAKE_BUILD_TYPE=Release \
+            -DDISABLE_OS_CHECK=ON \
             -DCMAKE_INSTALL_PREFIX="$android_eccodes" \
             -DCMAKE_MODULE_PATH="$SRC_ROOT/ecbuild/cmake" \
             -DCMAKE_PREFIX_PATH="$android_aec" \
