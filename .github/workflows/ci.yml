@@ -75,6 +75,9 @@ jobs:
       - name: GRIB capability unit tests
         run: python -m unittest discover -s research/grib_capabilities/tests -v
 
+      - name: GRIB decoder candidate unit tests
+        run: python -m unittest discover -s research/grib_decoder_candidates/tests -v
+
       - name: Verify
         run: >-
           ./gradlew
