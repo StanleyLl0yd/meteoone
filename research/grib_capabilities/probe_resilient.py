@@ -17,7 +17,6 @@ from .probe import (
     NOAA_FIELDS,
     NOAA_REQUEST_SPACING_SECONDS,
     _fetch_bounded,
-    _load_ecmwf_index,
     _run_tokens,
     _save_sample,
     _sha256,
@@ -28,6 +27,15 @@ from .probe import (
 )
 
 NOAA_MAX_MESSAGES_PER_FIELD = 4
+
+
+def _ecmwf_probe_urls(model_run: datetime, forecast_hour: int) -> tuple[str, str]:
+    date, cycle, _ = _run_tokens(model_run)
+    prefix = (
+        f"https://data.ecmwf.int/forecasts/{date}/{cycle}z/ifs/0p25/oper/"
+        f"{date}{cycle}0000-{forecast_hour}h-oper-fc"
+    )
+    return f"{prefix}.index", f"{prefix}.grib2"
 
 
 def probe_noaa_resilient(
@@ -130,12 +138,11 @@ def probe_ecmwf_resilient(
     samples_dir: Path,
 ) -> tuple[list[DownloadedSample], list[dict[str, str]], dict[str, object]]:
     date, cycle, _ = _run_tokens(model_run)
-    index_url, grib_url, _ = _load_ecmwf_index(model_run, forecast_hour)
+    index_url, grib_url = _ecmwf_probe_urls(model_run, forecast_hour)
 
-    # Fetch the already validated, bounded index once more only for immutable evidence.
-    # The retained bytes are parsed again and become the sole entries used below, so
-    # field selection always corresponds exactly to the artifact even if an operational
-    # listing were to change between the two bounded GETs.
+    # Fetch the bounded index exactly once. These retained bytes are the sole entries
+    # used for field selection, so artifact evidence and requested ranges cannot drift
+    # while avoiding duplicate requests that amplify provider rate limiting.
     index_raw, index_status, final_index_url = _fetch_bounded(
         index_url,
         max_bytes=MAX_ECMWF_INDEX_BYTES,
