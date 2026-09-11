@@ -30,6 +30,8 @@ A provider is a delivery system. A model is the underlying meteorological foreca
 
 The M1 direct-source transport and provenance boundary is documented in [`FORECAST_SOURCES.md`](FORECAST_SOURCES.md).
 
+The M1 measured GRIB decoder capability gate is documented in [`GRIB_DECODER_REQUIREMENTS.md`](GRIB_DECODER_REQUIREMENTS.md).
+
 The M1 Open-Meteo fallback and normalization path is documented in [`OPEN_METEO_FALLBACK.md`](OPEN_METEO_FALLBACK.md).
 
 ### Domain independence
