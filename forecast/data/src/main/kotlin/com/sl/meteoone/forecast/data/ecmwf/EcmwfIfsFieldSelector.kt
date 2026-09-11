@@ -27,7 +27,7 @@ enum class EcmwfSurfaceField(
     val acceptedParameters: Set<String> = setOf(parameter) + parameterAliases
 }
 
-data class EcmwfFieldRangePlan(
+class EcmwfFieldRangePlan internal constructor(
     val request: OfficialSourceRequest,
     val range: ByteRange,
     val field: EcmwfSurfaceField,
