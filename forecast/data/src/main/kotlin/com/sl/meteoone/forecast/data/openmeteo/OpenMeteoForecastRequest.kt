@@ -5,10 +5,12 @@ import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.ModelFamily
 import java.math.BigDecimal
 import java.net.URI
+import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
 internal const val OPEN_METEO_MAX_RESPONSE_BYTES = 512L * 1024L
+private const val OPEN_METEO_FORECAST_HOURS = 72
 
 internal val OPEN_METEO_HOURLY_FIELDS = listOf(
     "temperature_2m",
@@ -67,6 +69,10 @@ data class OpenMeteoForecastRequest(
         require(uri.path == OPEN_METEO_PATH) {
             "Open-Meteo request path must be $OPEN_METEO_PATH"
         }
+        require(uri.fragment == null) { "Open-Meteo requests must not contain fragments" }
+        require(parseQuery(uri.rawQuery) == expectedQuery(model, coordinate)) {
+            "Open-Meteo request query must match model, coordinate, horizon, fields, and units"
+        }
         require(maxResponseBytes in 1..OPEN_METEO_MAX_RESPONSE_BYTES) {
             "Open-Meteo response byte limit is out of bounds"
         }
@@ -86,24 +92,14 @@ data class OpenMeteoForecastRequest(
 
 object OpenMeteoForecastRequestPlanner {
     private const val BASE_URL = "https://api.open-meteo.com/v1/forecast"
-    private const val FORECAST_HOURS = 72
 
     fun plan(
         model: OpenMeteoModel,
         coordinate: ForecastCoordinate,
     ): OpenMeteoForecastRequest {
-        val query = listOf(
-            "latitude" to formatCoordinate(coordinate.latitude),
-            "longitude" to formatCoordinate(coordinate.longitude),
-            "models" to model.apiId,
-            "hourly" to OPEN_METEO_HOURLY_FIELDS.joinToString(","),
-            "forecast_hours" to FORECAST_HOURS.toString(),
-            "timezone" to "UTC",
-            "timeformat" to "unixtime",
-            "temperature_unit" to "celsius",
-            "wind_speed_unit" to "ms",
-            "precipitation_unit" to "mm",
-        ).joinToString("&") { (key, value) -> "$key=${encode(value)}" }
+        val query = expectedQuery(model, coordinate)
+            .entries
+            .joinToString("&") { (key, value) -> "${encode(key)}=${encode(value)}" }
 
         return OpenMeteoForecastRequest(
             uri = URI.create("$BASE_URL?$query"),
@@ -111,11 +107,45 @@ object OpenMeteoForecastRequestPlanner {
             coordinate = coordinate,
         )
     }
-
-    private fun formatCoordinate(value: Double): String =
-        BigDecimal.valueOf(value).stripTrailingZeros().toPlainString()
-
-    @Suppress("DEPRECATION")
-    private fun encode(value: String): String =
-        URLEncoder.encode(value, StandardCharsets.UTF_8.name())
 }
+
+private fun expectedQuery(
+    model: OpenMeteoModel,
+    coordinate: ForecastCoordinate,
+): Map<String, String> = linkedMapOf(
+    "latitude" to formatCoordinate(coordinate.latitude),
+    "longitude" to formatCoordinate(coordinate.longitude),
+    "models" to model.apiId,
+    "hourly" to OPEN_METEO_HOURLY_FIELDS.joinToString(","),
+    "forecast_hours" to OPEN_METEO_FORECAST_HOURS.toString(),
+    "timezone" to "UTC",
+    "timeformat" to "unixtime",
+    "temperature_unit" to "celsius",
+    "wind_speed_unit" to "ms",
+    "precipitation_unit" to "mm",
+)
+
+private fun parseQuery(rawQuery: String?): Map<String, String> {
+    require(!rawQuery.isNullOrBlank()) { "Open-Meteo request query must not be empty" }
+    val result = linkedMapOf<String, String>()
+    rawQuery.split('&').forEach { component ->
+        val separator = component.indexOf('=')
+        require(separator > 0) { "Open-Meteo query parameters must use key=value form" }
+        val key = decode(component.substring(0, separator))
+        val value = decode(component.substring(separator + 1))
+        require(key !in result) { "Open-Meteo request query must not contain duplicate keys" }
+        result[key] = value
+    }
+    return result
+}
+
+private fun formatCoordinate(value: Double): String =
+    BigDecimal.valueOf(value).stripTrailingZeros().toPlainString()
+
+@Suppress("DEPRECATION")
+private fun encode(value: String): String =
+    URLEncoder.encode(value, StandardCharsets.UTF_8.name())
+
+@Suppress("DEPRECATION")
+private fun decode(value: String): String =
+    URLDecoder.decode(value, StandardCharsets.UTF_8.name())
