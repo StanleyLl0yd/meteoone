@@ -116,12 +116,8 @@ class OpenMeteoForecastRequestPlannerTest {
         val reorderedQuery = request.uri.rawQuery.split('&').reversed().joinToString("&")
 
         val reordered = request.copy(
-            uri = URI(
-                request.uri.scheme,
-                request.uri.authority,
-                request.uri.path,
-                reorderedQuery,
-                null,
+            uri = URI.create(
+                "${request.uri.scheme}://${request.uri.authority}${request.uri.path}?$reorderedQuery",
             ),
         )
 
