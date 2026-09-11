@@ -80,10 +80,29 @@ object EcmwfIfsRequestPlanner {
     }
 }
 
+internal fun ecmwfGribUri(
+    modelRun: Instant,
+    forecastHour: Int,
+): URI = URI.create("${ecmwfProductPrefix(modelRun, forecastHour)}.grib2")
+
 private fun buildRequests(
     modelRun: Instant,
     forecastHour: Int,
 ): EcmwfRequests {
+    val prefix = ecmwfProductPrefix(modelRun, forecastHour)
+    return EcmwfRequests(
+        indexRequest = OfficialSourceRequest(
+            uri = URI.create("$prefix.index"),
+            maxResponseBytes = MAX_INDEX_RESPONSE_BYTES,
+        ),
+        gribUri = ecmwfGribUri(modelRun, forecastHour),
+    )
+}
+
+private fun ecmwfProductPrefix(
+    modelRun: Instant,
+    forecastHour: Int,
+): String {
     val runUtc = modelRun.atOffset(ZoneOffset.UTC)
     val date = buildString {
         append(runUtc.year.toString().padStart(4, '0'))
@@ -91,15 +110,7 @@ private fun buildRequests(
         append(runUtc.dayOfMonth.toString().padStart(2, '0'))
     }
     val cycle = runUtc.hour.toString().padStart(2, '0')
-    val prefix = "$BASE_URL/$date/${cycle}z/ifs/0p25/oper/${date}${cycle}0000-${forecastHour}h-oper-fc"
-
-    return EcmwfRequests(
-        indexRequest = OfficialSourceRequest(
-            uri = URI.create("$prefix.index"),
-            maxResponseBytes = MAX_INDEX_RESPONSE_BYTES,
-        ),
-        gribUri = URI.create("$prefix.grib2"),
-    )
+    return "$BASE_URL/$date/${cycle}z/ifs/0p25/oper/${date}${cycle}0000-${forecastHour}h-oper-fc"
 }
 
 private data class EcmwfRequests(
