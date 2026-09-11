@@ -101,17 +101,7 @@ class ResilientProbeTest(unittest.TestCase):
         index_raw = (
             "\n".join(json.dumps(entry, sort_keys=True) for entry in entries) + "\n"
         ).encode("utf-8")
-
-        def fake_load(
-            model_run: datetime,
-            forecast_hour: int,
-        ) -> tuple[str, str, list[dict[str, object]]]:
-            del model_run, forecast_hour
-            return (
-                "https://data.ecmwf.int/example.index",
-                "https://data.ecmwf.int/example.grib2",
-                entries,
-            )
+        fetched_urls: list[str] = []
 
         def fake_fetch(
             url: str,
@@ -122,6 +112,7 @@ class ResilientProbeTest(unittest.TestCase):
             expected_range: tuple[int, int] | None = None,
         ) -> tuple[bytes, int, str]:
             del max_bytes, require_status, expected_range
+            fetched_urls.append(url)
             if url.endswith(".index"):
                 return index_raw, 200, url
             self.assertIsNotNone(headers)
@@ -138,10 +129,6 @@ class ResilientProbeTest(unittest.TestCase):
                         "total_cloud_cover": ("tcc",),
                     },
                     clear=True,
-                ),
-                patch(
-                    "research.grib_capabilities.probe_resilient._load_ecmwf_index",
-                    side_effect=fake_load,
                 ),
                 patch(
                     "research.grib_capabilities.probe_resilient._fetch_bounded",
@@ -167,6 +154,15 @@ class ResilientProbeTest(unittest.TestCase):
             self.assertEqual(diagnostics["surface_param_values"], ["2t", "tcc"])
             self.assertEqual(diagnostics["index_size"], len(index_raw))
             self.assertEqual(diagnostics["index_status"], 200)
+            self.assertEqual(
+                diagnostics["index_url"],
+                "https://data.ecmwf.int/forecasts/20260910/00z/ifs/0p25/oper/"
+                "20260910000000-6h-oper-fc.index",
+            )
+            self.assertEqual(
+                [url for url in fetched_urls if url.endswith(".index")],
+                [diagnostics["index_url"]],
+            )
             self.assertEqual(
                 (samples_dir / "ecmwf" / "index.jsonl").read_bytes(),
                 index_raw,
