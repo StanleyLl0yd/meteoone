@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "corpus": {
+    "workflow_run_id": 34577654571,
+    "artifact_id": 10190349074,
+    "artifact_name": "meteoone-m1-grib-capability-34577654571",
+    "artifact_digest": "sha256:5556b372bbf5f6b79ed3299597c2a92ae7ac6a0519b3916008972fcfc53fa5c7",
+    "source_head_sha": "cc19d5d8fafa64c32a652fc0360ff56ddcfe967d",
+    "model_run": "2026-09-10T18:00:00Z",
+    "forecast_hour": 6,
+    "ecmwf_index_sha256": "2514ac28a8d00a725262dca79dc5db3ab6185a9ed1a273a6b147d0c1dd01e368"
+  },
+  "candidates": {
+    "eccodes": {
+      "version": "2.48.0",
+      "repository": "https://github.com/ecmwf/eccodes.git",
+      "commit": "19e71ddcc8f45862a3909b4dae690c3cc95bbc16",
+      "license": "Apache-2.0"
+    },
+    "libaec": {
+      "version": "1.1.4",
+      "repository": "https://github.com/Deutsches-Klimarechenzentrum/libaec.git",
+      "commit": "7204505af7d6635734fc12a38d6bd0a6253c9c6d",
+      "license": "BSD-2-Clause"
+    },
+    "netcdf_java": {
+      "version": "5.10.0",
+      "repository": "https://github.com/Unidata/netcdf-java.git",
+      "commit": "13e4447664f4e9016ddf89f1e24fcfb9f5b6776a",
+      "status": "android-native-path-unverified"
+    },
+    "wgrib2": {
+      "version": "3.8.0",
+      "repository": "https://github.com/NOAA-EMC/wgrib2.git",
+      "commit": "986287cc4f77ed3f5f97056fd0f90d099964dba7",
+      "status": "licence-composition-review-required"
+    }
+  }
+}
