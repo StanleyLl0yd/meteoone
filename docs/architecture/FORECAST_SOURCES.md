@@ -16,7 +16,7 @@ MeteoOne separates a forecast model from the service that delivers that model. A
 
 The same model family delivered by two provider paths remains one independent fusion evidence group. For example, GFS delivered by NOMADS and GFS delivered by Open-Meteo are two provider observations of `NOAA_GFS`, not two ensemble members.
 
-The shared `PlannedForecastRequest` direct-source boundary validates each provider/model-family pair against `OfficialProviderIdentity`, so impossible or non-official provenance cannot enter an official request plan.
+Direct-source plans share one provider/model/time metadata guard backed by `OfficialProviderIdentity`. Provider-specific plans additionally bind their actual request URI and transport bounds to the planned run, forecast hour, grid point or field as applicable, so unrelated bytes cannot retain trusted official provenance after manual construction or data-class copying.
 
 ## NOAA/NCEP GFS
 
@@ -31,6 +31,8 @@ Observed against the live service on 2026-09-10:
 - GRIB Filter supports parameter, level and geographic subsetting;
 - NOMADS asks automated looping clients to pause between repeated requests; MeteoOne records a 10 second minimum request-spacing policy in its request plan;
 - the former NOMADS OPeNDAP path explicitly reports that OPeNDAP format has been retired and must not be used as the production integration path.
+
+`NoaaGfsRequestPlan` binds the exact bounded NOMADS request to its run, forecast hour and snapped source-grid point. The request's fixed field/level set, 2 MiB response bound and 10 second minimum spacing therefore cannot drift independently from the plan metadata.
 
 MeteoOne requests only the fields needed by the canonical forecast model and uses a bounded geographic subset rather than downloading the hundreds-of-megabytes global GRIB files.
 
@@ -48,7 +50,7 @@ Current Cycle 50r1 behavior was re-verified on 2026-09-10. All four deterministi
 
 For the M1 0–72 h window, deterministic IFS output is available every three hours. MeteoOne therefore must not pretend that the official direct source is hourly. Hourly product normalization is a later data-mapping concern and must preserve accumulation semantics rather than fabricating observed model steps.
 
-`EcmwfIfsRequestPlan` validates ECMWF Open Data / IFS provenance and requires its `validTime` to equal `modelRun + forecastHour`; operational cycle, horizon and three-hour cadence policy remain planner responsibilities.
+`EcmwfIfsRequestPlan` validates ECMWF Open Data / IFS provenance, requires its `validTime` to equal `modelRun + forecastHour`, and binds both the `.index` request and companion `.grib2` URI to that exact run/hour under the official endpoint. The 2 MiB index-response bound is part of the plan invariant; operational cycle, horizon and three-hour cadence policy remain planner responsibilities.
 
 ECMWF publishes a JSON-lines `.index` beside each GRIB file. Every record describes one GRIB field and includes `_offset` and `_length`, allowing a client to retrieve selected fields with individual HTTP byte-range requests. The M1 data layer parses that index under a 2 MiB bound, validates the expected deterministic `domain=g`, `class=od`, `type=fc`, `stream=oper`, model date/cycle and forecast step, and only then emits a bounded single-field `Range` request. Multipart ranges are intentionally not assumed because ECMWF notes that they are not supported by all servers.
 
@@ -84,7 +86,7 @@ DWD Open Data exposes global deterministic ICON output under per-cycle and per-v
 
 Live directories verified on 2026-09-10 expose 00, 06, 12 and 18 UTC cycles and hourly forecast steps through at least hour 72. MeteoOne's current required field set can be addressed through the official directories for 2 m temperature, 2 m dew point, 2 m relative humidity, mean-sea-level pressure, 10 m U/V wind, 10 m maximum wind, total precipitation, total cloud cover and weather code. Maximum 10 m wind is an interval product and begins at forecast hour 1 rather than hour 0.
 
-`DwdIconRequestPlan` validates DWD Open Data / ICON provenance, requires `validTime == modelRun + forecastHour`, and enforces each field's intrinsic first available forecast hour; operational-cycle and M1 horizon policy remain planner responsibilities.
+`DwdIconRequestPlan` validates DWD Open Data / ICON provenance, requires `validTime == modelRun + forecastHour`, enforces each field's intrinsic first available forecast hour, and binds the exact official field URI plus 8 MiB compressed-response bound to the same run/hour/field metadata. Operational-cycle and M1 horizon policy remain planner responsibilities.
 
 Unlike NOMADS, the DWD global directories do not provide a point/geographic subset endpoint. A single compressed global field observed during the M1 source audit is commonly several MiB (for example roughly 3 MiB for T2M and roughly 4 MiB for some humidity/cloud/gust fields). Repeating full-global field downloads for many parameters across 73 forecast hours would therefore be unsuitable as a routine on-device transport strategy.
 

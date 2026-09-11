@@ -2,9 +2,9 @@ package com.sl.meteoone.forecast.data.dwd
 
 import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.ModelFamily
-import com.sl.meteoone.forecast.data.source.OfficialProviderIdentity
 import com.sl.meteoone.forecast.data.source.OfficialSourceRequest
-import java.time.Duration
+import com.sl.meteoone.forecast.data.source.requireOfficialPlanMetadata
+import java.net.URI
 import java.time.Instant
 import java.time.ZoneOffset
 
@@ -42,18 +42,18 @@ data class DwdIconRequestPlan(
         require(provider == ForecastProvider.DWD_OPEN_DATA) {
             "DWD request plan must use the DWD Open Data provider"
         }
-        val expectedModelFamily = requireNotNull(OfficialProviderIdentity.modelFamily(provider)) {
-            "DWD request plan provider must be a direct official model source"
-        }
-        require(modelFamily == expectedModelFamily) {
-            "DWD request plan must use model family $expectedModelFamily"
-        }
-        require(forecastHour >= 0) { "Forecast hour must not be negative" }
-        require(Duration.between(modelRun, validTime) == Duration.ofHours(forecastHour.toLong())) {
-            "DWD forecast valid time must equal model run plus forecast hour"
-        }
+        requireOfficialPlanMetadata(
+            provider = provider,
+            modelFamily = modelFamily,
+            modelRun = modelRun,
+            validTime = validTime,
+            forecastHour = forecastHour,
+        )
         require(forecastHour >= field.firstForecastHour) {
             "${field.name} is not available at forecast hour $forecastHour"
+        }
+        require(request == buildRequest(modelRun, forecastHour, field)) {
+            "DWD request URI and transport limits must match the planned run, hour, and field"
         }
     }
 }
@@ -78,25 +78,8 @@ object DwdIconRequestPlanner {
             "${field.name} is not available at forecast hour $forecastHour"
         }
 
-        val date = buildString {
-            append(runUtc.year.toString().padStart(4, '0'))
-            append(runUtc.monthValue.toString().padStart(2, '0'))
-            append(runUtc.dayOfMonth.toString().padStart(2, '0'))
-        }
-        val cycle = runUtc.hour.toString().padStart(2, '0')
-        val forecastHourToken = forecastHour.toString().padStart(3, '0')
-        val filename =
-            "icon_global_icosahedral_single-level_${date}${cycle}_" +
-                "${forecastHourToken}_${field.fileToken}.grib2.bz2"
-        val uri = java.net.URI.create(
-            "$BASE_URL/$cycle/${field.directory}/$filename",
-        )
-
         return DwdIconRequestPlan(
-            request = OfficialSourceRequest(
-                uri = uri,
-                maxResponseBytes = MAX_COMPRESSED_FIELD_BYTES,
-            ),
+            request = buildRequest(modelRun, forecastHour, field),
             provider = ForecastProvider.DWD_OPEN_DATA,
             modelFamily = ModelFamily.DWD_ICON,
             modelRun = modelRun,
@@ -105,4 +88,27 @@ object DwdIconRequestPlanner {
             field = field,
         )
     }
+}
+
+private fun buildRequest(
+    modelRun: Instant,
+    forecastHour: Int,
+    field: DwdIconField,
+): OfficialSourceRequest {
+    val runUtc = modelRun.atOffset(ZoneOffset.UTC)
+    val date = buildString {
+        append(runUtc.year.toString().padStart(4, '0'))
+        append(runUtc.monthValue.toString().padStart(2, '0'))
+        append(runUtc.dayOfMonth.toString().padStart(2, '0'))
+    }
+    val cycle = runUtc.hour.toString().padStart(2, '0')
+    val forecastHourToken = forecastHour.toString().padStart(3, '0')
+    val filename =
+        "icon_global_icosahedral_single-level_${date}${cycle}_" +
+            "${forecastHourToken}_${field.fileToken}.grib2.bz2"
+
+    return OfficialSourceRequest(
+        uri = URI.create("$BASE_URL/$cycle/${field.directory}/$filename"),
+        maxResponseBytes = MAX_COMPRESSED_FIELD_BYTES,
+    )
 }

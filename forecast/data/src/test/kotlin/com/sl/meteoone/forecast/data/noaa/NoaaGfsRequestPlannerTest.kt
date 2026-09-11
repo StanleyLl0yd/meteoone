@@ -3,6 +3,7 @@ package com.sl.meteoone.forecast.data.noaa
 import com.sl.meteoone.core.model.ForecastCoordinate
 import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.ModelFamily
+import java.net.URI
 import java.time.Duration
 import java.time.Instant
 import kotlin.test.Test
@@ -47,6 +48,53 @@ class NoaaGfsRequestPlannerTest {
         assertTrue(query.contains("lev_mean_sea_level=on"))
         assertTrue(query.contains("leftlon=30.25&rightlon=30.25&toplat=60&bottomlat=60"))
         assertTrue(query.endsWith("dir=%2Fgfs.20260910%2F06%2Fatmos"))
+    }
+
+    @Test
+    fun requestPlanRejectsUriAndTransportDrift() {
+        val run = Instant.parse("2026-09-10T06:00:00Z")
+        val plan = NoaaGfsRequestPlanner.plan(
+            modelRun = run,
+            coordinate = coordinate(latitude = 59.9, longitude = 30.3),
+            forecastHour = 6,
+        )
+
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(
+                request = plan.request.copy(
+                    uri = URI.create("https://example.com/cgi-bin/filter_gfs_0p25.pl"),
+                ),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(
+                request = plan.request.copy(
+                    uri = URI.create(plan.request.uri.toString().replace("f006", "f009")),
+                ),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(
+                request = plan.request.copy(
+                    uri = URI.create(plan.request.uri.toString().replace("leftlon=30.25", "leftlon=30.5")),
+                ),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(request = plan.request.copy(maxResponseBytes = 4L * 1024L * 1024L))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(request = plan.request.copy(minimumRequestSpacing = Duration.ZERO))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(
+                forecastHour = 9,
+                validTime = run.plusSeconds(9 * 3600L),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(gridPoint = plan.gridPoint.copy(longitudeDegreesEast = 30.5))
+        }
     }
 
     @Test

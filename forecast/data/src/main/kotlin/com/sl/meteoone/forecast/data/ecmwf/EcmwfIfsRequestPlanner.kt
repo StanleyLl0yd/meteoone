@@ -2,10 +2,9 @@ package com.sl.meteoone.forecast.data.ecmwf
 
 import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.ModelFamily
-import com.sl.meteoone.forecast.data.source.OfficialProviderIdentity
 import com.sl.meteoone.forecast.data.source.OfficialSourceRequest
+import com.sl.meteoone.forecast.data.source.requireOfficialPlanMetadata
 import java.net.URI
-import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
 
@@ -32,15 +31,19 @@ data class EcmwfIfsRequestPlan(
         require(provider == ForecastProvider.ECMWF_OPEN_DATA) {
             "ECMWF request plan must use the ECMWF Open Data provider"
         }
-        val expectedModelFamily = requireNotNull(OfficialProviderIdentity.modelFamily(provider)) {
-            "ECMWF request plan provider must be a direct official model source"
+        requireOfficialPlanMetadata(
+            provider = provider,
+            modelFamily = modelFamily,
+            modelRun = modelRun,
+            validTime = validTime,
+            forecastHour = forecastHour,
+        )
+        val expected = buildRequests(modelRun, forecastHour)
+        require(indexRequest == expected.indexRequest) {
+            "ECMWF index request URI and transport limits must match the planned run and hour"
         }
-        require(modelFamily == expectedModelFamily) {
-            "ECMWF request plan must use model family $expectedModelFamily"
-        }
-        require(forecastHour >= 0) { "Forecast hour must not be negative" }
-        require(Duration.between(modelRun, validTime) == Duration.ofHours(forecastHour.toLong())) {
-            "ECMWF forecast valid time must equal model run plus forecast hour"
+        require(gribUri == expected.gribUri) {
+            "ECMWF GRIB URI must match the planned run and hour"
         }
     }
 }
@@ -64,21 +67,10 @@ object EcmwfIfsRequestPlanner {
             "IFS Open Data deterministic output is available every 3 hours"
         }
 
-        val date = buildString {
-            append(runUtc.year.toString().padStart(4, '0'))
-            append(runUtc.monthValue.toString().padStart(2, '0'))
-            append(runUtc.dayOfMonth.toString().padStart(2, '0'))
-        }
-        val cycle = runUtc.hour.toString().padStart(2, '0')
-        val prefix = "$BASE_URL/$date/${cycle}z/ifs/0p25/oper/${date}${cycle}0000-${forecastHour}h-oper-fc"
-        val gribUri = URI.create("$prefix.grib2")
-
+        val requests = buildRequests(modelRun, forecastHour)
         return EcmwfIfsRequestPlan(
-            indexRequest = OfficialSourceRequest(
-                uri = URI.create("$prefix.index"),
-                maxResponseBytes = MAX_INDEX_RESPONSE_BYTES,
-            ),
-            gribUri = gribUri,
+            indexRequest = requests.indexRequest,
+            gribUri = requests.gribUri,
             provider = ForecastProvider.ECMWF_OPEN_DATA,
             modelFamily = ModelFamily.ECMWF_IFS,
             modelRun = modelRun,
@@ -87,3 +79,30 @@ object EcmwfIfsRequestPlanner {
         )
     }
 }
+
+private fun buildRequests(
+    modelRun: Instant,
+    forecastHour: Int,
+): EcmwfRequests {
+    val runUtc = modelRun.atOffset(ZoneOffset.UTC)
+    val date = buildString {
+        append(runUtc.year.toString().padStart(4, '0'))
+        append(runUtc.monthValue.toString().padStart(2, '0'))
+        append(runUtc.dayOfMonth.toString().padStart(2, '0'))
+    }
+    val cycle = runUtc.hour.toString().padStart(2, '0')
+    val prefix = "$BASE_URL/$date/${cycle}z/ifs/0p25/oper/${date}${cycle}0000-${forecastHour}h-oper-fc"
+
+    return EcmwfRequests(
+        indexRequest = OfficialSourceRequest(
+            uri = URI.create("$prefix.index"),
+            maxResponseBytes = MAX_INDEX_RESPONSE_BYTES,
+        ),
+        gribUri = URI.create("$prefix.grib2"),
+    )
+}
+
+private data class EcmwfRequests(
+    val indexRequest: OfficialSourceRequest,
+    val gribUri: URI,
+)

@@ -2,6 +2,7 @@ package com.sl.meteoone.forecast.data.dwd
 
 import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.ModelFamily
+import java.net.URI
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -30,7 +31,7 @@ class DwdIconRequestPlannerTest {
     }
 
     @Test
-    fun requestPlanRejectsInvalidIdentityTimeAndFieldAvailability() {
+    fun requestPlanRejectsInvalidIdentityTimeFieldAndUriMetadata() {
         val modelRun = Instant.parse("2026-09-10T06:00:00Z")
         val plan = DwdIconRequestPlanner.plan(
             modelRun = modelRun,
@@ -58,6 +59,32 @@ class DwdIconRequestPlannerTest {
         }
         assertFailsWith<IllegalArgumentException> {
             plan.copy(validTime = plan.validTime.plusSeconds(3600))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(
+                request = plan.request.copy(
+                    uri = URI.create("https://example.com/icon.grib2.bz2"),
+                ),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(
+                request = plan.request.copy(
+                    uri = URI.create(plan.request.uri.toString().replace("_001_", "_002_")),
+                ),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(request = plan.request.copy(maxResponseBytes = 16L * 1024L * 1024L))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(field = DwdIconField.DEW_POINT_2M)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(
+                forecastHour = 2,
+                validTime = modelRun.plusSeconds(2 * 3600L),
+            )
         }
 
         val zeroHour = DwdIconRequestPlanner.plan(

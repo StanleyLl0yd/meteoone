@@ -41,15 +41,31 @@ data class PlannedForecastRequest(
     val gridPoint: SourceGridPoint,
 ) {
     init {
-        val expectedModelFamily = requireNotNull(OfficialProviderIdentity.modelFamily(provider)) {
-            "Provider $provider is not a direct official model source"
-        }
-        require(modelFamily == expectedModelFamily) {
-            "Provider $provider must use model family $expectedModelFamily"
-        }
-        require(forecastHour >= 0)
-        require(Duration.between(modelRun, validTime) == Duration.ofHours(forecastHour.toLong())) {
-            "Forecast valid time must equal model run plus forecast hour"
-        }
+        requireOfficialPlanMetadata(
+            provider = provider,
+            modelFamily = modelFamily,
+            modelRun = modelRun,
+            validTime = validTime,
+            forecastHour = forecastHour,
+        )
+    }
+}
+
+internal fun requireOfficialPlanMetadata(
+    provider: ForecastProvider,
+    modelFamily: ModelFamily,
+    modelRun: Instant,
+    validTime: Instant,
+    forecastHour: Int,
+) {
+    val expectedModelFamily = requireNotNull(OfficialProviderIdentity.modelFamily(provider)) {
+        "Provider $provider is not a direct official model source"
+    }
+    require(modelFamily == expectedModelFamily) {
+        "Provider $provider must use model family $expectedModelFamily"
+    }
+    require(forecastHour >= 0) { "Forecast hour must not be negative" }
+    require(Duration.between(modelRun, validTime) == Duration.ofHours(forecastHour.toLong())) {
+        "Forecast valid time must equal model run plus forecast hour"
     }
 }
