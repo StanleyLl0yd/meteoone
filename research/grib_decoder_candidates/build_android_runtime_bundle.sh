@@ -101,7 +101,12 @@ smoke_object="$RUNNER_TEMP/eccodes-smoke-android-x86_64.o"
   -I"$x86_eccodes/include" \
   -c research/grib_decoder_candidates/eccodes_smoke.c \
   -o "$smoke_object"
+# Direct clang++ invocation defaults to libc++_shared, whereas the NDK CMake
+# toolchain used for ecCodes defaults to c++_static. Keep this standalone
+# research executable self-contained so the runtime bundle cannot silently
+# depend on an unstaged libc++_shared.so.
 "$clangxx" "$smoke_object" \
+  -static-libstdc++ \
   -L"$eccodes_lib_dir" \
   -L"$aec_lib_dir" \
   -Wl,-rpath-link,"$eccodes_lib_dir" \
@@ -165,7 +170,11 @@ for object in "${runtime_elfs[@]}"; do
     "$readelf" -d "$object"
     "$readelf" -lW "$object"
   } >> "$report"
-  "$readelf" -h "$object" | grep -Eq 'Machine:[[:space:]]+Advanced Micro Devices X86-64'
+  "$readelf" -h "$object" | grep -Eq 'Machine:.*X86-64'
+  if "$readelf" -d "$object" | grep -q 'libc++_shared.so'; then
+    printf '%s unexpectedly depends on unstaged libc++_shared.so\n' "$object" >&2
+    exit 1
+  fi
   mapfile -t alignments < <("$readelf" -lW "$object" | awk '$1 == "LOAD" {print $NF}')
   if (( ${#alignments[@]} == 0 )); then
     printf '%s has no PT_LOAD segments\n' "$object" >&2
