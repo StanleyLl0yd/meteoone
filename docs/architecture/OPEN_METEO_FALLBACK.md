@@ -28,6 +28,8 @@ A direct NOAA GFS forecast and an Open-Meteo GFS forecast therefore retain diffe
 - millimetre precipitation;
 - a 512 KiB response bound.
 
+`OpenMeteoForecastRequest` re-parses the URI query and requires it to match the request's explicit model, normalized coordinate, exact field set, 72-hour horizon, UTC/time format, and units. Duplicate, missing, unexpected, or semantics-changing query parameters fail closed, while parameter ordering is irrelevant. This prevents URI data for one model or location from being normalized under another request identity.
+
 The selected hourly fields cover the current canonical M1 weather surface: temperature, apparent temperature, dew point, relative humidity, mean sea-level pressure, wind speed/direction/gust, precipitation, cloud cover, visibility, and WMO weather code.
 
 Precipitation probability is intentionally not requested. Open-Meteo can derive precipitation probabilities from ensemble products, so assigning that value to a deterministic `ECMWF_IFS`, `DWD_ICON`, or `NOAA_GFS` provenance would blur the model-family evidence boundary.
