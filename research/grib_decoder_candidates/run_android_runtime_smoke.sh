@@ -29,14 +29,20 @@ mkdir -p "$EVIDENCE_DIR"
 
 adb wait-for-device
 sdk="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
-page_size="$(adb shell getconf PAGE_SIZE | tr -d '\r')"
 architecture="$(adb shell uname -m | tr -d '\r')"
+if page_size_probe="$(adb shell getconf PAGE_SIZE 2>/dev/null | tr -d '\r')" \
+  && [[ "$page_size_probe" =~ ^[0-9]+$ ]]; then
+  page_size="$page_size_probe"
+else
+  page_size="unavailable"
+fi
+fingerprint="$(adb shell getprop ro.build.fingerprint | tr -d '\r')"
 {
   printf 'label\t%s\n' "$label"
   printf 'sdk\t%s\n' "$sdk"
   printf 'page_size\t%s\n' "$page_size"
   printf 'architecture\t%s\n' "$architecture"
-  adb shell getprop ro.build.fingerprint | tr -d '\r'
+  printf 'fingerprint\t%s\n' "$fingerprint"
 } | tee "$EVIDENCE_DIR/android-runtime-${label}-environment.tsv"
 
 if [[ "$sdk" != "$expected_sdk" ]]; then
