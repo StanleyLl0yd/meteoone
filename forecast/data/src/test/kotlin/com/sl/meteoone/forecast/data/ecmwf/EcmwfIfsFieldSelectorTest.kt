@@ -2,6 +2,9 @@ package com.sl.meteoone.forecast.data.ecmwf
 
 import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.ModelFamily
+import com.sl.meteoone.forecast.data.source.ByteRange
+import com.sl.meteoone.forecast.data.source.OfficialSourceRequest
+import java.net.URI
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -41,6 +44,71 @@ class EcmwfIfsFieldSelectorTest {
 
         assertEquals(EcmwfSurfaceField.PRESSURE_MEAN_SEA_LEVEL, selected[1].field)
         assertEquals("bytes=141-162", selected[1].range.headerValue)
+    }
+
+    @Test
+    fun selectedFieldPlanRejectsIdentityTimeUriAndRangeDrift() {
+        val selected = EcmwfIfsFieldSelector.select(
+            indexContent = line(param = "2t", offset = 100, length = 20),
+            plan = plan,
+            fields = setOf(EcmwfSurfaceField.TEMPERATURE_2M),
+        ).single()
+
+        assertFailsWith<IllegalArgumentException> {
+            recreate(
+                selected = selected,
+                provider = ForecastProvider.DWD_OPEN_DATA,
+                modelFamily = ModelFamily.DWD_ICON,
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            recreate(selected = selected, modelFamily = ModelFamily.NOAA_GFS)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            recreate(selected = selected, validTime = selected.validTime.plusSeconds(3600))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            recreate(
+                selected = selected,
+                forecastHour = 9,
+                validTime = modelRun.plusSeconds(9 * 3600L),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            recreate(
+                selected = selected,
+                request = selected.request.copy(uri = URI.create("https://example.com/field.grib2")),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            recreate(
+                selected = selected,
+                request = selected.request.copy(maxResponseBytes = selected.range.length + 1),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            recreate(
+                selected = selected,
+                range = ByteRange(offset = selected.range.offset, length = selected.range.length + 1),
+            )
+        }
+
+        val oversized = 16L * 1024L * 1024L + 1
+        assertFailsWith<IllegalArgumentException> {
+            EcmwfFieldRangePlan(
+                request = OfficialSourceRequest(
+                    uri = plan.gribUri,
+                    maxResponseBytes = oversized,
+                ),
+                range = ByteRange(offset = 0, length = oversized),
+                field = EcmwfSurfaceField.TEMPERATURE_2M,
+                provider = ForecastProvider.ECMWF_OPEN_DATA,
+                modelFamily = ModelFamily.ECMWF_IFS,
+                modelRun = plan.modelRun,
+                validTime = plan.validTime,
+                forecastHour = plan.forecastHour,
+            )
+        }
     }
 
     @Test
@@ -158,6 +226,26 @@ class EcmwfIfsFieldSelectorTest {
             )
         }
     }
+
+    private fun recreate(
+        selected: EcmwfFieldRangePlan,
+        request: OfficialSourceRequest = selected.request,
+        range: ByteRange = selected.range,
+        provider: ForecastProvider = selected.provider,
+        modelFamily: ModelFamily = selected.modelFamily,
+        modelRunValue: Instant = selected.modelRun,
+        validTime: Instant = selected.validTime,
+        forecastHour: Int = selected.forecastHour,
+    ) = EcmwfFieldRangePlan(
+        request = request,
+        range = range,
+        field = selected.field,
+        provider = provider,
+        modelFamily = modelFamily,
+        modelRun = modelRunValue,
+        validTime = validTime,
+        forecastHour = forecastHour,
+    )
 
     private fun line(
         param: String,
