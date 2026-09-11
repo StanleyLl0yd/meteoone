@@ -54,6 +54,8 @@ For the M1 0–72 h window, deterministic IFS output is available every three ho
 
 ECMWF publishes a JSON-lines `.index` beside each GRIB file. Every record describes one GRIB field and includes `_offset` and `_length`, allowing a client to retrieve selected fields with individual HTTP byte-range requests. The M1 data layer parses that index under a 2 MiB bound, validates the expected deterministic `domain=g`, `class=od`, `type=fc`, `stream=oper`, model date/cycle and forecast step, and only then emits a bounded single-field `Range` request. Multipart ranges are intentionally not assumed because ECMWF notes that they are not supported by all servers.
 
+Each emitted `EcmwfFieldRangePlan` is non-copyable outside its validated data-layer construction path and revalidates ECMWF provenance, forecast-time consistency, the canonical GRIB URI, exact `request.maxResponseBytes == range.length`, and the 16 MiB per-field ceiling. The field-to-range association itself remains the responsibility of the validated `.index` selector, where the parameter metadata and byte offsets are available together.
+
 The current surface-field selection boundary is explicit:
 
 - `2t` — 2 m temperature;
