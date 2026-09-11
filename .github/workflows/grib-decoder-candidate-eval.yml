@@ -1,0 +1,467 @@
+name: GRIB Decoder Candidate Evaluation
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: grib-decoder-candidate-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  eccodes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      actions: read
+      contents: read
+    env:
+      EVIDENCE_DIR: research-output/grib-decoder-candidates
+      NDK_VERSION: 28.2.13676358
+      ANDROID_API: "26"
+      ANDROID_ABI: arm64-v8a
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Initialize evidence and verify CI policy
+        run: |
+          set -euo pipefail
+          mkdir -p "$EVIDENCE_DIR"
+          python3 scripts/verify_ci_supply_chain.py | tee "$EVIDENCE_DIR/ci-supply-chain.txt"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13"
+
+      - name: Load immutable evaluation pins
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          pins = json.loads(Path("research/grib_decoder_candidates/pins.json").read_text())
+          corpus = pins["corpus"]
+          candidates = pins["candidates"]
+          values = {
+              "CORPUS_RUN_ID": corpus["workflow_run_id"],
+              "CORPUS_ARTIFACT_ID": corpus["artifact_id"],
+              "CORPUS_ARTIFACT_NAME": corpus["artifact_name"],
+              "CORPUS_ARTIFACT_DIGEST": corpus["artifact_digest"],
+              "CORPUS_SOURCE_SHA": corpus["source_head_sha"],
+              "ECCODES_REPOSITORY": candidates["eccodes"]["repository"],
+              "ECCODES_COMMIT": candidates["eccodes"]["commit"],
+              "LIBAEC_REPOSITORY": candidates["libaec"]["repository"],
+              "LIBAEC_COMMIT": candidates["libaec"]["commit"],
+              "ECBUILD_REPOSITORY": "https://github.com/ecmwf/ecbuild.git",
+              "ECBUILD_COMMIT": "60e7d659ec10a4316e0ec27be28254092dcd7921",
+          }
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as output:
+              for key, value in values.items():
+                  output.write(f"{key}={value}\n")
+          PY
+          cp research/grib_decoder_candidates/pins.json "$EVIDENCE_DIR/pins.json"
+
+      - name: Verify and download immutable corpus artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$CORPUS_ARTIFACT_ID" \
+            > "$EVIDENCE_DIR/corpus-artifact-metadata.json"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$CORPUS_RUN_ID" \
+            > "$EVIDENCE_DIR/corpus-workflow-run.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          artifact = json.loads(Path(os.environ["EVIDENCE_DIR"], "corpus-artifact-metadata.json").read_text())
+          run = json.loads(Path(os.environ["EVIDENCE_DIR"], "corpus-workflow-run.json").read_text())
+          expected = {
+              "id": int(os.environ["CORPUS_ARTIFACT_ID"]),
+              "name": os.environ["CORPUS_ARTIFACT_NAME"],
+              "digest": os.environ["CORPUS_ARTIFACT_DIGEST"],
+          }
+          for key, value in expected.items():
+              if artifact.get(key) != value:
+                  raise SystemExit(f"artifact {key} drifted: {artifact.get(key)!r} != {value!r}")
+          if artifact.get("expired") is not False:
+              raise SystemExit("pinned corpus artifact is expired")
+          workflow_run = artifact.get("workflow_run") or {}
+          if workflow_run.get("id") != int(os.environ["CORPUS_RUN_ID"]):
+              raise SystemExit("artifact workflow run drifted")
+          if workflow_run.get("head_sha") != os.environ["CORPUS_SOURCE_SHA"]:
+              raise SystemExit("artifact source SHA drifted")
+          if run.get("id") != int(os.environ["CORPUS_RUN_ID"]):
+              raise SystemExit("workflow run ID drifted")
+          if run.get("head_sha") != os.environ["CORPUS_SOURCE_SHA"]:
+              raise SystemExit("workflow run source SHA drifted")
+          if run.get("conclusion") != "success":
+              raise SystemExit(f"pinned workflow conclusion is {run.get('conclusion')!r}")
+          PY
+
+          corpus_zip="$RUNNER_TEMP/grib-capability-corpus.zip"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$CORPUS_ARTIFACT_ID/zip" > "$corpus_zip"
+          test -s "$corpus_zip"
+          printf 'downloaded_zip_bytes\t%s\n' "$(stat -c '%s' "$corpus_zip")" \
+            > "$EVIDENCE_DIR/corpus-download.tsv"
+          unpacked="$RUNNER_TEMP/grib-capability-corpus"
+          rm -rf "$unpacked"
+          mkdir -p "$unpacked"
+          unzip -q "$corpus_zip" -d "$unpacked"
+          mapfile -t manifests < <(find "$unpacked" -type f -name SHA256SUMS -print)
+          if (( ${#manifests[@]} != 1 )); then
+            printf 'expected one SHA256SUMS, found %s\n' "${#manifests[@]}" >&2
+            exit 1
+          fi
+          corpus_dir="$(dirname "${manifests[0]}")"
+          prepared_dir="$RUNNER_TEMP/grib-decoder-prepared"
+          rm -rf "$prepared_dir"
+          python -m research.grib_decoder_candidates.verify_corpus \
+            "$corpus_dir" --prepare "$prepared_dir" \
+            | tee "$EVIDENCE_DIR/corpus-verification.json"
+          printf 'CORPUS_DIR=%s\nPREPARED_DIR=%s\n' "$corpus_dir" "$prepared_dir" >> "$GITHUB_ENV"
+
+      - name: Locate measured concatenated NOAA sample
+        run: |
+          set -euo pipefail
+          python - "$CORPUS_DIR" <<'PY' | tee "$EVIDENCE_DIR/noaa-concatenated.tsv"
+          import sys
+          from pathlib import Path
+
+          from research.grib_capabilities.grib2 import inspect_grib2
+
+          root = Path(sys.argv[1])
+          matches = []
+          for path in sorted((root / "samples/noaa").glob("*.grib2")):
+              count = len(inspect_grib2(path.read_bytes()))
+              if count > 1:
+                  matches.append((path, count))
+          if not matches:
+              raise SystemExit("verified corpus contains no concatenated NOAA sample")
+          for path, count in matches:
+              print(f"{path}\t{count}")
+          PY
+          noaa_concat="$(head -n 1 "$EVIDENCE_DIR/noaa-concatenated.tsv" | cut -f 1)"
+          test -f "$noaa_concat"
+          printf 'NOAA_CONCAT=%s\n' "$noaa_concat" >> "$GITHUB_ENV"
+
+      - name: Fetch exact ecCodes native sources
+        run: |
+          set -euo pipefail
+          src_root="$RUNNER_TEMP/grib-decoder-src"
+          rm -rf "$src_root"
+          mkdir -p "$src_root"
+
+          fetch_exact() {
+            local repository="$1"
+            local commit="$2"
+            local destination="$3"
+            git init -q "$destination"
+            git -C "$destination" remote add origin "$repository"
+            git -C "$destination" -c protocol.version=2 fetch --quiet --no-tags --depth=1 origin "$commit"
+            git -C "$destination" checkout --quiet --detach FETCH_HEAD
+            test "$(git -C "$destination" rev-parse HEAD)" = "$commit"
+          }
+
+          fetch_exact "$ECCODES_REPOSITORY" "$ECCODES_COMMIT" "$src_root/eccodes"
+          fetch_exact "$LIBAEC_REPOSITORY" "$LIBAEC_COMMIT" "$src_root/libaec"
+          fetch_exact "$ECBUILD_REPOSITORY" "$ECBUILD_COMMIT" "$src_root/ecbuild"
+
+          {
+            printf 'eccodes\t%s\n' "$(git -C "$src_root/eccodes" rev-parse HEAD)"
+            printf 'libaec\t%s\n' "$(git -C "$src_root/libaec" rev-parse HEAD)"
+            printf 'ecbuild\t%s\n' "$(git -C "$src_root/ecbuild" rev-parse HEAD)"
+            cmake --version | head -n 1
+            cc --version | head -n 1
+            c++ --version | head -n 1
+          } | tee "$EVIDENCE_DIR/host-toolchain.txt"
+          printf 'SRC_ROOT=%s\n' "$src_root" >> "$GITHUB_ENV"
+
+      - name: Build minimal host libaec and ecCodes
+        run: |
+          set -euo pipefail
+          build_root="$RUNNER_TEMP/grib-decoder-build"
+          prefix_root="$RUNNER_TEMP/grib-decoder-prefix"
+          host_aec="$prefix_root/host-libaec"
+          host_eccodes="$prefix_root/host-eccodes"
+          rm -rf "$build_root" "$prefix_root"
+          mkdir -p "$build_root" "$prefix_root"
+
+          cmake -S "$SRC_ROOT/libaec" -B "$build_root/host-libaec" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$host_aec" \
+            -DBUILD_SHARED_LIBS=ON \
+            -DBUILD_STATIC_LIBS=OFF \
+            -DBUILD_TESTING=OFF \
+            2>&1 | tee "$EVIDENCE_DIR/host-libaec-configure.log"
+          cmake --build "$build_root/host-libaec" --target install --parallel 2 \
+            2>&1 | tee "$EVIDENCE_DIR/host-libaec-build.log"
+
+          cmake -S "$SRC_ROOT/eccodes" -B "$build_root/host-eccodes" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$host_eccodes" \
+            -DCMAKE_MODULE_PATH="$SRC_ROOT/ecbuild/cmake" \
+            -DCMAKE_PREFIX_PATH="$host_aec" \
+            -DBUILD_SHARED_LIBS=ON \
+            -DENABLE_PRODUCT_GRIB=ON \
+            -DENABLE_PRODUCT_BUFR=OFF \
+            -DENABLE_AEC=ON \
+            -DENABLE_USE_SHARED_LIB_AEC=ON \
+            -DENABLE_EXAMPLES=OFF \
+            -DENABLE_BUILD_TOOLS=OFF \
+            -DENABLE_TESTS=OFF \
+            -DENABLE_GEOGRAPHY=OFF \
+            -DENABLE_JPG=OFF \
+            -DENABLE_PNG=OFF \
+            -DENABLE_NETCDF=OFF \
+            -DENABLE_FORTRAN=OFF \
+            -DENABLE_PYTHON=OFF \
+            -DENABLE_MEMFS=OFF \
+            -DENABLE_INSTALL_ECCODES_DEFINITIONS=ON \
+            -DENABLE_INSTALL_ECCODES_SAMPLES=OFF \
+            2>&1 | tee "$EVIDENCE_DIR/host-eccodes-configure.log"
+          cmake --build "$build_root/host-eccodes" --target install --parallel 2 \
+            2>&1 | tee "$EVIDENCE_DIR/host-eccodes-build.log"
+
+          find "$host_aec" "$host_eccodes" -type f -name '*.so*' -printf '%p\t%s\n' \
+            | sort | tee "$EVIDENCE_DIR/host-native-sizes.tsv"
+          printf 'HOST_AEC_PREFIX=%s\nHOST_ECCODES_PREFIX=%s\n' "$host_aec" "$host_eccodes" >> "$GITHUB_ENV"
+
+      - name: Compile and run host value-decode smoke
+        run: |
+          set -euo pipefail
+          smoke_root="$RUNNER_TEMP/grib-decoder-smoke"
+          mkdir -p "$smoke_root"
+          eccodes_library="$(find "$HOST_ECCODES_PREFIX" -type f -name 'libeccodes.so*' -print -quit)"
+          aec_library="$(find "$HOST_AEC_PREFIX" -type f -name 'libaec.so*' -print -quit)"
+          test -n "$eccodes_library"
+          test -n "$aec_library"
+          eccodes_lib_dir="$(dirname "$eccodes_library")"
+          aec_lib_dir="$(dirname "$aec_library")"
+          definitions_dir="$(find "$HOST_ECCODES_PREFIX" -type d -path '*/eccodes/definitions' -print -quit)"
+          test -n "$definitions_dir"
+
+          cc -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
+            -I"$HOST_ECCODES_PREFIX/include" \
+            -c research/grib_decoder_candidates/eccodes_smoke.c \
+            -o "$smoke_root/eccodes_smoke.o"
+          c++ "$smoke_root/eccodes_smoke.o" \
+            -L"$eccodes_lib_dir" -leccodes -lm \
+            -o "$smoke_root/eccodes_smoke"
+          export LD_LIBRARY_PATH="$eccodes_lib_dir:$aec_lib_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          export ECCODES_DEFINITION_PATH="$definitions_dir"
+
+          mapfile -t representatives < <(find "$PREPARED_DIR" -maxdepth 1 -type f -name '*.grib2' -print | sort)
+          if (( ${#representatives[@]} != 6 )); then
+            printf 'expected six prepared representatives, found %s\n' "${#representatives[@]}" >&2
+            exit 1
+          fi
+          "$smoke_root/eccodes_smoke" "${representatives[@]}" \
+            | tee "$EVIDENCE_DIR/host-representative-decode.txt"
+          for expected in gdt=0 gdt=101 pdt=0 pdt=8 drt=0 drt=42; do
+            grep -q "$expected" "$EVIDENCE_DIR/host-representative-decode.txt"
+          done
+
+          "$smoke_root/eccodes_smoke" "$NOAA_CONCAT" \
+            | tee "$EVIDENCE_DIR/host-noaa-concatenated-decode.txt"
+          awk '
+            /^summary / {
+              for (i = 1; i <= NF; ++i) {
+                if ($i ~ /^messages=/) {
+                  split($i, parts, "=");
+                  if (parts[2] + 0 >= 2) ok = 1;
+                }
+              }
+            }
+            END { exit ok ? 0 : 1 }
+          ' "$EVIDENCE_DIR/host-noaa-concatenated-decode.txt"
+          printf 'SMOKE_BINARY=%s\nECCODES_DEFINITION_PATH=%s\nLD_LIBRARY_PATH=%s\n' \
+            "$smoke_root/eccodes_smoke" "$definitions_dir" "$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
+
+      - name: Require safe failure on truncated DRT42 input
+        run: |
+          set -euo pipefail
+          malformed="$RUNNER_TEMP/truncated-drt42.grib2"
+          python - "$PREPARED_DIR/ecmwf_temperature.grib2" "$malformed" <<'PY'
+          import sys
+          from pathlib import Path
+
+          from research.grib_capabilities.grib2 import inspect_grib2
+
+          source = Path(sys.argv[1])
+          target = Path(sys.argv[2])
+          payload = source.read_bytes()
+          messages = inspect_grib2(payload)
+          if not any(message.data_representation_template == 42 for message in messages):
+              raise SystemExit("selected malformed-input seed is not DRT42")
+          if len(payload) < 64:
+              raise SystemExit("DRT42 seed unexpectedly small")
+          target.write_bytes(payload[: len(payload) // 2])
+          PY
+
+          set +e
+          "$SMOKE_BINARY" "$malformed" \
+            > "$EVIDENCE_DIR/malformed-drt42.stdout.txt" \
+            2> "$EVIDENCE_DIR/malformed-drt42.stderr.txt"
+          status=$?
+          set -e
+          printf 'exit_status\t%s\n' "$status" | tee "$EVIDENCE_DIR/malformed-drt42-status.tsv"
+          if (( status != 1 )); then
+            printf 'expected controlled decoder failure status 1, got %s\n' "$status" >&2
+            exit 1
+          fi
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          cmdline-tools-version: 15859902
+
+      - name: Install exact NDK and build tools
+        run: |
+          set -euo pipefail
+          sdkmanager --install "ndk;$NDK_VERSION" "build-tools;37.0.0" \
+            2>&1 | tee "$EVIDENCE_DIR/android-sdk-install.log"
+          ndk="$ANDROID_HOME/ndk/$NDK_VERSION"
+          test -f "$ndk/build/cmake/android.toolchain.cmake"
+          {
+            printf 'ndk_version\t%s\n' "$NDK_VERSION"
+            printf 'android_api\t%s\n' "$ANDROID_API"
+            printf 'android_abi\t%s\n' "$ANDROID_ABI"
+            "$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" --version | head -n 1
+          } | tee "$EVIDENCE_DIR/android-toolchain.txt"
+          printf 'NDK_ROOT=%s\n' "$ndk" >> "$GITHUB_ENV"
+
+      - name: Cross-build libaec and ecCodes for Android API26 arm64-v8a
+        run: |
+          set -euo pipefail
+          build_root="$RUNNER_TEMP/grib-decoder-build"
+          prefix_root="$RUNNER_TEMP/grib-decoder-prefix"
+          android_aec="$prefix_root/android-libaec"
+          android_eccodes="$prefix_root/android-eccodes"
+          toolchain="$NDK_ROOT/build/cmake/android.toolchain.cmake"
+
+          cmake -S "$SRC_ROOT/libaec" -B "$build_root/android-libaec" \
+            -DCMAKE_TOOLCHAIN_FILE="$toolchain" \
+            -DANDROID_ABI="$ANDROID_ABI" \
+            -DANDROID_PLATFORM="android-$ANDROID_API" \
+            -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$android_aec" \
+            -DBUILD_SHARED_LIBS=ON \
+            -DBUILD_STATIC_LIBS=OFF \
+            -DBUILD_TESTING=OFF \
+            2>&1 | tee "$EVIDENCE_DIR/android-libaec-configure.log"
+          cmake --build "$build_root/android-libaec" --target install --parallel 2 \
+            2>&1 | tee "$EVIDENCE_DIR/android-libaec-build.log"
+
+          cmake -S "$SRC_ROOT/eccodes" -B "$build_root/android-eccodes" \
+            -DCMAKE_TOOLCHAIN_FILE="$toolchain" \
+            -DANDROID_ABI="$ANDROID_ABI" \
+            -DANDROID_PLATFORM="android-$ANDROID_API" \
+            -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$android_eccodes" \
+            -DCMAKE_MODULE_PATH="$SRC_ROOT/ecbuild/cmake" \
+            -DCMAKE_PREFIX_PATH="$android_aec" \
+            -DBUILD_SHARED_LIBS=ON \
+            -DENABLE_PRODUCT_GRIB=ON \
+            -DENABLE_PRODUCT_BUFR=OFF \
+            -DENABLE_AEC=ON \
+            -DENABLE_USE_SHARED_LIB_AEC=ON \
+            -DENABLE_EXAMPLES=OFF \
+            -DENABLE_BUILD_TOOLS=OFF \
+            -DENABLE_TESTS=OFF \
+            -DENABLE_GEOGRAPHY=OFF \
+            -DENABLE_JPG=OFF \
+            -DENABLE_PNG=OFF \
+            -DENABLE_NETCDF=OFF \
+            -DENABLE_FORTRAN=OFF \
+            -DENABLE_PYTHON=OFF \
+            -DENABLE_MEMFS=OFF \
+            -DENABLE_INSTALL_ECCODES_DEFINITIONS=ON \
+            -DENABLE_INSTALL_ECCODES_SAMPLES=OFF \
+            2>&1 | tee "$EVIDENCE_DIR/android-eccodes-configure.log"
+          cmake --build "$build_root/android-eccodes" --target install --parallel 2 \
+            2>&1 | tee "$EVIDENCE_DIR/android-eccodes-build.log"
+
+          printf 'ANDROID_AEC_PREFIX=%s\nANDROID_ECCODES_PREFIX=%s\n' \
+            "$android_aec" "$android_eccodes" >> "$GITHUB_ENV"
+
+      - name: Verify Android ELF and 16 KiB package alignment
+        run: |
+          set -euo pipefail
+          readelf="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+          report="$EVIDENCE_DIR/android-elf-report.txt"
+          sizes="$EVIDENCE_DIR/android-native-sizes.tsv"
+          : > "$report"
+          : > "$sizes"
+          mapfile -t shared_objects < <(
+            find "$ANDROID_AEC_PREFIX" "$ANDROID_ECCODES_PREFIX" \
+              -type f -name '*.so*' -print | sort
+          )
+          if (( ${#shared_objects[@]} == 0 )); then
+            echo 'no Android shared objects were produced' >&2
+            exit 1
+          fi
+
+          for object in "${shared_objects[@]}"; do
+            printf '%s\t%s\n' "$object" "$(stat -c '%s' "$object")" >> "$sizes"
+            {
+              printf '\n===== %s =====\n' "$object"
+              "$readelf" -h "$object"
+              "$readelf" -d "$object"
+              "$readelf" -lW "$object"
+            } >> "$report"
+            "$readelf" -h "$object" | grep -Eq 'Machine:[[:space:]]+AArch64'
+            mapfile -t alignments < <("$readelf" -lW "$object" | awk '$1 == "LOAD" {print $NF}')
+            if (( ${#alignments[@]} == 0 )); then
+              printf '%s has no PT_LOAD segments\n' "$object" >&2
+              exit 1
+            fi
+            for alignment in "${alignments[@]}"; do
+              if (( alignment < 0x4000 )); then
+                printf '%s PT_LOAD alignment %s is below 0x4000\n' "$object" "$alignment" >&2
+                exit 1
+              fi
+            done
+          done
+
+          package_root="$RUNNER_TEMP/grib-decoder-package"
+          rm -rf "$package_root"
+          mkdir -p "$package_root/lib/$ANDROID_ABI"
+          while IFS= read -r object; do
+            cp -L "$object" "$package_root/lib/$ANDROID_ABI/$(basename "$object")"
+          done < <(
+            find -L "$ANDROID_AEC_PREFIX" "$ANDROID_ECCODES_PREFIX" \
+              -type f -name '*.so*' -print | sort
+          )
+          unaligned="$RUNNER_TEMP/grib-decoder-native-unaligned.apk"
+          aligned="$RUNNER_TEMP/grib-decoder-native-aligned.apk"
+          rm -f "$unaligned" "$aligned"
+          (cd "$package_root" && zip -q -0 -r "$unaligned" lib)
+          zipalign="$ANDROID_HOME/build-tools/37.0.0/zipalign"
+          "$zipalign" -P 16 -f -v 4 "$unaligned" "$aligned" \
+            > "$EVIDENCE_DIR/zipalign-create.txt"
+          "$zipalign" -P 16 -c -v 4 "$aligned" \
+            > "$EVIDENCE_DIR/zipalign-verify.txt"
+          unzip -l "$aligned" > "$EVIDENCE_DIR/package-contents.txt"
+          sha256sum "$aligned" > "$EVIDENCE_DIR/package-sha256.txt"
+
+      - name: Upload evaluation evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: meteoone-m1-grib-decoder-eval-${{ github.run_id }}
+          path: research-output/grib-decoder-candidates
+          if-no-files-found: warn
+          retention-days: 90
+          compression-level: 6
