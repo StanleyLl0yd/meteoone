@@ -64,6 +64,72 @@ class OpenMeteoForecastRequestPlannerTest {
     }
 
     @Test
+    fun requestContractRejectsModelCoordinateAndSemanticQueryDrift() {
+        val request = OpenMeteoForecastRequestPlanner.plan(
+            model = OpenMeteoModel.NOAA_GFS_GLOBAL,
+            coordinate = coordinate,
+        )
+
+        assertFailsWith<IllegalArgumentException> {
+            request.copy(model = OpenMeteoModel.ECMWF_IFS)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            request.copy(coordinate = ForecastCoordinate(latitude = 60.0, longitude = 30.3))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            request.copy(
+                uri = URI.create(
+                    request.uri.toString().replace(
+                        "models=ncep_gfs_global",
+                        "models=ecmwf_ifs",
+                    ),
+                ),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            request.copy(
+                uri = URI.create(request.uri.toString().replace("latitude=59.9", "latitude=60")),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            request.copy(uri = URI.create(request.uri.toString() + "&models=ncep_gfs_global"))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            request.copy(uri = URI.create(request.uri.toString().replace("&timezone=UTC", "")))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            request.copy(uri = URI.create(request.uri.toString() + "&past_days=1"))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            request.copy(
+                uri = URI.create(request.uri.toString().replace("forecast_hours=72", "forecast_hours=73")),
+            )
+        }
+    }
+
+    @Test
+    fun requestContractAllowsEquivalentQueryOrdering() {
+        val request = OpenMeteoForecastRequestPlanner.plan(
+            model = OpenMeteoModel.DWD_ICON_GLOBAL,
+            coordinate = coordinate,
+        )
+        val reorderedQuery = request.uri.rawQuery.split('&').reversed().joinToString("&")
+
+        val reordered = request.copy(
+            uri = URI(
+                request.uri.scheme,
+                request.uri.authority,
+                request.uri.path,
+                reorderedQuery,
+                null,
+            ),
+        )
+
+        assertEquals(request.model, reordered.model)
+        assertEquals(request.coordinate, reordered.coordinate)
+    }
+
+    @Test
     fun requestContractRejectsNonOpenMeteoEndpointsAndOversizedLimits() {
         assertFailsWith<IllegalArgumentException> {
             OpenMeteoForecastRequest(
