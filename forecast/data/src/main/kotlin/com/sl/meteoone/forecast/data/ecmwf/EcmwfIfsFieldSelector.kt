@@ -4,7 +4,7 @@ import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.ModelFamily
 import com.sl.meteoone.forecast.data.source.ByteRange
 import com.sl.meteoone.forecast.data.source.OfficialSourceRequest
-import java.net.URI
+import com.sl.meteoone.forecast.data.source.requireOfficialPlanMetadata
 import java.time.Instant
 import java.time.ZoneOffset
 
@@ -36,7 +36,29 @@ data class EcmwfFieldRangePlan(
     val modelRun: Instant,
     val validTime: Instant,
     val forecastHour: Int,
-)
+) {
+    init {
+        require(provider == ForecastProvider.ECMWF_OPEN_DATA) {
+            "ECMWF field range plan must use the ECMWF Open Data provider"
+        }
+        requireOfficialPlanMetadata(
+            provider = provider,
+            modelFamily = modelFamily,
+            modelRun = modelRun,
+            validTime = validTime,
+            forecastHour = forecastHour,
+        )
+        require(request.uri == ecmwfGribUri(modelRun, forecastHour)) {
+            "ECMWF field range request URI must match the planned run and hour"
+        }
+        require(request.maxResponseBytes == range.length) {
+            "ECMWF field range response limit must equal the selected byte-range length"
+        }
+        require(range.length <= MAX_SELECTED_FIELD_BYTES) {
+            "ECMWF field ${field.parameter} exceeds the configured response limit"
+        }
+    }
+}
 
 object EcmwfIfsFieldSelector {
     fun select(
