@@ -2,6 +2,7 @@ package com.sl.meteoone.forecast.data.ecmwf
 
 import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.ModelFamily
+import java.net.URI
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -28,9 +29,10 @@ class EcmwfIfsRequestPlannerTest {
     }
 
     @Test
-    fun requestPlanRejectsInvalidIdentityAndTemporalMetadata() {
+    fun requestPlanRejectsInvalidIdentityTemporalAndUriMetadata() {
+        val modelRun = Instant.parse("2026-09-10T06:00:00Z")
         val plan = EcmwfIfsRequestPlanner.plan(
-            modelRun = Instant.parse("2026-09-10T06:00:00Z"),
+            modelRun = modelRun,
             forecastHour = 6,
         )
 
@@ -48,6 +50,27 @@ class EcmwfIfsRequestPlannerTest {
         }
         assertFailsWith<IllegalArgumentException> {
             plan.copy(validTime = plan.validTime.plusSeconds(3600))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(
+                indexRequest = plan.indexRequest.copy(
+                    uri = URI.create("https://example.com/forecast.index"),
+                ),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(
+                gribUri = URI.create(plan.gribUri.toString().replace("-6h-oper-fc", "-9h-oper-fc")),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(indexRequest = plan.indexRequest.copy(maxResponseBytes = 4L * 1024L * 1024L))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            plan.copy(
+                forecastHour = 9,
+                validTime = modelRun.plusSeconds(9 * 3600L),
+            )
         }
     }
 
