@@ -12,7 +12,7 @@ concurrency:
 jobs:
   eccodes:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 75
     permissions:
       actions: read
       contents: read
@@ -458,6 +458,27 @@ jobs:
             > "$EVIDENCE_DIR/zipalign-verify.txt"
           unzip -l "$aligned" > "$EVIDENCE_DIR/package-contents.txt"
           sha256sum "$aligned" > "$EVIDENCE_DIR/package-sha256.txt"
+
+      - name: Build API26 x86_64 Android runtime bundle
+        run: bash research/grib_decoder_candidates/build_android_runtime_bundle.sh
+
+      - name: Run decoder on minimum Android API 26
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 26
+          target: google_apis
+          arch: x86_64
+          avd-name: meteoone-grib-api26
+          script: bash research/grib_decoder_candidates/run_android_runtime_smoke.sh api26 26 any
+
+      - name: Run decoder on Android 15 16 KiB runtime
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          target: google_apis_ps16k
+          arch: x86_64
+          avd-name: meteoone-grib-api35-16k
+          script: bash research/grib_decoder_candidates/run_android_runtime_smoke.sh api35-16k 35 16384
 
       - name: Upload evaluation evidence
         if: ${{ always() }}
