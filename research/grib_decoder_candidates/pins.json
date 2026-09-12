@@ -33,7 +33,14 @@
       "version": "3.8.0",
       "repository": "https://github.com/NOAA-EMC/wgrib2.git",
       "commit": "986287cc4f77ed3f5f97056fd0f90d099964dba7",
-      "status": "licence-composition-review-required"
+      "status": "not-advanced-standard-target-gpl-composition",
+      "required_drt42_dependency": {
+        "name": "NCEPLIBS-g2c",
+        "version": "2.3.0",
+        "repository": "https://github.com/NOAA-EMC/NCEPLIBS-g2c.git",
+        "commit": "acbccb8a894255cd30056b722781a7c9f7b1fe3c",
+        "license": "LGPL-3.0"
+      }
     }
   },
   "tooling": {

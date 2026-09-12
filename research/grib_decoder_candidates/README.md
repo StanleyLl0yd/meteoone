@@ -44,7 +44,7 @@ Reasons:
 
 The ecCodes build is supplied the exact ecbuild 3.12.0 checkout externally. Evaluation must not allow ecCodes' fallback `FetchContent` path to resolve the mutable `3.12.0` tag.
 
-The first immutable-corpus workflow run produced successful host value-decode and malformed-input evidence, but did not complete the Android cross-build. The observed Android configure blocker was fixed by #84; a fresh workflow dispatch from the latest `main` is still required before Android build evidence can be accepted.
+The first immutable-corpus workflow run produced successful host value-decode and malformed-input evidence, but did not complete the Android cross-build. The observed Android configure blocker was fixed by #84. PR #87 subsequently added research-only API 26 and Android 15 16 KiB runtime harnesses while preserving the independent API 26 `arm64-v8a` build/ELF/package gate. A fresh workflow dispatch from the latest `main` is still required before those Android gates can be accepted as evidence.
 
 ### netCDF-Java 5.10.0
 
@@ -56,11 +56,20 @@ An Android adoption would therefore require a custom Android libaec package plus
 
 ### wgrib2 3.8.0
 
-Current state: **licence composition review required before it can become a production candidate**.
+Current state: **not advancing the stock 3.8.0 library target to Android smoke in M1**.
 
-For the exact pinned source and measured DRT set, AEC support is built around libaec. The pinned README describes libaec as the AEC dependency; NCEPLIBS-g2c is optional for JPEG/PNG paths selected by the corresponding CMake options and is not required for measured DRT `{0,42}`. Do not broaden the dependency surface from later release wording without verifying the exact pinned source.
+The exact pinned `v3.8.0` source is commit `986287cc4f77ed3f5f97056fd0f90d099964dba7`. Exact-source review corrects the earlier provisional assumption that NCEPLIBS-g2c was unnecessary for MeteoOne's DRT 42 decode path:
 
-The pinned tag has no conventional top-level `LICENSE` file. Its README carries a U.S. Department of Commerce disclaimer, while individual and third-party source components still need an explicit redistribution/composition review. Do not infer a single production licence from the README disclaimer alone.
+- `unpk.c` handles DRT 42 only under `USE_G2CLIB_LOW` and calls `g2c_dec_aec`; without that build mode it reports AEC decoding as unsupported;
+- the v3.8.0 release notes independently state that AEC compression moved to NCEPLIBS-g2c 2.3.0;
+- the exact g2c 2.3.0 tag is commit `acbccb8a894255cd30056b722781a7c9f7b1fe3c` and its `LICENSE.md` is LGPL-3.0;
+- the stock `wgrib2_lib` target is built from the common source list and does not exclude `aec_pk.c`;
+- exact pinned `aec_pk.c` is explicitly GPL-3.0-or-later, even though MeteoOne needs AEC decoding rather than that file's AEC packing path;
+- the stock target also links the bundled GCTPC library unconditionally and its default build surface enables additional facilities that MeteoOne does not require unless explicitly disabled.
+
+The repository-level README contains a U.S. Department of Commerce/public-domain disclaimer for government-authored portions, but it also explicitly preserves third-party licence obligations. It therefore cannot be treated as a single permissive licence grant over every object in the stock library.
+
+This is an engineering distribution and maintenance decision, not a claim that GPL/LGPL software cannot be distributed on Android. MeteoOne could theoretically maintain a separately reviewed source-pruned fork that excludes unneeded GPL translation units and narrows the build graph, while still satisfying the licences of retained dependencies. That would no longer be the stock wgrib2 candidate evaluated here, would create a permanent fork/compliance burden, and offers no demonstrated advantage over the already narrower ecCodes + libaec path. M1 therefore does not spend an NDK/emulator evidence cycle on stock wgrib2 3.8.0.
 
 ## Observed ecCodes evidence
 
@@ -91,13 +100,13 @@ Host installed native sizes captured by the run were:
 
 These are host-build measurements and are **not** Android APK/AAB size claims.
 
-The run then failed while configuring ecCodes for Android because pinned ecbuild rejected the unrecognised `Android` operating system. PR #84 added `DISABLE_OS_CHECK=ON` and pre-seeded the known little-endian arm64 target values. That fix has not yet been exercised by a fresh manual run on the current `main`, so the failed run must not be cited as Android-build or current-head acceptance evidence. Re-running the old Actions run is also insufficient because it remains tied to its old source SHA; the next accepted evaluation must be a new `workflow_dispatch` from the latest `main`.
+The run then failed while configuring ecCodes for Android because pinned ecbuild rejected the unrecognised `Android` operating system. PR #84 added `DISABLE_OS_CHECK=ON` and pre-seeded the known little-endian arm64 target values. PR #87 added the remaining runtime harness. Neither change has yet been exercised by a fresh manual run on the current `main`, so the failed run must not be cited as Android-build or current-head acceptance evidence. Re-running the old Actions run is also insufficient because it remains tied to its old source SHA; the next accepted evaluation must be a new `workflow_dispatch` from the latest `main`.
 
 ## Provisional recommendation
 
-Based on the evidence available so far, **ecCodes + libaec remains the first candidate to carry through the Android gates**. It already value-decodes the complete measured template envelope on the host, rejects the deterministic malformed fixture, has a narrow direct C API, and has clear permissive licences for the two required libraries.
+Based on the evidence available so far, **ecCodes + libaec remains the only candidate being advanced through the Android gates**. It already value-decodes the complete measured template envelope on the host, rejects the deterministic malformed fixture, has a narrow direct C API, and has clear permissive licences for the two required libraries.
 
-This is deliberately not a production selection. Issue #82 remains blocked on fresh latest-`main` Android cross-build/package evidence and then actual execution on a 16 KiB-page Android runtime. netCDF-Java remains blocked on a custom Android libaec/JNA path, and wgrib2 remains blocked on licence/composition review before its larger native surface is worth advancing.
+This is deliberately not a production selection. Issue #82 remains blocked on a fresh latest-`main` Android cross-build/package/API26/16 KiB runtime evaluation and the resulting Android resource/binary-size evidence. netCDF-Java remains a blocked fallback pending a custom Android libaec/JNA path. Stock wgrib2 3.8.0 is not advanced in M1 because exact-source review shows its DRT42 path requires LGPL-3.0 g2c and its standard library target also incorporates GPL-3.0-or-later source plus a broader native surface; a custom-pruned fork would require a separate architecture, maintenance, and compliance decision.
 
 ## ecCodes smoke contract
 
@@ -124,9 +133,12 @@ A native candidate is not production-eligible until all applicable gates are sat
 - a package-shaped archive with `lib/arm64-v8a/*.so` passes `zipalign -P 16` verification;
 - the measured corpus value-decodes successfully for GDT `{0,101}`, PDT `{0,8}`, and DRT `{0,42}`;
 - malformed input fails safely;
-- actual execution on a **16 KiB-page Android runtime** succeeds.
+- the same pinned decoder stack executes the representative decode contract on an API 26 Android runtime;
+- actual execution on an Android 15 **16 KiB-page runtime** succeeds and records `PAGE_SIZE=16384`.
 
-Cross-compilation and ELF/package inspection do **not** satisfy the final runtime gate. No production dependency may be added before that runtime evidence exists.
+PR #87 implements the manual evidence harness using separate runtime purposes: the mandatory production ABI remains `arm64-v8a`; an API 26 x86_64 emulator proves minimum-platform execution; an API 35 `google_apis_ps16k` x86_64 emulator proves actual 16 KiB-page execution. x86_64 runtime success does not replace the arm64 build/ELF/package gate.
+
+Cross-compilation and ELF/package inspection do **not** satisfy the final runtime gate. No production dependency may be added before fresh runtime evidence exists.
 
 ## Malformed-input and fuzz/sanitizer strategy
 
@@ -145,4 +157,4 @@ A future JNI boundary must also validate Java/Kotlin lengths and ownership befor
 
 ## Evidence produced by the manual workflow
 
-`.github/workflows/grib-decoder-candidate-eval.yml` is `workflow_dispatch`-only. It records immutable corpus/run metadata, exact upstream source SHAs, host build logs, value-decode output, malformed-input result, Android build logs, ELF headers/program headers/dynamic dependencies, native sizes, and 16 KiB package-alignment verification. Evidence upload runs under `if: always()` so a failed candidate build remains inspectable.
+`.github/workflows/grib-decoder-candidate-eval.yml` is `workflow_dispatch`-only. It records immutable corpus/run metadata, exact upstream source SHAs, host build logs, value-decode output, malformed-input result, Android `arm64-v8a` build logs, ELF headers/program headers/dynamic dependencies, native sizes, and 16 KiB package-alignment verification. It also builds a pinned API 26 x86_64 runtime bundle, executes the decode/malformed contract on API 26, and repeats it on an Android 15 `google_apis_ps16k` emulator after requiring `PAGE_SIZE=16384`. Evidence upload runs under `if: always()` so a failed candidate build or runtime remains inspectable.
