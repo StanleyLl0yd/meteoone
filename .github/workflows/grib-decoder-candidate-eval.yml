@@ -375,6 +375,7 @@ jobs:
             -DCMAKE_INSTALL_PREFIX="$android_eccodes" \
             -DCMAKE_MODULE_PATH="$SRC_ROOT/ecbuild/cmake" \
             -DCMAKE_PREFIX_PATH="$android_aec" \
+            -DCMAKE_FIND_ROOT_PATH="$android_aec" \
             -DBUILD_SHARED_LIBS=ON \
             -DENABLE_PRODUCT_GRIB=ON \
             -DENABLE_PRODUCT_BUFR=OFF \
@@ -432,7 +433,7 @@ jobs:
             fi
             for alignment in "${alignments[@]}"; do
               if (( alignment < 0x4000 )); then
-                printf '%s PT_LOAD alignment %s is below 0x4000\n' "$object" "$alignment" >&2
+                printf '%s PT_LOAD alignment %s is below 0x4000\n' "$object" >&2
                 exit 1
               fi
             done
