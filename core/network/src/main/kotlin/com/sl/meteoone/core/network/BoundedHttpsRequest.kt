@@ -56,9 +56,8 @@ class BoundedHttpsResponse(
 
     fun headerValues(name: String): List<String> =
         headers.entries
-            .firstOrNull { (headerName, _) -> headerName.equals(name, ignoreCase = true) }
-            ?.value
-            .orEmpty()
+            .filter { (headerName, _) -> headerName.equals(name, ignoreCase = true) }
+            .flatMap { (_, values) -> values }
 }
 
 enum class BoundedHttpsFailureReason {

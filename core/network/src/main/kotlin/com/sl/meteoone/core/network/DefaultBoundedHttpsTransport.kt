@@ -82,17 +82,23 @@ private class OkHttpBoundedCall(
                     val output = ByteArrayOutputStream(minOf(maxResponseBytes, 8192L).toInt())
                     val buffer = ByteArray(8192)
                     var total = 0L
-                    while (true) {
-                        val count = input.read(buffer)
+                    val probeLimit = maxResponseBytes + 1
+                    while (total < probeLimit) {
+                        val remaining = probeLimit - total
+                        val count = input.read(
+                            buffer,
+                            0,
+                            minOf(buffer.size.toLong(), remaining).toInt(),
+                        )
                         if (count < 0) break
                         if (count == 0) continue
-                        if (total > maxResponseBytes - count) {
+                        total += count
+                        if (total > maxResponseBytes) {
                             return BoundedHttpsResult.Failure(
                                 BoundedHttpsFailureReason.RESPONSE_TOO_LARGE,
                             )
                         }
                         output.write(buffer, 0, count)
-                        total += count
                     }
                     output.toByteArray()
                 }

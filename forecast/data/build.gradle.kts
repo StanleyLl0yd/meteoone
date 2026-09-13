@@ -9,6 +9,7 @@ kotlin {
 dependencies {
     api(project(":core:model"))
 
+    implementation(project(":core:network"))
     implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.kotlin.test.junit)

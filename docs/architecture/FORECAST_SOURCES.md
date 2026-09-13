@@ -123,16 +123,20 @@ Any future decoder implementation must support the actual templates/packing used
 
 ## Transport rules
 
-Direct source adapters must:
+M1 executes planned provider fetches through the JVM-testable `:core:network` boundary. OkHttp is contained behind MeteoOne-owned request, response, failure and cancellation types and does not leak into forecast domain or presentation code.
 
-- use HTTPS only;
-- enforce explicit response-size bounds;
-- request the smallest useful geographic/field subset that the provider actually exposes;
-- avoid bulk global downloads on-device merely because an official server makes them addressable;
-- obey provider pacing/rate-limit guidance;
-- propagate cancellation once asynchronous networking enters scope;
-- map provider failures into data-layer errors rather than provider exceptions in domain/UI;
-- never require embedding secret provider credentials in the application;
-- preserve provider and model-family provenance separately.
+The transport boundary:
+
+- accepts HTTPS GET requests only and rejects user info, non-default explicit ports and unsafe headers;
+- uses explicit connect/read/call timeouts, disables automatic redirects and disables automatic retry-on-connection-failure;
+- requests `Accept-Encoding: identity` so byte-range and response-size semantics are not changed by transparent decoding;
+- rejects declared response lengths above each request's ceiling and independently reads no more than one byte beyond the ceiling before failing oversized input;
+- maps cancellation, raw I/O, malformed transport responses and oversize responses into MeteoOne-owned failure reasons.
+
+`:forecast:data` adds provider-plan response validation on top of that generic transport. Ordinary NOAA, DWD, ECMWF-index and Open-Meteo requests accept only HTTP 200. ECMWF selected-field requests send the exact planned `Range`, accept only HTTP 206, require exactly one matching `Content-Range`, and require the returned body length to equal the selected range length. A redirect response is therefore rejected rather than followed.
+
+Direct-source planning continues to preserve provider pacing guidance and per-request response ceilings. Minimum request spacing remains planner metadata in M1; no shared scheduler, retry/backoff state, provider-health state or cache policy is introduced by this transport slice.
+
+Direct source adapters must continue to request the smallest useful geographic/field subset that the provider actually exposes, avoid bulk global downloads on-device merely because an official server makes them addressable, never embed secret provider credentials, and preserve provider and model-family provenance separately.
 
 These rules do not change the M0 equal-weight model-family fusion baseline.

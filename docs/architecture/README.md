@@ -79,6 +79,6 @@ Before sufficient verification data exists, the UI exposes qualitative model agr
 :feature:about
 ```
 
-`:forecast:data` is introduced in M1 because direct NOAA, ECMWF and DWD adapters now create a real provider/transport/normalization boundary. `:core:location` is introduced in M1 because foreground coarse-location acquisition and privacy-preserving forecast-coordinate normalization are now concrete product responsibilities. The remaining modules are created only when their roadmap responsibilities become concrete.
+`:core:network` is introduced in M1 as the concrete JVM-testable bounded HTTPS execution boundary. It exposes only MeteoOne-owned request/result/cancellation types; OkHttp remains an implementation detail. `:forecast:data` is introduced in M1 because direct NOAA, ECMWF and DWD adapters create the real provider/transport/normalization boundary. `:core:location` is introduced in M1 because foreground coarse-location acquisition and privacy-preserving forecast-coordinate normalization are concrete product responsibilities. The remaining modules are created only when their roadmap responsibilities become concrete.
 
 The exact split may be adjusted only when real dependency boundaries justify it.
