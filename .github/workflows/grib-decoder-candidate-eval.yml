@@ -232,7 +232,8 @@ jobs:
           cmake --build "$build_root/host-eccodes" --target install --parallel 2 \
             2>&1 | tee "$EVIDENCE_DIR/host-eccodes-build.log"
 
-          find "$host_aec" "$host_eccodes" -type f -name '*.so*' -printf '%p\t%s\n' \
+          find "$host_aec" "$host_eccodes" -type f \
+            \( -name '*.so' -o -name '*.so.*' \) -printf '%p\t%s\n' \
             | sort | tee "$EVIDENCE_DIR/host-native-sizes.tsv"
           printf 'HOST_AEC_PREFIX=%s\nHOST_ECCODES_PREFIX=%s\n' "$host_aec" "$host_eccodes" >> "$GITHUB_ENV"
 
@@ -409,8 +410,8 @@ jobs:
           : > "$report"
           : > "$sizes"
           mapfile -t shared_objects < <(
-            find "$ANDROID_AEC_PREFIX" "$ANDROID_ECCODES_PREFIX" \
-              -type f -name '*.so*' -print | sort
+            find "$ANDROID_AEC_PREFIX" "$ANDROID_ECCODES_PREFIX" -type f \
+              \( -name '*.so' -o -name '*.so.*' \) -print | sort
           )
           if (( ${#shared_objects[@]} == 0 )); then
             echo 'no Android shared objects were produced' >&2
@@ -445,8 +446,8 @@ jobs:
           while IFS= read -r object; do
             cp -L "$object" "$package_root/lib/$ANDROID_ABI/$(basename "$object")"
           done < <(
-            find -L "$ANDROID_AEC_PREFIX" "$ANDROID_ECCODES_PREFIX" \
-              -type f -name '*.so*' -print | sort
+            find -L "$ANDROID_AEC_PREFIX" "$ANDROID_ECCODES_PREFIX" -type f \
+              \( -name '*.so' -o -name '*.so.*' \) -print | sort
           )
           unaligned="$RUNNER_TEMP/grib-decoder-native-unaligned.apk"
           aligned="$RUNNER_TEMP/grib-decoder-native-aligned.apk"

@@ -118,7 +118,8 @@ smoke_object="$RUNNER_TEMP/eccodes-smoke-android-x86_64.o"
 while IFS= read -r object; do
   cp -L "$object" "$runtime_root/lib/$(basename "$object")"
 done < <(
-  find -L "$x86_aec" "$x86_eccodes" -type f -name '*.so*' -print | sort
+  find -L "$x86_aec" "$x86_eccodes" -type f \
+    \( -name '*.so' -o -name '*.so.*' \) -print | sort
 )
 if ! compgen -G "$runtime_root/lib/*.so*" > /dev/null; then
   echo 'no x86_64 Android shared objects were staged' >&2
