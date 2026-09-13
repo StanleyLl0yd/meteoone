@@ -66,6 +66,7 @@ cmake -S "$SRC_ROOT/eccodes" -B "$build_root/android-x86-eccodes" \
   -DCMAKE_INSTALL_PREFIX="$x86_eccodes" \
   -DCMAKE_MODULE_PATH="$SRC_ROOT/ecbuild/cmake" \
   -DCMAKE_PREFIX_PATH="$x86_aec" \
+  -DCMAKE_FIND_ROOT_PATH="$x86_aec" \
   -DBUILD_SHARED_LIBS=ON \
   -DENABLE_PRODUCT_GRIB=ON \
   -DENABLE_PRODUCT_BUFR=OFF \
@@ -182,7 +183,7 @@ for object in "${runtime_elfs[@]}"; do
   fi
   for alignment in "${alignments[@]}"; do
     if (( alignment < 0x4000 )); then
-      printf '%s PT_LOAD alignment %s is below 0x4000\n' "$object" "$alignment" >&2
+      printf '%s PT_LOAD alignment %s is below 0x4000\n' "$object" >&2
       exit 1
     fi
   done
