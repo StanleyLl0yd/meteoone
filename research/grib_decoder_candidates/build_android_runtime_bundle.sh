@@ -66,6 +66,7 @@ cmake -S "$SRC_ROOT/eccodes" -B "$build_root/android-x86-eccodes" \
   -DCMAKE_INSTALL_PREFIX="$x86_eccodes" \
   -DCMAKE_MODULE_PATH="$SRC_ROOT/ecbuild/cmake" \
   -DCMAKE_PREFIX_PATH="$x86_aec" \
+  -DCMAKE_FIND_ROOT_PATH="$x86_aec" \
   -DBUILD_SHARED_LIBS=ON \
   -DENABLE_PRODUCT_GRIB=ON \
   -DENABLE_PRODUCT_BUFR=OFF \
