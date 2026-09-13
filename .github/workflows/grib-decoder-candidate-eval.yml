@@ -464,6 +464,20 @@ jobs:
       - name: Build API26 x86_64 Android runtime bundle
         run: bash research/grib_decoder_candidates/build_android_runtime_bundle.sh
 
+      - name: Enable KVM for Android emulator runtime
+        run: |
+          set -euo pipefail
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo udevadm settle
+          test -c /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+          stat -c 'kvm_mode=%a kvm_owner=%U kvm_group=%G' /dev/kvm \
+            | tee "$EVIDENCE_DIR/android-kvm.txt"
+
       - name: Run decoder on minimum Android API 26
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
