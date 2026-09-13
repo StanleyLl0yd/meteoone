@@ -87,6 +87,7 @@ jobs:
           --no-daemon
           --stacktrace
           :core:model:test
+          :core:network:test
           :core:location:testDebugUnitTest
           :core:location:lintDebug
           :forecast:domain:test
