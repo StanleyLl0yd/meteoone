@@ -2,6 +2,7 @@ package com.sl.meteoone.core.network
 
 import java.io.IOException
 import java.net.URI
+import kotlin.reflect.KClass
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -9,6 +10,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.EventListener
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
@@ -55,6 +57,7 @@ class DefaultBoundedHttpsTransportTest {
                 request = request,
                 code = 200,
                 body = "0123456789".toResponseBody(),
+                headers = mapOf("Content-Length" to "10"),
             )
         }
         val declared = DefaultBoundedHttpsTransport(declaredFactory).newCall(
@@ -185,6 +188,16 @@ class DefaultBoundedHttpsTransportTest {
         override fun isCanceled(): Boolean = cancelled
 
         override fun timeout(): Timeout = Timeout.NONE
+
+        override fun addEventListener(eventListener: EventListener) = Unit
+
+        override fun <T : Any> tag(type: KClass<T>): T? = null
+
+        override fun <T> tag(type: Class<out T>): T? = null
+
+        override fun <T : Any> tag(type: KClass<T>, computeIfAbsent: () -> T): T = computeIfAbsent()
+
+        override fun <T : Any> tag(type: Class<T>, computeIfAbsent: () -> T): T = computeIfAbsent()
 
         override fun clone(): Call = FakeCall(requestValue, throwable, responseFactory)
     }
