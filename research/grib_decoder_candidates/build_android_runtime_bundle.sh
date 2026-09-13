@@ -183,7 +183,7 @@ for object in "${runtime_elfs[@]}"; do
   fi
   for alignment in "${alignments[@]}"; do
     if (( alignment < 0x4000 )); then
-      printf '%s PT_LOAD alignment %s is below 0x4000\n' "$object" >&2
+      printf '%s PT_LOAD alignment %s is below 0x4000\n' "$object" "$alignment" >&2
       exit 1
     fi
   done
