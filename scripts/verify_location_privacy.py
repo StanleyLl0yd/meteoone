@@ -14,7 +14,7 @@ FORBIDDEN = {
     "android.permission.ACCESS_BACKGROUND_LOCATION",
 }
 LOCATION_MANIFEST = Path("core/location/src/main/AndroidManifest.xml")
-LOCATION_SOURCE_ROOT = Path("core/location/src/main")
+LOCATION_SOURCE_ROOT = Path("core/location/src")
 DOCTYPE_OR_ENTITY_RE = re.compile(r"<!\s*(?:DOCTYPE|ENTITY)\b", re.IGNORECASE)
 XMLNS_RE = re.compile(
     r"\bxmlns:(?P<prefix>[A-Za-z_][\w.-]*)\s*=\s*"
@@ -36,7 +36,7 @@ ATTRIBUTE_RE = re.compile(
 def manifest_permissions(path: Path) -> set[str]:
     text = path.read_text(encoding="utf-8")
     if DOCTYPE_OR_ENTITY_RE.search(text):
-        raise SystemExit(f"{path}: DTD/entity declarations are not allowed")
+        raise ValueError(f"{path}: DTD/entity declarations are not allowed")
 
     android_prefixes = {
         match.group("prefix")
@@ -54,17 +54,20 @@ def manifest_permissions(path: Path) -> set[str]:
     return permissions
 
 
-def main() -> None:
-    manifests = sorted(Path(".").glob("**/src/main/AndroidManifest.xml"))
+def verify_repository(root: Path = Path(".")) -> None:
+    manifests = sorted(
+        path.relative_to(root)
+        for path in root.glob("**/src/*/AndroidManifest.xml")
+    )
     if LOCATION_MANIFEST not in manifests:
-        raise SystemExit(f"{LOCATION_MANIFEST}: required location manifest is missing")
+        raise ValueError(f"{LOCATION_MANIFEST}: required location manifest is missing")
 
     coarse_owners: list[Path] = []
     for manifest in manifests:
-        permissions = manifest_permissions(manifest)
+        permissions = manifest_permissions(root / manifest)
         forbidden = permissions & FORBIDDEN
         if forbidden:
-            raise SystemExit(
+            raise ValueError(
                 f"{manifest}: forbidden location permission(s): "
                 f"{', '.join(sorted(forbidden))}"
             )
@@ -73,19 +76,30 @@ def main() -> None:
 
     if coarse_owners != [LOCATION_MANIFEST]:
         rendered = ", ".join(str(path) for path in coarse_owners) or "none"
-        raise SystemExit(
+        raise ValueError(
             f"{COARSE}: must be owned only by {LOCATION_MANIFEST}; found {rendered}"
         )
 
-    for source in sorted(Path(".").glob("**/src/main/**/*.kt")):
-        if LOCATION_SOURCE_ROOT in source.parents:
+    sources = [
+        *root.glob("**/src/**/*.kt"),
+        *root.glob("**/src/**/*.java"),
+    ]
+    for absolute_source in sorted(sources):
+        source = absolute_source.relative_to(root)
+        if source.is_relative_to(LOCATION_SOURCE_ROOT):
             continue
-        text = source.read_text(encoding="utf-8")
+        text = absolute_source.read_text(encoding="utf-8")
         if "android.location." in text:
-            raise SystemExit(
+            raise ValueError(
                 f"{source}: android.location APIs must remain inside :core:location"
             )
 
+
+def main() -> None:
+    try:
+        verify_repository()
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
     print("Location privacy boundary: OK")
 
 

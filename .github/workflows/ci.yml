@@ -72,6 +72,9 @@ jobs:
       - name: Install Android SDK packages
         run: android sdk install platforms/android-37.0 build-tools/37.0.0
 
+      - name: Repository policy unit tests
+        run: python -m unittest discover -s scripts/tests -v
+
       - name: Forecast benchmark unit tests
         run: python -m unittest discover -s research/forecast_benchmark/tests -v
 
