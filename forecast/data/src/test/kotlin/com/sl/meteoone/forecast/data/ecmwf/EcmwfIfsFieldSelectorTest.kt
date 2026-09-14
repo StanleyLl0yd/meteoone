@@ -120,7 +120,7 @@ class EcmwfIfsFieldSelectorTest {
                 EcmwfSurfaceField.PRESSURE_MEAN_SEA_LEVEL to setOf("msl"),
                 EcmwfSurfaceField.WIND_U_10M to setOf("10u"),
                 EcmwfSurfaceField.WIND_V_10M to setOf("10v"),
-                EcmwfSurfaceField.WIND_GUST_10M_LAST_3H to setOf("10fg", "10fg3"),
+                EcmwfSurfaceField.WIND_GUST_10M_MAXIMUM to setOf("10fg", "10fg3"),
                 EcmwfSurfaceField.TOTAL_PRECIPITATION to setOf("tp"),
                 EcmwfSurfaceField.TOTAL_CLOUD_COVER to setOf("tcc"),
             ),
@@ -129,15 +129,15 @@ class EcmwfIfsFieldSelectorTest {
     }
 
     @Test
-    fun acceptsDocumentedOpenDataWindGustIdentifiers() {
+    fun acceptsDocumentedOpenDataWindGustIdentifiersWithoutAssumingTimespan() {
         for (parameter in listOf("10fg", "10fg3")) {
             val selected = EcmwfIfsFieldSelector.select(
                 indexContent = line(param = parameter),
                 plan = plan,
-                fields = setOf(EcmwfSurfaceField.WIND_GUST_10M_LAST_3H),
+                fields = setOf(EcmwfSurfaceField.WIND_GUST_10M_MAXIMUM),
             )
 
-            assertEquals(EcmwfSurfaceField.WIND_GUST_10M_LAST_3H, selected.single().field)
+            assertEquals(EcmwfSurfaceField.WIND_GUST_10M_MAXIMUM, selected.single().field)
         }
     }
 
@@ -147,7 +147,7 @@ class EcmwfIfsFieldSelectorTest {
             EcmwfIfsFieldSelector.select(
                 indexContent = line(param = "max_i10fg"),
                 plan = plan,
-                fields = setOf(EcmwfSurfaceField.WIND_GUST_10M_LAST_3H),
+                fields = setOf(EcmwfSurfaceField.WIND_GUST_10M_MAXIMUM),
             )
         }
     }
@@ -163,7 +163,7 @@ class EcmwfIfsFieldSelectorTest {
             EcmwfIfsFieldSelector.select(
                 indexContent = index,
                 plan = plan,
-                fields = setOf(EcmwfSurfaceField.WIND_GUST_10M_LAST_3H),
+                fields = setOf(EcmwfSurfaceField.WIND_GUST_10M_MAXIMUM),
             )
         }
     }
