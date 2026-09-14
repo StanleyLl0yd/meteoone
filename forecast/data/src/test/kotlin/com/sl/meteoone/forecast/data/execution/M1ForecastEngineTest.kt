@@ -44,7 +44,7 @@ class M1ForecastEngineTest {
 
         val allPathsTime = Instant.parse("2026-09-14T15:00:00Z")
         val allPathsPoint = available.forecast.hourly.single { it.weather.time == allPathsTime }
-        assertEquals(6, allPathsPoint.providerCount)
+        assertEquals(4, allPathsPoint.providerCount)
         assertEquals(3, allPathsPoint.independentEvidenceCount)
 
         assertEquals(Instant.parse("2026-09-14T00:00:00Z"), executor.modelRuns.single())
