@@ -7,6 +7,12 @@ on:
       - ".github/workflows/grib-native-bundle.yml"
       - "forecast/data/native/**"
       - "research/grib_decoder_candidates/pins.json"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/grib-native-bundle.yml"
+      - "forecast/data/native/**"
+      - "research/grib_decoder_candidates/pins.json"
   workflow_dispatch:
 
 permissions: {}
