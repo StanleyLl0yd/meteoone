@@ -71,3 +71,112 @@ jobs:
           if-no-files-found: error
           retention-days: 90
           compression-level: 6
+
+  publish-generated-bundle:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout canonical source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download verified bundle
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: meteoone-m1-grib-native-bundle-${{ github.run_id }}
+          path: ${{ runner.temp }}/meteoone-grib-native-publish
+
+      - name: Verify downloaded bundle before publication
+        env:
+          PUBLISH_INPUT: ${{ runner.temp }}/meteoone-grib-native-publish
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["PUBLISH_INPUT"]) / "bundle"
+          manifest = json.loads((root / "manifest.json").read_text())
+          pins = json.loads(Path("research/grib_decoder_candidates/pins.json").read_text())["candidates"]
+          expected_files = {
+              "assets/eccodes-definitions.zip",
+              "jniLibs/arm64-v8a/libaec.so",
+              "jniLibs/arm64-v8a/libeccodes.so",
+              "jniLibs/arm64-v8a/libsz.so",
+              "licenses/eccodes-LICENSE",
+              "licenses/eccodes-NOTICE",
+              "licenses/libaec-LICENSE.txt",
+          }
+          expected_metadata = {
+              "schema_version": 1,
+              "eccodes_commit": pins["eccodes"]["commit"],
+              "libaec_commit": pins["libaec"]["commit"],
+              "ecbuild_commit": "60e7d659ec10a4316e0ec27be28254092dcd7921",
+              "android_api": 26,
+              "android_abi": "arm64-v8a",
+              "memfs": False,
+              "flexible_page_sizes": True,
+          }
+          for key, expected in expected_metadata.items():
+              actual = manifest.get(key)
+              if actual != expected:
+                  raise SystemExit(f"manifest {key} drifted: {actual!r} != {expected!r}")
+          files = manifest.get("files") or {}
+          if set(files) != expected_files:
+              raise SystemExit(f"bundle file set drifted: {sorted(files)}")
+          for relative, expected in files.items():
+              path = root / relative
+              payload = path.read_bytes()
+              actual_sha = hashlib.sha256(payload).hexdigest()
+              if len(payload) != expected["bytes"] or actual_sha != expected["sha256"]:
+                  raise SystemExit(f"bundle payload drifted: {relative}")
+          print("generated bundle publication verification: OK")
+          PY
+
+      - name: Publish bundle to generated branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLISH_INPUT: ${{ runner.temp }}/meteoone-grib-native-publish
+          GENERATED_BRANCH: generated/m1-grib-native-bundle
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          if git fetch --no-tags origin \
+            "refs/heads/${GENERATED_BRANCH}:refs/remotes/origin/${GENERATED_BRANCH}"; then
+            git switch -c publish-grib-native "refs/remotes/origin/${GENERATED_BRANCH}"
+          else
+            git switch --orphan publish-grib-native
+          fi
+          git rm -rf --ignore-unmatch .
+          mkdir -p bundle
+          cp -a "$PUBLISH_INPUT/bundle/." bundle/
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          provenance = {
+              "schema_version": 1,
+              "source_sha": os.environ["GITHUB_SHA"],
+              "workflow": os.environ["GITHUB_WORKFLOW"],
+              "run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+          }
+          Path("generated-provenance.json").write_text(
+              json.dumps(provenance, indent=2, sort_keys=True) + "\n"
+          )
+          PY
+          git add bundle generated-provenance.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "generated: GRIB native bundle for ${GITHUB_SHA}"
+          git push origin "HEAD:refs/heads/${GENERATED_BRANCH}"
