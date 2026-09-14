@@ -1,10 +1,10 @@
 # M1 GRIB decoder candidate evaluation
 
-This directory is research-only evidence for issue #82. It does not select or add a production decoder dependency.
+This directory contains the research evidence for issue #82. The candidate evaluation is complete: **ecCodes 2.48.0 + libaec 1.1.4 is the selected M1 production decoder path**. Production integration remains a separate step and is owned by the next M1 slice; this research directory does not itself add the decoder to application dependencies.
 
 ## Immutable corpus
 
-Candidate behavior must be evaluated only against the successful issue #26 capability artifact pinned in `pins.json`:
+Candidate behavior is evaluated only against the successful issue #26 capability artifact pinned in `pins.json`:
 
 - workflow run `34577654571`;
 - source SHA `cc19d5d8fafa64c32a652fc0360ff56ddcfe967d`;
@@ -14,7 +14,7 @@ Candidate behavior must be evaluated only against the successful issue #26 capab
 - 28 measured samples;
 - retained ECMWF index SHA-256 `2514ac28a8d00a725262dca79dc5db3ab6185a9ed1a273a6b147d0c1dd01e368`.
 
-`verify_corpus.py` verifies the artifact manifest, exact file set, every file checksum, schema/run/hour/sample count, the measured provider template envelope, and the retained ECMWF index before preparing any candidate input.
+`verify_corpus.py` verifies the artifact manifest, exact file set, every file checksum, schema/run/hour/sample count, the measured provider template envelope and the retained ECMWF index before preparing any candidate input.
 
 Measured decoder envelope:
 
@@ -24,137 +24,133 @@ Measured decoder envelope:
 | ECMWF Open Data | `0` | `0, 8` | `42` | exact HTTP 206 ranges retained by #26 |
 | DWD Open Data | `101` | `0, 8` | `42` | outer bzip2; decompression remains outside the GRIB decoder |
 
-The prepared six-sample smoke set covers temperature and precipitation for NOAA, ECMWF, and DWD. DWD `.bz2` files are decompressed only by the research preparation boundary, then re-inspected with MeteoOne's bounded GRIB2 inspector before a decoder sees them. The manual evaluation also locates a measured concatenated NOAA sample and requires the candidate to value-decode every message in that file.
+The prepared six-sample smoke set covers temperature and precipitation for NOAA, ECMWF and DWD. DWD `.bz2` files are decompressed only by the research preparation boundary, then re-inspected with MeteoOne's bounded GRIB2 inspector before a decoder sees them. The evaluator also locates a measured concatenated NOAA sample and requires every message to value-decode.
 
-## Candidate state
+## Final candidate state
 
 All upstream source pins are immutable commit SHAs in `pins.json`.
 
 ### ecCodes 2.48.0 + libaec 1.1.4
 
-Current priority: **leading native research candidate; not selected for production**.
+Status: **selected for M1 production integration**.
 
 Reasons:
 
 - direct C API;
-- GDT/PDT handling covers the measured envelope;
+- value-decodes the complete measured GDT/PDT/DRT envelope;
 - DRT 42 is provided through libaec;
 - no JNA/resource-extraction layer is required;
-- ecCodes is Apache-2.0 and libaec is BSD-2-Clause.
+- ecCodes is Apache-2.0 and libaec is BSD-2-Clause;
+- exact API 26 `arm64-v8a` build passes;
+- produced native ELF and package layout are 16 KiB compatible;
+- real API 26 Android runtime execution passes;
+- real Android 15 16 KiB-page runtime execution passes;
+- malformed DRT 42 input fails in a controlled path;
+- resource and binary-size consequences are measured and recorded.
 
-The ecCodes build is supplied the exact ecbuild 3.12.0 checkout externally. Evaluation must not allow ecCodes' fallback `FetchContent` path to resolve the mutable `3.12.0` tag.
-
-The first immutable-corpus workflow run produced successful host value-decode and malformed-input evidence, but did not complete the Android cross-build. The observed Android configure blocker was fixed by #84. PR #87 subsequently added research-only API 26 and Android 15 16 KiB runtime harnesses while preserving the independent API 26 `arm64-v8a` build/ELF/package gate. A fresh workflow dispatch from the latest `main` is still required before those Android gates can be accepted as evidence.
+The ecCodes build is supplied the exact ecbuild 3.12.0 checkout externally. Evaluation must not allow ecCodes' fallback `FetchContent` path to resolve a mutable tag.
 
 ### netCDF-Java 5.10.0
 
-Current state: **Android native path blocked/unverified; decoding capability not rejected**.
+Status: **blocked fallback; not selected**.
 
-The project is BSD-3-Clause. DRT 42 is not a pure-Java path: upstream `Grib2DataReader` uses JNA plus native libaec. At the exact pinned source, `LibAec` first calls `Native.extractFromResourcePath("aec")` and falls back to `Native.register("aec")` on the system library path. Upstream's own 5.10.0 documentation publishes `libaec-native` only for Linux, macOS, and Windows on x86-64/aarch64; Android is not in that native-binary matrix.
-
-An Android adoption would therefore require a custom Android libaec package plus proof that the JNA loading path works on API 26 and `arm64-v8a`, in addition to the same 16 KiB ELF/package/runtime gates. This makes netCDF-Java a blocked fallback candidate for M1 rather than a ready pure-Java alternative.
+The project is BSD-3-Clause, but DRT 42 is not a pure-Java path: upstream `Grib2DataReader` uses JNA plus native libaec. Upstream native artifacts do not provide an Android path. Android adoption would require a custom libaec package plus proof that the JNA loading path works on API 26/arm64 and through the same 16 KiB gates. That extra loading/runtime surface offers no demonstrated advantage over the selected narrower ecCodes path.
 
 ### wgrib2 3.8.0
 
-Current state: **not advancing the stock 3.8.0 library target to Android smoke in M1**.
+Status: **not advanced in M1; not selected**.
 
-The exact pinned `v3.8.0` source is commit `986287cc4f77ed3f5f97056fd0f90d099964dba7`. Exact-source review corrects the earlier provisional assumption that NCEPLIBS-g2c was unnecessary for MeteoOne's DRT 42 decode path:
+Exact-source review found that DRT 42 handling uses `USE_G2CLIB_LOW` and `g2c_dec_aec` from NCEPLIBS-g2c 2.3.0. The stock library target also carries a broader native surface and licence/maintenance obligations, including GPL-3.0-or-later source and LGPL-3.0 g2c. A separately reviewed source-pruned fork could be a future distinct candidate, but M1 has no evidence that such a fork would improve on ecCodes + libaec.
 
-- `unpk.c` handles DRT 42 only under `USE_G2CLIB_LOW` and calls `g2c_dec_aec`; without that build mode it reports AEC decoding as unsupported;
-- the v3.8.0 release notes independently state that AEC compression moved to NCEPLIBS-g2c 2.3.0;
-- the exact g2c 2.3.0 tag is commit `acbccb8a894255cd30056b722781a7c9f7b1fe3c` and its `LICENSE.md` is LGPL-3.0;
-- the stock `wgrib2_lib` target is built from the common source list and does not exclude `aec_pk.c`;
-- exact pinned `aec_pk.c` is explicitly GPL-3.0-or-later, even though MeteoOne needs AEC decoding rather than that file's AEC packing path;
-- the stock target also links the bundled GCTPC library unconditionally and its default build surface enables additional facilities that MeteoOne does not require unless explicitly disabled.
+This is an engineering distribution/maintenance decision, not a claim that GPL/LGPL software cannot be distributed on Android.
 
-The repository-level README contains a U.S. Department of Commerce/public-domain disclaimer for government-authored portions, but it also explicitly preserves third-party licence obligations. It therefore cannot be treated as a single permissive licence grant over every object in the stock library.
+## Accepted selection evidence
 
-This is an engineering distribution and maintenance decision, not a claim that GPL/LGPL software cannot be distributed on Android. MeteoOne could theoretically maintain a separately reviewed source-pruned fork that excludes unneeded GPL translation units and narrows the build graph, while still satisfying the licences of retained dependencies. That would no longer be the stock wgrib2 candidate evaluated here, would create a permanent fork/compliance burden, and offers no demonstrated advantage over the already narrower ecCodes + libaec path. M1 therefore does not spend an NDK/emulator evidence cycle on stock wgrib2 3.8.0.
+Authoritative run:
 
-## Observed ecCodes evidence
+- workflow run `34815805413` (`GRIB Decoder Candidate Evaluation` run #4);
+- event `workflow_dispatch`;
+- branch `main`;
+- source SHA `64a595054200832c8d85dfc3d293eb0fa0f27c92`;
+- conclusion `success`;
+- evidence artifact ID `10336329301`;
+- artifact name `meteoone-m1-grib-decoder-eval-34815805413`;
+- artifact digest `sha256:8a8c0e427284c187e16aedac17deb33be1f4fe40637b111fd262554b7fa98497`.
 
-The first manual candidate run is useful **partial host evidence only**:
+### Host and malformed-input evidence
 
-- workflow run `34618844204`;
-- source SHA `4f30be720e8f2336fd22db3132e5ee9f7ceebddc`;
-- evidence artifact ID `10271995909`;
-- artifact digest `sha256:60ede567e8a4d7d627166099a0636ac91a83de773cadbdeb13a6aa8ccc240ecd`.
+The run verified the exact #26 corpus, built the pinned host ecCodes/libaec stack, value-decoded all six representatives, value-decoded a measured concatenated NOAA file and rejected the deterministic truncated DRT 42 fixture with exit status `1`.
 
-The run verified the exact #26 corpus, built the pinned host ecCodes/libaec stack, value-decoded the representative envelope and measured concatenated NOAA input, and rejected a truncated DRT 42 message deterministically. Representative measurements from that artifact are:
+The representative envelope contains:
 
-| Representative | Templates | Decoded values | CPU seconds | Max RSS KiB |
-| --- | --- | ---: | ---: | ---: |
-| DWD precipitation | GDT 101 / PDT 8 / DRT 42 | 2,949,120 | 0.046130 | 45,404 |
-| DWD temperature | GDT 101 / PDT 0 / DRT 42 | 2,949,120 | 0.035855 | 46,328 |
-| ECMWF precipitation | GDT 0 / PDT 8 / DRT 42 | 1,038,240 | 0.017500 | 46,328 |
-| ECMWF temperature | GDT 0 / PDT 0 / DRT 42 | 1,038,240 | 0.010302 | 46,328 |
-| NOAA concatenated cloud cover | GDT 0 / PDT 0+8 / DRT 0 | 2 messages / 2 values | 0.017448 | 14,776 |
+- GDT `0` and `101`;
+- PDT `0` and `8`;
+- DRT `0` and `42`.
 
-The same smoke also decoded the single-message NOAA temperature and precipitation representatives. The truncated DRT 42 case exited non-zero with `End of resource reached when reading message`; it did not silently succeed.
+### Android arm64 build/package evidence
 
-Host installed native sizes captured by the run were:
+The evaluator uses Android NDK `28.2.13676358`, API 26 and `arm64-v8a`.
 
-- `libeccodes.so`: `3,706,776` bytes;
-- `libaec.so.0.1.4`: `47,456` bytes;
-- `libsz.so.2.0.1`: `51,888` bytes.
+Produced shared libraries:
 
-These are host-build measurements and are **not** Android APK/AAB size claims.
+| Library | Installed bytes |
+| --- | ---: |
+| `libeccodes.so` | 37,902,824 |
+| `libaec.so` | 122,032 |
+| `libsz.so` | 137,656 |
 
-The run then failed while configuring ecCodes for Android because pinned ecbuild rejected the unrecognised `Android` operating system. PR #84 added `DISABLE_OS_CHECK=ON` and pre-seeded the known little-endian arm64 target values. PR #87 added the remaining runtime harness. Neither change has yet been exercised by a fresh manual run on the current `main`, so the failed run must not be cited as Android-build or current-head acceptance evidence. Re-running the old Actions run is also insufficient because it remains tied to its old source SHA; the next accepted evaluation must be a new `workflow_dispatch` from the latest `main`.
+Every produced arm64 shared object reports AArch64 and every PT_LOAD alignment is `0x4000`. The package-shaped archive contains only these three libraries beneath `lib/arm64-v8a/` and passes `zipalign -P 16` verification. The archive reports 38,162,512 uncompressed bytes across its entries and SHA-256 `31f9a5a6a7e55f210dcb5e1a623207e57a3573a889c58323c3b66a4ec84ff496`.
 
-## Provisional recommendation
+No `.source.def` file is staged as a native library and no runtime binary requires an unstaged `libc++_shared.so`.
 
-Based on the evidence available so far, **ecCodes + libaec remains the only candidate being advanced through the Android gates**. It already value-decodes the complete measured template envelope on the host, rejects the deterministic malformed fixture, has a narrow direct C API, and has clear permissive licences for the two required libraries.
+### API 26 runtime evidence
 
-This is deliberately not a production selection. Issue #82 remains blocked on a fresh latest-`main` Android cross-build/package/API26/16 KiB runtime evaluation and the resulting Android resource/binary-size evidence. netCDF-Java remains a blocked fallback pending a custom Android libaec/JNA path. Stock wgrib2 3.8.0 is not advanced in M1 because exact-source review shows its DRT42 path requires LGPL-3.0 g2c and its standard library target also incorporates GPL-3.0-or-later source plus a broader native surface; a custom-pruned fork would require a separate architecture, maintenance, and compliance decision.
+The x86_64 API 26 runtime decoded the exact representative envelope and concatenated NOAA input successfully. Representative full-field decode peak RSS was approximately 45 MiB. The deterministic malformed DRT 42 fixture exited with controlled status `1`.
+
+### Android 15 16 KiB runtime evidence
+
+The API 35 `google_apis_ps16k` runtime reported:
+
+- SDK `35`;
+- architecture `x86_64`;
+- `PAGE_SIZE=16384`.
+
+The same exact representative values and concatenated NOAA behavior were reproduced on the 16 KiB runtime. Representative full-field peak RSS remained approximately 45-46 MiB. The malformed DRT 42 fixture again exited with controlled status `1`.
+
+The x86_64 runtime evidence proves Android execution behavior; it does not replace the independent mandatory arm64 build/package evidence.
+
+## Selection rationale
+
+**ecCodes 2.48.0 + libaec 1.1.4 is selected for M1 production integration.** It is the only evaluated path that combines complete measured-template value decoding with a demonstrated API26 arm64 build, verified 16 KiB-compatible ELF/package layout, minimum-Android execution, real 16 KiB runtime execution, deterministic malformed-input failure and a narrow permissively licensed native stack.
+
+The measured Android binary footprint is material, especially `libeccodes.so`, so production integration should expose only the narrow APIs and data required by MeteoOne and should not retain full multi-hour × multi-field matrices. #89 owns the coordinate-aware point-selection boundary and containment of native/full-grid representations inside `:forecast:data`.
 
 ## ecCodes smoke contract
 
 `eccodes_smoke.c` deliberately exercises value decoding rather than metadata-only parsing. For every GRIB message it:
 
 1. creates the handle with `codes_handle_new_from_file`;
-2. reads GDT, PDT, and DRT keys;
+2. reads GDT, PDT and DRT keys;
 3. obtains the `values` size;
 4. calls `codes_get_double_array("values", ...)` to force real field decode, including DRT 42;
-5. reports message/value counts, min/max, CPU time, and Linux maximum RSS;
-6. fails on decoder errors, zero messages, zero values, allocation failure, or no finite decoded values.
+5. reports message/value counts, min/max, CPU time and maximum RSS;
+6. fails on decoder errors, zero messages, zero values, allocation failure or no finite decoded values.
 
-The manual workflow runs this over all six representatives and over a measured concatenated NOAA file. It then truncates a representative DRT 42 GRIB and requires the same smoke binary to fail.
-
-## Android/native acceptance gates
-
-A native candidate is not production-eligible until all applicable gates are satisfied:
-
-- Android API 26 cross-build;
-- mandatory `arm64-v8a` output;
-- exact NDK `28.2.13676358` for this evaluation;
-- every produced ELF shared object reports AArch64 and every `PT_LOAD` has `p_align >= 0x4000`;
-- `DT_NEEDED` and installed native byte sizes are captured;
-- a package-shaped archive with `lib/arm64-v8a/*.so` passes `zipalign -P 16` verification;
-- the measured corpus value-decodes successfully for GDT `{0,101}`, PDT `{0,8}`, and DRT `{0,42}`;
-- malformed input fails safely;
-- the same pinned decoder stack executes the representative decode contract on an API 26 Android runtime;
-- actual execution on an Android 15 **16 KiB-page runtime** succeeds and records `PAGE_SIZE=16384`.
-
-PR #87 implements the manual evidence harness using separate runtime purposes: the mandatory production ABI remains `arm64-v8a`; an API 26 x86_64 emulator proves minimum-platform execution; an API 35 `google_apis_ps16k` x86_64 emulator proves actual 16 KiB-page execution. x86_64 runtime success does not replace the arm64 build/ELF/package gate.
-
-Cross-compilation and ELF/package inspection do **not** satisfy the final runtime gate. No production dependency may be added before fresh runtime evidence exists.
+The manual workflow runs this contract over all six representatives and over a measured concatenated NOAA file, then truncates a representative DRT 42 GRIB and requires controlled failure.
 
 ## Malformed-input and fuzz/sanitizer strategy
 
-The deterministic first gate is a truncated immutable DRT 42 sample. The decoder must return failure; a crash or silent success is a rejection signal.
-
-Before production adoption of any native decoder:
+The deterministic truncated DRT 42 case is the first regression gate. Production native integration must additionally:
 
 - add a host Clang ASan+UBSan build of the narrow decode entry point;
-- seed mutation/fuzz runs with the exact #26 representatives, including the concatenated NOAA sample and decompressed DWD representatives;
-- include truncation, section-length corruption, duplicated/reordered sections, invalid template identifiers, bitmap/value-count inconsistencies, and random byte mutations;
+- seed mutation/fuzz runs with the exact #26 representatives, including concatenated NOAA and decompressed DWD representatives;
+- include truncation, section-length corruption, duplicated/reordered sections, invalid template identifiers, bitmap/value-count inconsistencies and random byte mutations;
 - enforce bounded input size and bounded allocation policy around the native boundary;
 - preserve crashing/minimized cases as regression fixtures when redistribution permits;
-- run the native fuzz target outside normal PR CI when duration/resource use is unsuitable for the standard gate.
+- run longer native fuzz targets outside normal PR CI when their duration/resource use is unsuitable for the standard gate.
 
-A future JNI boundary must also validate Java/Kotlin lengths and ownership before native calls and must convert decoder failures into bounded provider errors rather than process termination.
+A production JNI boundary must validate Kotlin/Java lengths and ownership before native calls and convert decoder failures into bounded provider errors rather than process termination.
 
 ## Evidence produced by the manual workflow
 
-`.github/workflows/grib-decoder-candidate-eval.yml` is `workflow_dispatch`-only. It records immutable corpus/run metadata, exact upstream source SHAs, host build logs, value-decode output, malformed-input result, Android `arm64-v8a` build logs, ELF headers/program headers/dynamic dependencies, native sizes, and 16 KiB package-alignment verification. It also builds a pinned API 26 x86_64 runtime bundle, executes the decode/malformed contract on API 26, and repeats it on an Android 15 `google_apis_ps16k` emulator after requiring `PAGE_SIZE=16384`. Evidence upload runs under `if: always()` so a failed candidate build or runtime remains inspectable.
+`.github/workflows/grib-decoder-candidate-eval.yml` remains `workflow_dispatch`-only. It records immutable corpus/run metadata, exact upstream source SHAs, host build logs, value-decode output, malformed-input result, Android `arm64-v8a` build logs, ELF headers/program headers/dynamic dependencies, native sizes, 16 KiB package-alignment verification, KVM state, API26 runtime evidence and Android 15 ps16k runtime evidence. Evidence upload runs under `if: always()` so failed future evaluations remain inspectable.
