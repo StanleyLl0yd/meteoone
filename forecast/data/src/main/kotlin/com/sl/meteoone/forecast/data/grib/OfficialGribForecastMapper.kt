@@ -36,6 +36,7 @@ class OfficialGribForecastMapper {
         }
 
         val hourly = fields
+            .distinct()
             .groupBy { it.validTime }
             .toSortedMap()
             .map { (validTime, timeFields) -> mapHour(validTime, timeFields) }
