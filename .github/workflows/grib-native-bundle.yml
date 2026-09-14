@@ -31,7 +31,6 @@ jobs:
       NDK_VERSION: 28.2.13676358
       ANDROID_API: "26"
       ANDROID_ABI: arm64-v8a
-      OUTPUT_DIR: ${{ runner.temp }}/meteoone-grib-native-output
 
     steps:
       - name: Checkout
@@ -59,6 +58,8 @@ jobs:
           printf 'NDK_ROOT=%s\n' "$ndk" >> "$GITHUB_ENV"
 
       - name: Build verified production bundle
+        env:
+          OUTPUT_DIR: ${{ runner.temp }}/meteoone-grib-native-output
         run: bash forecast/data/native/build_grib_bundle.sh
 
       - name: Upload native bundle and evidence
