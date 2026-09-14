@@ -94,6 +94,47 @@ The selected decoder does not waive future native-code requirements. Production 
 9. direct/transitive licence and notice review for version changes;
 10. reproducible source/version pins for native builds.
 
+## Production integration and #89 acceptance evidence
+
+Production integration began only after issue #82 was completed on `2026-09-14T07:16:01Z`. PR #108, which integrated the selected ecCodes JNI path, was created later at `2026-09-14T10:53:36Z` and merged as `a8c5105a1fbfdd2b4047aec17f8fe4113da28d71`.
+
+The spatial and ownership boundary is deliberately contained inside `:forecast:data`:
+
+- JNI/ecCodes carrier types (`NativeGribMessage`, `EcCodesNativeApi`, native bridge/session) are `internal` to the module;
+- full ECMWF GDT 0 geometry and DWD CLAT/CLON arrays are represented only by `internal` `:forecast:data` types;
+- decoded native metadata/geometry/value arrays are validated, reduced to one selected grid value and translated into `DecodedGribField` before mapping to the canonical `SourceForecast` model;
+- `OfficialGribDecodeContext` accepts only validated provider plans plus `ForecastCoordinate`; raw Android `Location` values are normalized in `:core:location` before they can enter forecast planning;
+- `:forecast:domain` depends only on `:core:model`, and the Android app depends on `:forecast:domain` rather than on native/ecCodes types.
+
+Issue #89 point-selection regressions establish the provider-specific behavior:
+
+- NOAA GFS requires one GDT 0 point whose decoded coordinates match the snapped request-plan grid point, and rejects contradictory coordinates/cardinality;
+- ECMWF IFS requires the supported regular GDT 0 geometry, exact value cardinality, deterministic nearest-cell selection including longitude wrap and half-cell ties, and rejects unsupported scan geometry or non-finite selected values;
+- DWD ICON requires GDT 101, exact field/CLAT/CLON cardinality, geometry from the same validated model run, deterministic nearest-spherical selection with stable lowest-index ties, and finite coordinates/selected values;
+- semantic binding independently validates GRIB edition, discipline, parameter, PDT/GDT/DRT, surface, model run, valid time/statistical interval and canonical unit transform against the provider plan;
+- `OfficialGribForecastMapper` directly consumes the resulting point-level `DecodedGribField` values and enforces forecast-level invariants.
+
+DWD geometry lifecycle is process-memory only and run scoped. PR #109 merged as `205553e3972bdd7769a96726960c0cf7928cc9d4`; same-run geometry is reused, a different run reloads CLAT/CLON, and replacement is atomic so a failed reload cannot publish partial geometry. This remains an M1 transient execution optimization, not a persistent cache.
+
+The canonical production-JNI regression on the post-#110 `main` commit proves the real production C/JNI bridge against the immutable provider corpus:
+
+- source SHA `0556fe03a412755e5a5f4ec0af9db9c986cbc76f`;
+- workflow `GRIB Production JNI Corpus Regression`, run `34838775717`;
+- job `103958628889`, conclusion `success`;
+- artifact `10343989925`, `meteoone-m1-production-jni-regression-34838775717`;
+- artifact digest `sha256:f7395e9328c6b9964b1e90680bff7b3a9e942a7973934e62c02d2bcc85fa8e9f`;
+- NOAA temperature: 1 message / 1 value;
+- NOAA precipitation: 2 messages / 2 values;
+- DWD temperature: 1 message / 2,949,120 values;
+- DWD precipitation: 1 message / 2,949,120 values;
+- ECMWF temperature: 1 message / 1,038,240 values;
+- ECMWF precipitation: 1 message / 1,038,240 values;
+- total decoded values: `7,974,723`.
+
+The same regression fails closed for message-count bounds, decoded-value bounds, truncated payloads, trailing bytes, non-GRIB payloads, zero message limits and zero value limits. The post-merge commit also has successful CI (`34838775701`), Security and Quality (`34838775699`) and Secret Scan (`34838775645`) runs; CodeQL (`34838775670`) is skipped by the repository's existing availability gate.
+
+These production results supplement rather than replace the accepted Android API 26/16 KiB runtime evidence above. Together with `GribPointSelectionTest`, `GribSemanticBindingTest`, `OfficialGribForecastMapperInvariantTest`, `EcCodesGribFieldDecoderTest` and `RunScopedDwdIconGridGeometryProviderTest`, they satisfy the #89 decoder/selection boundary acceptance envelope.
+
 ## Malformed-input and fuzz/sanitizer strategy
 
 The deterministic truncated DRT 42 case is the first regression gate. Production native integration must additionally:
@@ -109,7 +150,7 @@ Longer fuzz campaigns may remain outside normal PR CI when their duration/resour
 
 ## Integration sequencing
 
-Issue #82 completes the candidate-selection phase. Production decoder integration must start only after #82 is closed. The next M1 slice is #89, which owns coordinate-aware official GRIB point selection and containment of native/full-grid representations inside `:forecast:data`.
+Issue #82 completed the candidate-selection phase before production integration began. The selected ecCodes path, coordinate-aware selection, run-scoped DWD geometry and real production-JNI corpus regression are now present in `main`. After the #89 acceptance evidence above is merged, repository-wide M1 verification must prove the top-level official-source execution, Open-Meteo fallback/orchestration, full 72-hour path and graceful partial-provider behavior before M1 can close.
 
 M2/M3 remain out of scope until M1 Forecast Core is complete.
 
