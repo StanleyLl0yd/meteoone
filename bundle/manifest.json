@@ -16,6 +16,10 @@
       "bytes": 37868248,
       "sha256": "2d4b36951860fa6afea66823dd2f069634d465f6f88b8d111d21c5755940f5ad"
     },
+    "jniLibs/arm64-v8a/libmeteoone_grib_jni.so": {
+      "bytes": 13496,
+      "sha256": "fae7ef3d7a819256748ac4b63b65fd6814b5c8175b6643520449933eff920a85"
+    },
     "jniLibs/arm64-v8a/libsz.so": {
       "bytes": 137648,
       "sha256": "bba32e23b008448f2216e054416488ea4fb10bc29571aac2fd30ce4b14038d70"
