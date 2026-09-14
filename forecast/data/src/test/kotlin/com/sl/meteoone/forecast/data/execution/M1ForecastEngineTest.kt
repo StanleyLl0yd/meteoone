@@ -42,10 +42,13 @@ class M1ForecastEngineTest {
             available.forecast.hourly.last().weather.time,
         )
 
-        val allPathsTime = Instant.parse("2026-09-14T15:00:00Z")
-        val allPathsPoint = available.forecast.hourly.single { it.weather.time == allPathsTime }
-        assertEquals(4, allPathsPoint.providerCount)
-        assertEquals(3, allPathsPoint.independentEvidenceCount)
+        val ecmwfCrossCheckTime = Instant.parse("2026-09-14T15:00:00Z")
+        val ecmwfCrossCheckPoint = available.forecast.hourly.single {
+            it.weather.time == ecmwfCrossCheckTime
+        }
+        assertEquals(2, ecmwfCrossCheckPoint.providerCount)
+        assertEquals(3, ecmwfCrossCheckPoint.independentEvidenceCount)
+        assertEquals(6, available.successfulSources.size)
 
         assertEquals(Instant.parse("2026-09-14T00:00:00Z"), executor.modelRuns.single())
         assertEquals(listOf(13), executor.noaaHours)
@@ -111,6 +114,27 @@ class M1ForecastEngineTest {
             unavailable.successfulCrossChecks.toSet(),
         )
         assertEquals(3, unavailable.failedSources.size)
+    }
+
+    @Test
+    fun reportsUnavailableWhenEverySourceFails() {
+        val executor = FakeForecastSourceExecutor(
+            failures = setOf(
+                ForecastSourceIdentity(ForecastProvider.NOAA_NOMADS, ModelFamily.NOAA_GFS),
+                ForecastSourceIdentity(ForecastProvider.OPEN_METEO, ModelFamily.NOAA_GFS),
+                ForecastSourceIdentity(ForecastProvider.ECMWF_OPEN_DATA, ModelFamily.ECMWF_IFS),
+                ForecastSourceIdentity(ForecastProvider.OPEN_METEO, ModelFamily.ECMWF_IFS),
+                ForecastSourceIdentity(ForecastProvider.DWD_OPEN_DATA, ModelFamily.DWD_ICON),
+                ForecastSourceIdentity(ForecastProvider.OPEN_METEO, ModelFamily.DWD_ICON),
+            ),
+        )
+
+        val unavailable = assertIs<M1ForecastEngineResult.Unavailable>(
+            M1ForecastEngine(executor).forecast(location, generatedAt),
+        )
+
+        assertEquals(emptyList(), unavailable.successfulCrossChecks)
+        assertEquals(6, unavailable.failedSources.size)
     }
 
     @Test
