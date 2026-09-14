@@ -14,13 +14,13 @@ DATA_ROOT = ROOT / "forecast" / "data"
 MANIFEST_PATH = DATA_ROOT / "native" / "manifest.json"
 PROVENANCE_PATH = DATA_ROOT / "native" / "generated-provenance.json"
 
-EXPECTED_MANIFEST_SHA256 = "131181edd4846fcb0f80f723ec36a5ddf658b416e6e2a1ccf7bf8447f40b5b7c"
-EXPECTED_PROVENANCE_SHA256 = "a9466ee66c070987c370c93ae1644533575dc77b7d437b156d6615e92882f9c8"
+EXPECTED_MANIFEST_SHA256 = "1225e5f40ba63db456160f73114c5dd4fbfdeea39629db9dd993d304ea57fb5f"
+EXPECTED_PROVENANCE_SHA256 = "1a431dab2a5d08979cafadf6516e17677df22ea34b0c54e3a32c6a56228f858e"
 EXPECTED_PROVENANCE = {
     "run_attempt": 1,
-    "run_id": 34824665903,
+    "run_id": 34834603450,
     "schema_version": 1,
-    "source_sha": "090d6a82cce2c053999d0e0b0dc10bc9f8cb203f",
+    "source_sha": "2f675e3541ccaff08fd7ff998133d0fb46e769a7",
     "workflow": "GRIB Native Bundle",
 }
 EXPECTED_MANIFEST_METADATA = {
@@ -37,6 +37,7 @@ EXPECTED_BUNDLE_FILES = {
     "assets/eccodes-definitions.zip",
     "jniLibs/arm64-v8a/libaec.so",
     "jniLibs/arm64-v8a/libeccodes.so",
+    "jniLibs/arm64-v8a/libmeteoone_grib_jni.so",
     "jniLibs/arm64-v8a/libsz.so",
     "licenses/eccodes-LICENSE",
     "licenses/eccodes-NOTICE",
