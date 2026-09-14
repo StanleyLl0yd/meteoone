@@ -9,12 +9,15 @@ from dataclasses import asdict, dataclass
 from datetime import date, datetime
 from typing import Iterable
 
+from research.http_security import open_with_validated_redirects, read_bounded
+
 from .model import Location, normalize_iso_utc
 
 
 USER_AGENT = "MeteoOneResearch/0.1 (+https://github.com/StanleyLl0yd/meteoone)"
 ISD_HISTORY_URL = "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
 GLOBAL_HOURLY_BASE_URL = "https://www.ncei.noaa.gov/data/global-hourly/access"
+MAX_NCEI_RESPONSE_BYTES = 32 * 1024 * 1024
 
 # NCEI ISD quality flags accepted for benchmark observations:
 # passed gross-limit/all checks, including NCEI-origin variants.
@@ -105,8 +108,18 @@ class ObservationSeries:
 
 
 class TextHttpClient:
-    def __init__(self, timeout_seconds: float = 30.0) -> None:
+    def __init__(
+        self,
+        timeout_seconds: float = 30.0,
+        *,
+        max_response_bytes: int = MAX_NCEI_RESPONSE_BYTES,
+    ) -> None:
+        if timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be positive")
+        if max_response_bytes <= 0:
+            raise ValueError("max_response_bytes must be positive")
         self.timeout_seconds = timeout_seconds
+        self.max_response_bytes = max_response_bytes
 
     def get_text(self, url: str) -> str:
         _validate_ncei_url(url)
@@ -118,14 +131,19 @@ class TextHttpClient:
             },
             method="GET",
         )
-        with urllib.request.urlopen(  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+        with open_with_validated_redirects(
             request,
-            timeout=self.timeout_seconds,
+            timeout_seconds=self.timeout_seconds,
+            validate_redirect=_validate_ncei_url,
         ) as response:
             _validate_ncei_url(response.geturl())
             if response.status != 200:
                 raise RuntimeError(f"HTTP {response.status} for {url}")
-            return response.read().decode("utf-8-sig")
+            return read_bounded(
+                response,
+                max_bytes=self.max_response_bytes,
+                url=url,
+            ).decode("utf-8-sig")
 
 
 def _validate_ncei_url(url: str) -> None:

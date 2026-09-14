@@ -232,9 +232,14 @@ class Wis2CoverageTest(unittest.TestCase):
 
 class _FakeResponse:
     status = 200
+    headers: dict[str, str] = {}
 
-    def __init__(self, payload: dict[str, object]) -> None:
-        self.body = json.dumps(payload).encode()
+    def __init__(self, payload: dict[str, object] | bytes) -> None:
+        self.body = (
+            payload
+            if isinstance(payload, bytes)
+            else json.dumps(payload).encode()
+        )
 
     def __enter__(self):
         return self
@@ -242,8 +247,8 @@ class _FakeResponse:
     def __exit__(self, *_):
         return False
 
-    def read(self) -> bytes:
-        return self.body
+    def read(self, size: int = -1) -> bytes:
+        return self.body if size < 0 else self.body[:size]
 
     def geturl(self) -> str:
         return f"{WIS2_ITEMS_URL}?f=json"
@@ -264,7 +269,7 @@ class Wis2HttpClientTest(unittest.TestCase):
             sleep=sleeps.append,
         )
         with patch(
-            "research.forecast_benchmark.wis2_observations.urllib.request.urlopen",
+            "research.forecast_benchmark.wis2_observations.open_with_validated_redirects",
             side_effect=[
                 urllib.error.URLError("temporary"),
                 _FakeResponse({"features": []}),
@@ -277,6 +282,15 @@ class Wis2HttpClientTest(unittest.TestCase):
 
         self.assertEqual(response.payload, {"features": []})
         self.assertEqual(sleeps, [0.25])
+
+    def test_rejects_oversized_response(self) -> None:
+        client = Wis2HttpClient(max_response_bytes=4)
+        with patch(
+            "research.forecast_benchmark.wis2_observations.open_with_validated_redirects",
+            return_value=_FakeResponse(b"12345"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "exceeded 4 bytes"):
+                client.get_json(WIS2_ITEMS_URL, {"f": "json"})
 
     def test_rejects_other_schemes_and_hosts(self) -> None:
         client = Wis2HttpClient()

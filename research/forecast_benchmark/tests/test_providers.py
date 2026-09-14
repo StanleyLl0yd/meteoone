@@ -101,6 +101,7 @@ class OpenMeteoParserTest(unittest.TestCase):
 
 class _FakeJsonResponse:
     status = 200
+    headers: dict[str, str] = {}
 
     def __init__(self, payload: bytes) -> None:
         self._payload = io.BytesIO(payload)
@@ -128,7 +129,7 @@ class JsonHttpClientTest(unittest.TestCase):
             allowed_hosts=frozenset({"example.test"}),
         )
         with patch(
-            "research.forecast_benchmark.providers.urllib.request.urlopen",
+            "research.forecast_benchmark.providers.open_with_validated_redirects",
             side_effect=[
                 urllib.error.URLError("temporary"),
                 _FakeJsonResponse(b'{"ok": true}'),
@@ -158,7 +159,7 @@ class JsonHttpClientTest(unittest.TestCase):
             io.BytesIO(b'{"reason":"invalid run"}'),
         )
         with patch(
-            "research.forecast_benchmark.providers.urllib.request.urlopen",
+            "research.forecast_benchmark.providers.open_with_validated_redirects",
             side_effect=error,
         ) as mocked:
             with self.assertRaisesRegex(
@@ -172,6 +173,18 @@ class JsonHttpClientTest(unittest.TestCase):
 
         self.assertEqual(mocked.call_count, 1)
         self.assertEqual(sleeps, [])
+
+    def test_rejects_oversized_json_response(self) -> None:
+        client = JsonHttpClient(
+            max_response_bytes=4,
+            allowed_hosts=frozenset({"example.test"}),
+        )
+        with patch(
+            "research.forecast_benchmark.providers.open_with_validated_redirects",
+            return_value=_FakeJsonResponse(b'{"ok": true}'),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "exceeded 4 bytes"):
+                client.get("https://example.test/data", {})
 
     def test_rejects_non_https_and_unapproved_hosts(self) -> None:
         client = JsonHttpClient(

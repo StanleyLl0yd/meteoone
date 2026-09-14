@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Callable, Mapping, Sequence
 
+from research.http_security import open_with_validated_redirects, read_bounded
+
 from .model import (
     Forecast,
     HourlyPoint,
@@ -24,6 +26,7 @@ USER_AGENT = "MeteoOneResearch/0.1 (+https://github.com/StanleyLl0yd/meteoone)"
 OPEN_METEO_LIVE_URL = "https://api.open-meteo.com/v1/forecast"
 OPEN_METEO_SINGLE_RUN_URL = "https://single-runs-api.open-meteo.com/v1/forecast"
 MET_NORWAY_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
+MAX_FORECAST_RESPONSE_BYTES = 8 * 1024 * 1024
 RETRYABLE_HTTP_STATUS = frozenset({408, 425, 429, 500, 502, 503, 504})
 FORECAST_HTTP_HOSTS = frozenset(
     {"api.open-meteo.com", "single-runs-api.open-meteo.com", "api.met.no"}
@@ -82,6 +85,7 @@ class JsonHttpClient:
         *,
         max_attempts: int = 3,
         backoff_seconds: float = 1.0,
+        max_response_bytes: int = MAX_FORECAST_RESPONSE_BYTES,
         sleep: Callable[[float], None] = time.sleep,
         allowed_hosts: frozenset[str] = FORECAST_HTTP_HOSTS,
     ) -> None:
@@ -91,9 +95,12 @@ class JsonHttpClient:
             raise ValueError("max_attempts must be positive")
         if backoff_seconds < 0:
             raise ValueError("backoff_seconds must not be negative")
+        if max_response_bytes <= 0:
+            raise ValueError("max_response_bytes must be positive")
         self.timeout_seconds = timeout_seconds
         self.max_attempts = max_attempts
         self.backoff_seconds = backoff_seconds
+        self.max_response_bytes = max_response_bytes
         if not allowed_hosts:
             raise ValueError("allowed_hosts must not be empty")
         self.sleep = sleep
@@ -115,9 +122,14 @@ class JsonHttpClient:
         last_error: BaseException | None = None
         for attempt in range(1, self.max_attempts + 1):
             try:
-                with urllib.request.urlopen(  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+                with open_with_validated_redirects(
                     request,
-                    timeout=self.timeout_seconds,
+                    timeout_seconds=self.timeout_seconds,
+                    validate_redirect=lambda redirect_url: _validate_https_url(
+                        redirect_url,
+                        self.allowed_hosts,
+                        expected_host=origin_host,
+                    ),
                 ) as response:
                     _validate_https_url(
                         response.geturl(),
@@ -128,7 +140,12 @@ class JsonHttpClient:
                         raise RuntimeError(
                             f"HTTP {response.status} for {request_url}"
                         )
-                    payload = json.load(response)
+                    raw = read_bounded(
+                        response,
+                        max_bytes=self.max_response_bytes,
+                        url=request_url,
+                    )
+                    payload = json.loads(raw)
                     if not isinstance(payload, dict):
                         raise ValueError("JSON response must be an object")
                     return payload

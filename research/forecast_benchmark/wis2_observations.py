@@ -11,6 +11,8 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
+from research.http_security import open_with_validated_redirects, read_bounded
+
 from .model import Location, normalize_iso_utc
 from .observations import (
     ObservationSeries,
@@ -30,6 +32,7 @@ WIS2_ITEMS_URL = (
     f"{DATASET_ID}/items"
 )
 DEFAULT_STATIONS = Path(__file__).with_name("wis2_stations.json")
+MAX_WIS2_RESPONSE_BYTES = 64 * 1024 * 1024
 RETRYABLE_HTTP_STATUS = frozenset({408, 425, 429, 500, 502, 503, 504})
 
 
@@ -56,6 +59,7 @@ class Wis2HttpClient:
         *,
         max_attempts: int = 3,
         backoff_seconds: float = 1.0,
+        max_response_bytes: int = MAX_WIS2_RESPONSE_BYTES,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         if timeout_seconds <= 0:
@@ -64,9 +68,12 @@ class Wis2HttpClient:
             raise ValueError("max_attempts must be positive")
         if backoff_seconds < 0:
             raise ValueError("backoff_seconds must not be negative")
+        if max_response_bytes <= 0:
+            raise ValueError("max_response_bytes must be positive")
         self.timeout_seconds = timeout_seconds
         self.max_attempts = max_attempts
         self.backoff_seconds = backoff_seconds
+        self.max_response_bytes = max_response_bytes
         self.sleep = sleep
 
     def get_json(
@@ -89,16 +96,21 @@ class Wis2HttpClient:
         last_error: BaseException | None = None
         for attempt in range(1, self.max_attempts + 1):
             try:
-                with urllib.request.urlopen(  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+                with open_with_validated_redirects(
                     request,
-                    timeout=self.timeout_seconds,
+                    timeout_seconds=self.timeout_seconds,
+                    validate_redirect=_validate_wis2_url,
                 ) as response:
                     _validate_wis2_url(response.geturl())
-                    body = response.read()
                     if response.status != 200:
                         raise RuntimeError(
                             f"HTTP {response.status} for {request_url}"
                         )
+                    body = read_bounded(
+                        response,
+                        max_bytes=self.max_response_bytes,
+                        url=request_url,
+                    )
                     payload = json.loads(body)
                     if not isinstance(payload, Mapping):
                         raise ValueError(
