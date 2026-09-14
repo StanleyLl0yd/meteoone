@@ -64,7 +64,7 @@ class ProductionForecastSourceExecutorTest {
         }
         assertEquals(3, transport.requests.size)
         assertTrue(transport.requests[0].uri.rawQuery.contains("models=ncep_gfs_global"))
-        assertTrue(transport.requests[1].uri.rawQuery.contains("models=ecmwf_ifs025"))
+        assertTrue(transport.requests[1].uri.rawQuery.contains("models=ecmwf_ifs"))
         assertTrue(transport.requests[2].uri.rawQuery.contains("models=icon_global"))
     }
 
