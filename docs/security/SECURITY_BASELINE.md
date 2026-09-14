@@ -2,7 +2,7 @@
 
 Status: active repository and CI baseline
 
-MeteoOne follows the same practical security principles as the maintainer's hardened repositories, adapted to a pre-release Android/Kotlin application with a standard-library Python research harness and no backend/native component.
+MeteoOne follows the same practical security principles as the maintainer's hardened repositories, adapted to a public pre-release Android/Kotlin application with a standard-library Python research harness, a contained native/JNI GRIB decoder boundary, and no backend.
 
 ## Repository and change flow
 
@@ -22,7 +22,7 @@ Secret scanning and push protection are enabled.
 
 The currently verified live required `main` gates are:
 
-- `verify`: research/JVM tests, Android lint, debug APK, release AAB, CI supply-chain policy, app identity and canonical-icon integrity;
+- `verify`: repository-policy/research/JVM tests, Android lint, debug APK, release AAB, CI supply-chain policy, app identity, canonical-icon integrity, location privacy, and vendored native-bundle integrity;
 - `gitleaks`: full-history secret scan;
 - `Semgrep`: blocking SAST/security rules.
 
@@ -30,12 +30,13 @@ Dependency Review is operational on the public repository. It passed real PR #17
 
 CodeQL is not a merge gate while its Kotlin extractor is incompatible with the application compiler. A clean uncached public-PR validation using CodeQL action `4.37.9` / CLI `2.27.0` rejected Kotlin `2.4.20` as too recent. MeteoOne does not downgrade Kotlin for scanner compatibility and does not accept Java-only/no-build analysis as Kotlin coverage. Automatic CodeQL jobs remain gated until a manual compatibility probe succeeds with the current application toolchain.
 
-Qodana is scheduled/manual defense in depth and is intentionally not required.
+Qodana is scheduled/manual whole-repository defense in depth and is intentionally not required.
 
 ## CI/CD supply chain
 
 - external Actions: full immutable SHA only;
-- workflow containers: immutable image digest;
+- Docker actions and workflow containers: immutable image digest only;
+- dynamic workflow container images are rejected because their provenance cannot be verified statically;
 - top-level workflow permissions: deny by default;
 - checkout credentials: never persisted;
 - `pull_request_target`: forbidden;
@@ -45,22 +46,24 @@ Qodana is scheduled/manual defense in depth and is intentionally not required.
 
 ## Application attack surface
 
-Current application baseline:
+Current M1 application baseline:
 
 - no accounts/backend in the repository;
 - no analytics or advertising SDK;
-- no dangerous runtime permissions;
-- no native/JNI/NDK code;
+- no precise or background location permission; foreground location uses only `ACCESS_COARSE_LOCATION`;
+- Android source-set manifests and Kotlin/Java sources are scanned for location-boundary regressions;
 - `android:allowBackup="false"`;
 - `android:usesCleartextTraffic="false"`;
 - only the launcher Activity is exported;
-- exact location is treated as transient sensitive data.
+- exact location is treated as transient sensitive data;
+- production network execution is TLS-only and bounded;
+- `:forecast:data` contains the selected ecCodes 2.48.0 + libaec 1.1.4 native runtime and MeteoOne JNI bridge, with bounded payload/value limits, vendored definitions, licence/provenance records, and native-bundle verification.
 
-Future M1 networking must preserve TLS-only production transport and provider/model provenance.
+M1 keeps native/full-grid representations inside `:forecast:data`; only MeteoOne-owned types cross the module boundary. M2 persistence/cache/retry/rate-limit policy is not implemented yet.
 
 ## Research exception
 
-The Roshydromet WIS2 benchmark endpoint is currently HTTP-only in the measured M0 environment. It carries public observation data, not credentials, and is isolated to `research/`. Its payload cannot be described as transport-authenticated or integrity-protected.
+The Roshydromet WIS2 benchmark endpoint is currently HTTP-only in the measured M0 environment. It carries public observation data, not credentials, and is isolated to `research/`. Its payload cannot be described as transport-authenticated or integrity-protected. Research HTTP clients validate redirect destinations before following them and bound response reads.
 
 ## Release integrity
 

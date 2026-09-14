@@ -1,6 +1,6 @@
 # GRIB capability probe
 
-This research tool measures the GRIB2 envelope requirements of MeteoOne's direct official forecast sources before a production decoder is selected.
+This research tool records the GRIB2 envelope requirements measured from MeteoOne's direct official forecast sources. That evidence informed the M1 decoder decision; ecCodes 2.48.0 + libaec 1.1.4 is now selected and integrated in the production `:forecast:data` boundary.
 
 It is deliberately **not** a GRIB value decoder. It only validates GRIB2 message framing and extracts the template numbers that define the grid, product and data representation from Sections 3, 4 and 5.
 
@@ -8,7 +8,7 @@ It is deliberately **not** a GRIB value decoder. It only validates GRIB2 message
 
 NOAA/NCEP GFS, ECMWF IFS Open Data and DWD ICON are all GRIB-oriented, but they do not necessarily use the same grids, product templates or packing methods. Selecting a JVM/native decoder from documentation alone can produce a dependency that builds successfully yet cannot decode a production field.
 
-The probe therefore records measured requirements first. A decoder implementation may be adopted only after it supports the measured matrix and satisfies MeteoOne's Android constraints.
+The probe therefore established measured requirements before M1 decoder selection. The accepted production implementation was evaluated against that measured matrix, and any future decoder/version change must continue to satisfy it together with MeteoOne's Android/native constraints.
 
 ## Ordinary CI
 
@@ -23,7 +23,7 @@ The probe therefore records measured requirements first. A decoder implementatio
 - concatenated message boundaries;
 - bounded bzip2 decompression;
 - strict UTC/cycle/forecast-hour inputs;
-- official-source HTTPS allowlisting and cross-host redirect rejection;
+- official-source HTTPS allowlisting and redirect rejection before a redirect is followed;
 - strict HTTP response-size and range metadata helpers;
 - bounded multi-message NOAA measurement;
 - exact ECMWF index evidence retention;
@@ -42,9 +42,9 @@ The workflow requests representative fields from:
 - ECMWF IFS Open Data using `.index` offsets and HTTP byte ranges;
 - DWD global ICON per-field bzip2-compressed GRIB2 files.
 
-Network reads are bounded. Only HTTPS on the three explicit official hosts is accepted, cross-host redirects are rejected, and ECMWF range responses must return the requested `Content-Range`.
+Network reads are bounded. Only HTTPS on the three explicit official hosts is accepted, redirect targets are validated before urllib follows them, cross-host redirects are rejected, and ECMWF range responses must return the requested `Content-Range`.
 
-Live runs on 2026-09-10 measured that NOAA/NOMADS field/level subsets are not guaranteed to contain exactly one GRIB message: `APCP` and `TCDC` at `f006` each returned two concatenated messages. Because the purpose of this tool is capability measurement rather than production field selection, the resilient probe accepts a hard maximum of four messages for any sampled NOAA field and records every message's PDT/DRT/GDT. Production adapters must later select the required semantic message explicitly; they must not treat all measured messages as interchangeable.
+Live runs on 2026-09-10 measured that NOAA/NOMADS field/level subsets are not guaranteed to contain exactly one GRIB message: `APCP` and `TCDC` at `f006` each returned two concatenated messages. Because the purpose of this tool is capability measurement rather than production field selection, the resilient probe accepts a hard maximum of four messages for any sampled NOAA field and records every message's PDT/DRT/GDT. Production adapters now select the required semantic message explicitly; measured messages are not treated as interchangeable.
 
 A mature `00Z f006` run confirmed ECMWF `.index` + byte-range transport and retained five exact ECMWF samples before the then-current gust alias failed to match. Those five point fields measured `GDT 0 / PDT 0 / DRT 42`, confirming CCSDS/AEC packing independently of documentation.
 
@@ -75,7 +75,9 @@ After a successful live run, commit only a compact evidence summary plus immutab
 
 ## Decoder acceptance gate
 
-A production decoder is not accepted by this research code. A later implementation must demonstrate support for every measured template required by canonical forecast fields and, if native code is involved, also satisfy:
+This probe alone does not accept a production decoder. M1 acceptance was completed separately through the decoder-candidate Android/runtime gates and the production-JNI corpus regression documented in `docs/architecture/GRIB_DECODER_REQUIREMENTS.md`.
+
+Any future decoder or material native-toolchain change must continue to demonstrate support for every measured template required by canonical forecast fields and, when native code is involved, also satisfy:
 
 - Android API 26+;
 - `arm64-v8a` support;
@@ -84,4 +86,4 @@ A production decoder is not accepted by this research code. A later implementati
 - bounded memory/CPU behavior on malformed and normal inputs;
 - compatible licensing and maintained upstream code.
 
-Backend processing is a later M5 concern and must not be introduced merely to avoid resolving the M1 client-side direct-source boundary.
+Backend processing remains a later M5 concern and must not be introduced merely to bypass the established client-side direct-source boundary.

@@ -1,6 +1,6 @@
 # M1 GRIB decoder candidate evaluation
 
-This directory contains the research evidence for issue #82. The candidate evaluation is complete: **ecCodes 2.48.0 + libaec 1.1.4 is the selected M1 production decoder path**. Production integration remains a separate step and is owned by the next M1 slice; this research directory does not itself add the decoder to application dependencies.
+This directory contains the retained research evidence for issue #82. Candidate evaluation is complete: **ecCodes 2.48.0 + libaec 1.1.4 is selected and integrated as the M1 production decoder path in `:forecast:data`**. This directory remains an evidence/reproducibility surface; it does not itself define the application dependency or production composition root.
 
 ## Immutable corpus
 
@@ -14,7 +14,7 @@ Candidate behavior is evaluated only against the successful issue #26 capability
 - 28 measured samples;
 - retained ECMWF index SHA-256 `2514ac28a8d00a725262dca79dc5db3ab6185a9ed1a273a6b147d0c1dd01e368`.
 
-`verify_corpus.py` verifies the artifact manifest, exact file set, every file checksum, schema/run/hour/sample count, the measured provider template envelope and the retained ECMWF index before preparing any candidate input.
+`verify_corpus.py` verifies the artifact manifest, exact file set, every file checksum, schema/run/hour/sample count, measured provider template envelope and retained ECMWF index before preparing any candidate input.
 
 Measured decoder envelope:
 
@@ -32,7 +32,7 @@ All upstream source pins are immutable commit SHAs in `pins.json`.
 
 ### ecCodes 2.48.0 + libaec 1.1.4
 
-Status: **selected for M1 production integration**.
+Status: **selected and integrated for M1 production**.
 
 Reasons:
 
@@ -77,21 +77,9 @@ Authoritative run:
 - artifact name `meteoone-m1-grib-decoder-eval-34815805413`;
 - artifact digest `sha256:8a8c0e427284c187e16aedac17deb33be1f4fe40637b111fd262554b7fa98497`.
 
-### Host and malformed-input evidence
+The run verified the exact #26 corpus, built the pinned host ecCodes/libaec stack, value-decoded all six representatives plus a measured concatenated NOAA file, and rejected the deterministic truncated DRT 42 fixture with controlled status `1`.
 
-The run verified the exact #26 corpus, built the pinned host ecCodes/libaec stack, value-decoded all six representatives, value-decoded a measured concatenated NOAA file and rejected the deterministic truncated DRT 42 fixture with exit status `1`.
-
-The representative envelope contains:
-
-- GDT `0` and `101`;
-- PDT `0` and `8`;
-- DRT `0` and `42`.
-
-### Android arm64 build/package evidence
-
-The evaluator uses Android NDK `28.2.13676358`, API 26 and `arm64-v8a`.
-
-Produced shared libraries:
+The evaluator used Android NDK `28.2.13676358`, API 26 and `arm64-v8a`. Produced arm64 libraries were:
 
 | Library | Installed bytes |
 | --- | ---: |
@@ -99,31 +87,15 @@ Produced shared libraries:
 | `libaec.so` | 122,032 |
 | `libsz.so` | 137,656 |
 
-Every produced arm64 shared object reports AArch64 and every PT_LOAD alignment is `0x4000`. The package-shaped archive contains only these three libraries beneath `lib/arm64-v8a/` and passes `zipalign -P 16` verification. The archive reports 38,162,512 uncompressed bytes across its entries and SHA-256 `31f9a5a6a7e55f210dcb5e1a623207e57a3573a889c58323c3b66a4ec84ff496`.
+Every produced arm64 shared object reports AArch64 and every PT_LOAD alignment is `0x4000`. The package-shaped archive contains only those libraries beneath `lib/arm64-v8a/`, passes `zipalign -P 16`, reports 38,162,512 uncompressed bytes, and has SHA-256 `31f9a5a6a7e55f210dcb5e1a623207e57a3573a889c58323c3b66a4ec84ff496`. No runtime binary requires an unstaged `libc++_shared.so`.
 
-No `.source.def` file is staged as a native library and no runtime binary requires an unstaged `libc++_shared.so`.
+API 26 x86_64 runtime execution decoded the representative envelope and concatenated NOAA input. Android 15/API 35 `google_apis_ps16k` x86_64 runtime reported `PAGE_SIZE=16384` and reproduced the same behavior. The x86_64 runtime evidence proves Android execution behavior; it does not replace the independent mandatory arm64 build/package evidence. Representative full-field peak RSS was approximately 45-46 MiB.
 
-### API 26 runtime evidence
+## Production relationship
 
-The x86_64 API 26 runtime decoded the exact representative envelope and concatenated NOAA input successfully. Representative full-field decode peak RSS was approximately 45 MiB. The deterministic malformed DRT 42 fixture exited with controlled status `1`.
+The measured Android binary footprint is material, especially `libeccodes.so`, so the integrated production boundary exposes only the narrow APIs and data MeteoOne requires. Issue #89 established coordinate-aware point selection and containment of native/full-grid representations inside `:forecast:data`; the application does not retain an unbounded multi-hour × multi-field matrix.
 
-### Android 15 16 KiB runtime evidence
-
-The API 35 `google_apis_ps16k` runtime reported:
-
-- SDK `35`;
-- architecture `x86_64`;
-- `PAGE_SIZE=16384`.
-
-The same exact representative values and concatenated NOAA behavior were reproduced on the 16 KiB runtime. Representative full-field peak RSS remained approximately 45-46 MiB. The malformed DRT 42 fixture again exited with controlled status `1`.
-
-The x86_64 runtime evidence proves Android execution behavior; it does not replace the independent mandatory arm64 build/package evidence.
-
-## Selection rationale
-
-**ecCodes 2.48.0 + libaec 1.1.4 is selected for M1 production integration.** It is the only evaluated path that combines complete measured-template value decoding with a demonstrated API26 arm64 build, verified 16 KiB-compatible ELF/package layout, minimum-Android execution, real 16 KiB runtime execution, deterministic malformed-input failure and a narrow permissively licensed native stack.
-
-The measured Android binary footprint is material, especially `libeccodes.so`, so production integration should expose only the narrow APIs and data required by MeteoOne and should not retain full multi-hour × multi-field matrices. #89 owns the coordinate-aware point-selection boundary and containment of native/full-grid representations inside `:forecast:data`.
+The real production JNI bridge is separately exercised by `run_production_jni_corpus_regression.sh` against immutable provider representatives and malformed-input cases. Production bundle provenance, vendored definitions, licences and ELF/package invariants are verified by the repository native-bundle verifier and ordinary CI.
 
 ## ecCodes smoke contract
 
@@ -140,16 +112,9 @@ The manual workflow runs this contract over all six representatives and over a m
 
 ## Malformed-input and fuzz/sanitizer strategy
 
-The deterministic truncated DRT 42 case is the first regression gate. Production native integration must additionally:
+The deterministic truncated DRT 42 case is an established regression gate. Additional hardening can extend this with host Clang ASan+UBSan and mutation/fuzz campaigns seeded by the exact #26 representatives, covering truncation, section-length corruption, duplicated/reordered sections, invalid template identifiers, bitmap/value-count inconsistencies and random byte mutations. Longer campaigns may remain outside normal PR CI when their duration/resource use is unsuitable for the standard gate.
 
-- add a host Clang ASan+UBSan build of the narrow decode entry point;
-- seed mutation/fuzz runs with the exact #26 representatives, including concatenated NOAA and decompressed DWD representatives;
-- include truncation, section-length corruption, duplicated/reordered sections, invalid template identifiers, bitmap/value-count inconsistencies and random byte mutations;
-- enforce bounded input size and bounded allocation policy around the native boundary;
-- preserve crashing/minimized cases as regression fixtures when redistribution permits;
-- run longer native fuzz targets outside normal PR CI when their duration/resource use is unsuitable for the standard gate.
-
-A production JNI boundary must validate Kotlin/Java lengths and ownership before native calls and convert decoder failures into bounded provider errors rather than process termination.
+The production JNI boundary keeps Kotlin/Java lengths and ownership validation outside unsafe native assumptions and converts decoder failures into bounded provider failures rather than intentionally terminating the process. Future minimized crashing cases should be retained as regression fixtures when redistribution permits.
 
 ## Evidence produced by the manual workflow
 

@@ -7,15 +7,16 @@ MeteoOne CI is intentionally least-privilege and contains no production signing 
 Active controls:
 
 - all external GitHub Actions are pinned to immutable 40-character commit SHAs;
+- Docker actions and workflow container images are pinned to immutable SHA-256 digests; dynamic workflow container expressions are rejected because the repository verifier cannot establish their image provenance statically;
 - checkout credentials are explicitly not persisted;
 - Gradle wrapper distribution integrity is pinned with SHA-256;
-- `scripts/verify_ci_supply_chain.py` blocks mutable Actions, unpinned workflow containers, `pull_request_target`, persisted checkout credentials, inherited reusable-workflow secrets, and missing top-level workflow permissions;
+- `scripts/verify_ci_supply_chain.py` blocks mutable Actions, mutable Docker actions, unpinned or dynamically selected workflow containers, `pull_request_target`, persisted checkout credentials, inherited reusable-workflow secrets, and missing top-level workflow permissions;
 - `scripts/verify_app_icon.py` protects the canonical launcher PNG byte hash and validates required raster dimensions without rewriting assets;
-- `scripts/verify_location_privacy.py` rejects precise/background location permissions, duplicate coarse-location ownership, and Android location API usage outside `:core:location`;
-- Android/JVM/research tests, lint, debug APK and release AAB builds run in `verify`;
+- `scripts/verify_location_privacy.py` scans every Android source-set manifest plus Kotlin and Java sources, rejects precise/background location permissions, duplicate coarse-location ownership, and Android location API usage outside `:core:location`;
+- repository-policy verifier unit tests, Android/JVM/research tests, lint, debug APK and release AAB builds run in `verify`;
 - Gitleaks scans pull requests, main, and a weekly schedule;
 - Semgrep security-audit/secrets rules run on pull requests, main, weekly schedule, and manual dispatch;
-- Qodana JVM Community runs on schedule/manual dispatch as defense in depth;
+- Qodana JVM Community runs over the whole repository on schedule/manual dispatch as defense in depth;
 - Dependabot covers Gradle and GitHub Actions;
 - secret scanning and push protection are enabled for the public repository;
 - the active `Protect main` ruleset requires the proven `verify`, `gitleaks`, and `Semgrep` contexts.
@@ -53,7 +54,7 @@ Dependabot is an update mechanism, not a complete vulnerability gate. Dependency
 
 Production Android cleartext traffic is disabled in the manifest.
 
-The M0 research-only Roshydromet WIS2 adapter uses the provider's published HTTP endpoint because measured HTTPS connectivity was unavailable during the benchmark. The data is public and the limitation is explicitly documented; this exception must never be reused in production Android networking.
+The M0 research-only Roshydromet WIS2 adapter uses the provider's published HTTP endpoint because measured HTTPS connectivity was unavailable during the benchmark. The data is public and the limitation is explicitly documented; this exception must never be reused in production Android networking. Research HTTP redirect targets are validated before they are followed, and response reads are bounded.
 
 ## Signing boundary
 

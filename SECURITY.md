@@ -1,6 +1,6 @@
 # Security Policy
 
-MeteoOne is currently private and pre-release. There is no supported public release yet.
+MeteoOne is currently public and pre-release. There is no supported public release yet.
 
 ## Reporting a vulnerability
 
@@ -29,7 +29,7 @@ In scope:
 - GitHub Actions, CI/CD, repository supply chain, signing, provenance, and release integrity;
 - research tooling when a repository-owned implementation creates an additional security risk.
 
-There is currently no backend/server or native/JNI/NDK component in the repository.
+There is currently no backend/server component in the repository. M1 does include a contained native/JNI boundary in `:forecast:data`: the vendored ecCodes/libaec runtime and MeteoOne JNI bridge decode bounded official-source GRIB payloads behind MeteoOne-owned Kotlin types.
 
 ## Secrets and signing
 
@@ -63,7 +63,7 @@ The M0 research harness contains one documented exception: the public Roshydrome
 - CI policy checks reject unsafe workflow regressions;
 - Gitleaks scans repository history;
 - Semgrep provides blocking SAST on pull requests and main;
-- Qodana provides scheduled/manual defense-in-depth analysis;
+- Qodana provides scheduled/manual whole-repository defense-in-depth analysis;
 - Dependabot covers Gradle and GitHub Actions;
 - CodeQL and Dependency Review are configured and activate when GitHub Advanced Security / GitHub Code Security is available.
 
