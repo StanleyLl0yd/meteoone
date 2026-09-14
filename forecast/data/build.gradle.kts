@@ -1,9 +1,33 @@
 plugins {
-    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.android.library)
 }
 
-kotlin {
-    jvmToolchain(17)
+android {
+    namespace = "com.sl.meteoone.forecast.data"
+    compileSdk = 37
+
+    defaultConfig {
+        minSdk = 26
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    packaging {
+        jniLibs {
+            keepDebugSymbols += "**/*.so"
+        }
+    }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = false
+    }
+
+    lint {
+        abortOnError = true
+    }
 }
 
 dependencies {
