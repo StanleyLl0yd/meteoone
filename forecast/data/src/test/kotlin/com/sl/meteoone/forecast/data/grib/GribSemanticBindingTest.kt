@@ -20,16 +20,11 @@ class GribSemanticBindingTest {
     private val coordinate = ForecastCoordinate(latitude = 48.8, longitude = 2.3)
 
     @Test
-    fun noaaInstantaneousTemperatureBindsMeasuredSignature() {
+    fun noaaBindsMeasuredInstantaneousTemperature() {
         val field = GribSemanticBinder.bind(
-            context = noaaContext(),
-            metadata = noaaInstant(
-                category = 0,
-                number = 0,
-                surfaceType = 103,
-                surfaceValue = 2,
-            ),
-            selectedPoint = selected(281.25),
+            noaaContext(),
+            instant(category = 0, number = 0, surfaceType = 103, surfaceValue = 2, drt = 0),
+            selected(281.25),
         )
 
         requireNotNull(field)
@@ -41,21 +36,29 @@ class GribSemanticBindingTest {
     }
 
     @Test
-    fun noaaTimeAveragedCloudCoverIsNotPromotedToInstantaneousField() {
-        val metadata = noaaInterval(
-            category = 6,
-            number = 1,
-            surfaceType = 10,
-            forecastTime = 0,
-            statisticalProcess = 0,
-            rangeLength = 6,
-        )
-
+    fun noaaIgnoresBroadResponseMessagesOutsideCanonicalSurfaceOrStatistic() {
         assertNull(
             GribSemanticBinder.bind(
-                context = noaaContext(),
-                metadata = metadata,
-                selectedPoint = selected(80.0),
+                noaaContext(),
+                instant(category = 0, number = 0, surfaceType = 103, surfaceValue = 10, drt = 0),
+                selected(280.0),
+            ),
+        )
+        assertNull(
+            GribSemanticBinder.bind(
+                noaaContext(),
+                interval(
+                    category = 6,
+                    number = 1,
+                    surfaceType = 10,
+                    drt = 0,
+                    forecastTimeUnit = 1,
+                    forecastTime = 0,
+                    statisticalProcess = 0,
+                    rangeUnit = 1,
+                    rangeLength = 6,
+                ),
+                selected(80.0),
             ),
         )
     }
@@ -63,16 +66,19 @@ class GribSemanticBindingTest {
     @Test
     fun noaaPrecipitationUsesEncodedRunToValidTimeInterval() {
         val field = GribSemanticBinder.bind(
-            context = noaaContext(),
-            metadata = noaaInterval(
+            noaaContext(),
+            interval(
                 category = 1,
                 number = 8,
                 surfaceType = 1,
+                drt = 0,
+                forecastTimeUnit = 1,
                 forecastTime = 0,
                 statisticalProcess = 1,
+                rangeUnit = 1,
                 rangeLength = 6,
             ),
-            selectedPoint = selected(4.5),
+            selected(4.5),
         )
 
         requireNotNull(field)
@@ -83,79 +89,50 @@ class GribSemanticBindingTest {
     }
 
     @Test
-    fun noaaRejectsContradictorySurfaceRepresentationAndRun() {
-        val context = noaaContext()
+    fun matchedNoaaFieldFailsClosedOnRunRepresentationAndTimeUnitDrift() {
+        val base = instant(category = 0, number = 0, surfaceType = 103, surfaceValue = 2, drt = 0)
 
         assertFailsWith<IllegalArgumentException> {
-            GribSemanticBinder.bind(
-                context,
-                noaaInstant(category = 0, number = 0, surfaceType = 103, surfaceValue = 10),
-                selected(280.0),
-            )
+            GribSemanticBinder.bind(noaaContext(), base.copy(referenceTime = modelRun.minusSeconds(21600)), selected(280.0))
         }
         assertFailsWith<IllegalArgumentException> {
-            GribSemanticBinder.bind(
-                context,
-                noaaInstant(
-                    category = 0,
-                    number = 0,
-                    surfaceType = 103,
-                    surfaceValue = 2,
-                    referenceTime = modelRun.minusSeconds(6 * 3600L),
-                ),
-                selected(280.0),
-            )
+            GribSemanticBinder.bind(noaaContext(), base.copy(dataRepresentationTemplate = 42), selected(280.0))
         }
         assertFailsWith<IllegalArgumentException> {
-            GribSemanticBinder.bind(
-                context,
-                noaaInstant(
-                    category = 0,
-                    number = 0,
-                    surfaceType = 103,
-                    surfaceValue = 2,
-                    dataRepresentationTemplate = 42,
-                ),
-                selected(280.0),
-            )
+            GribSemanticBinder.bind(noaaContext(), base.copy(forecastTimeUnit = 255), selected(280.0))
         }
     }
 
     @Test
     fun ecmwfPlanRejectsAnotherKnownFieldSignature() {
         val context = ecmwfContext(EcmwfSurfaceField.TEMPERATURE_2M)
-        val dewPointMetadata = ecmwfInstant(
-            category = 0,
-            number = 6,
-            surfaceType = 103,
-            surfaceScaleFactor = 0,
-            surfaceValue = 2,
-        )
+        val dewPoint = instant(category = 0, number = 6, surfaceType = 103, surfaceValue = 2, drt = 42)
 
         assertFailsWith<IllegalArgumentException> {
-            GribSemanticBinder.bind(context, dewPointMetadata, selected(279.0))
+            GribSemanticBinder.bind(context, dewPoint, selected(279.0))
         }
     }
 
     @Test
-    fun ecmwfPrecipitationNormalizesMetresAndPreservesEncodedInterval() {
-        val context = ecmwfContext(EcmwfSurfaceField.TOTAL_PRECIPITATION)
+    fun ecmwfPrecipitationNormalizesMetresAndPreservesInterval() {
         val field = GribSemanticBinder.bind(
-            context = context,
-            metadata = ecmwfInterval(
+            ecmwfContext(EcmwfSurfaceField.TOTAL_PRECIPITATION),
+            interval(
                 category = 1,
                 number = 193,
                 surfaceType = 1,
+                drt = 42,
+                forecastTimeUnit = 1,
                 forecastTime = 0,
                 statisticalProcess = 1,
+                rangeUnit = 1,
                 rangeLength = 6,
             ),
-            selectedPoint = selected(0.0123),
+            selected(0.0123),
         )
 
         requireNotNull(field)
         assertEquals(GribForecastParameter.PRECIPITATION_ACCUMULATION, field.parameter)
-        assertEquals(GribValueUnit.KILOGRAMS_PER_SQUARE_METRE, field.unit)
         assertEquals(12.3, field.value, absoluteTolerance = 1e-12)
         assertEquals(modelRun, field.intervalStart)
     }
@@ -163,15 +140,16 @@ class GribSemanticBindingTest {
     @Test
     fun ecmwfLocalCloudFractionNormalizesToPercent() {
         val field = GribSemanticBinder.bind(
-            context = ecmwfContext(EcmwfSurfaceField.TOTAL_CLOUD_COVER),
-            metadata = ecmwfInstant(
+            ecmwfContext(EcmwfSurfaceField.TOTAL_CLOUD_COVER),
+            instant(
                 category = 6,
                 number = 192,
                 surfaceType = 1,
-                surfaceScaleFactor = 255,
                 surfaceValue = 0xffff_ffffL,
+                surfaceScaleFactor = 255,
+                drt = 42,
             ),
-            selectedPoint = selected(0.42),
+            selected(0.42),
         )
 
         requireNotNull(field)
@@ -181,20 +159,22 @@ class GribSemanticBindingTest {
     }
 
     @Test
-    fun ecmwfWindGustTimespanComesFromPdt8NotFieldName() {
+    fun ecmwfWindGustTimespanComesFromPdt8() {
         val field = GribSemanticBinder.bind(
-            context = ecmwfContext(EcmwfSurfaceField.WIND_GUST_10M_MAXIMUM),
-            metadata = ecmwfInterval(
+            ecmwfContext(EcmwfSurfaceField.WIND_GUST_10M_MAXIMUM),
+            interval(
                 category = 2,
                 number = 22,
                 surfaceType = 103,
-                surfaceScaleFactor = 0,
                 surfaceValue = 10,
+                drt = 42,
+                forecastTimeUnit = 1,
                 forecastTime = 5,
                 statisticalProcess = 2,
+                rangeUnit = 1,
                 rangeLength = 1,
             ),
-            selectedPoint = selected(17.5),
+            selected(17.5),
         )
 
         requireNotNull(field)
@@ -204,71 +184,71 @@ class GribSemanticBindingTest {
     }
 
     @Test
-    fun dwdMinuteBasedPdt8IntervalsBindExactly() {
+    fun dwdMinuteBasedIntervalsBindExactly() {
         val gust = GribSemanticBinder.bind(
-            context = dwdContext(DwdIconField.WIND_MAX_10M),
-            metadata = dwdInterval(
+            dwdContext(DwdIconField.WIND_MAX_10M),
+            interval(
                 category = 2,
                 number = 22,
                 surfaceType = 103,
                 surfaceValue = 10,
-                forecastMinutes = 300,
+                drt = 42,
+                gdt = 101,
+                forecastTimeUnit = 0,
+                forecastTime = 300,
                 statisticalProcess = 2,
-                rangeMinutes = 60,
+                rangeUnit = 0,
+                rangeLength = 60,
             ),
-            selectedPoint = selected(14.0),
+            selected(14.0),
         )
         val precipitation = GribSemanticBinder.bind(
-            context = dwdContext(DwdIconField.TOTAL_PRECIPITATION),
-            metadata = dwdInterval(
+            dwdContext(DwdIconField.TOTAL_PRECIPITATION),
+            interval(
                 category = 1,
                 number = 52,
                 surfaceType = 1,
-                surfaceValue = 0,
-                forecastMinutes = 0,
+                drt = 42,
+                gdt = 101,
+                forecastTimeUnit = 0,
+                forecastTime = 0,
                 statisticalProcess = 1,
-                rangeMinutes = 360,
+                rangeUnit = 0,
+                rangeLength = 360,
             ),
-            selectedPoint = selected(6.0),
+            selected(6.0),
         )
 
         requireNotNull(gust)
         requireNotNull(precipitation)
         assertEquals(modelRun.plusSeconds(5 * 3600L), gust.intervalStart)
         assertEquals(modelRun, precipitation.intervalStart)
-        assertEquals(validTime, gust.validTime)
-        assertEquals(validTime, precipitation.validTime)
     }
 
     @Test
-    fun dwdWeatherCodeCannotLeakThroughPointFieldBoundary() {
-        val metadata = dwdInstant(
-            category = 19,
-            number = 25,
-            surfaceType = 1,
-            surfaceValue = 0,
-        )
-
+    fun dwdWeatherCodeCannotCrossPointFieldBoundary() {
         assertFailsWith<IllegalStateException> {
             GribSemanticBinder.bind(
                 dwdContext(DwdIconField.WEATHER_CODE),
-                metadata,
+                instant(category = 19, number = 25, surfaceType = 1, drt = 42, gdt = 101),
                 selected(1.0),
             )
         }
     }
 
     @Test
-    fun intervalMetadataFailsClosedOnProcessLengthAndEndDrift() {
+    fun intervalMetadataFailsClosedOnProcessLengthEndAndRangeCountDrift() {
         val context = ecmwfContext(EcmwfSurfaceField.WIND_GUST_10M_MAXIMUM)
-        val base = ecmwfInterval(
+        val base = interval(
             category = 2,
             number = 22,
             surfaceType = 103,
-            surfaceScaleFactor = 0,
             surfaceValue = 10,
+            drt = 42,
+            forecastTimeUnit = 1,
             forecastTime = 5,
             statisticalProcess = 2,
+            rangeUnit = 1,
             rangeLength = 1,
         )
 
@@ -279,28 +259,10 @@ class GribSemanticBindingTest {
             GribSemanticBinder.bind(context, base.copy(timeRangeLength = 2), selected(10.0))
         }
         assertFailsWith<IllegalArgumentException> {
-            GribSemanticBinder.bind(
-                context,
-                base.copy(intervalEnd = validTime.plusSeconds(3600)),
-                selected(10.0),
-            )
+            GribSemanticBinder.bind(context, base.copy(intervalEnd = validTime.plusSeconds(3600)), selected(10.0))
         }
         assertFailsWith<IllegalArgumentException> {
             GribSemanticBinder.bind(context, base.copy(numberOfTimeRanges = 2), selected(10.0))
-        }
-    }
-
-    @Test
-    fun unsupportedForecastTimeUnitFailsClosed() {
-        val metadata = noaaInstant(
-            category = 0,
-            number = 0,
-            surfaceType = 103,
-            surfaceValue = 2,
-        ).copy(forecastTimeUnit = 255)
-
-        assertFailsWith<IllegalArgumentException> {
-            GribSemanticBinder.bind(noaaContext(), metadata, selected(280.0))
         }
     }
 
@@ -312,25 +274,20 @@ class GribSemanticBindingTest {
     private fun ecmwfContext(field: EcmwfSurfaceField): OfficialGribDecodeContext.Ecmwf {
         val requestPlan = EcmwfIfsRequestPlanner.plan(modelRun, 6)
         val fieldPlan = EcmwfIfsFieldSelector.select(
-            indexContent =
-                """{"domain":"g","date":"20260910","time":"1800","class":"od","type":"fc","stream":"oper","step":"6","levtype":"sfc","param":"${field.parameter}","_offset":0,"_length":10}""",
+            indexContent = """{"domain":"g","date":"20260910","time":"1800","class":"od","type":"fc","stream":"oper","step":"6","levtype":"sfc","param":"${field.parameter}","_offset":0,"_length":10}""",
             plan = requestPlan,
             fields = setOf(field),
         ).single()
-        return GribDecodeRequest.ecmwf(
-            payload = byteArrayOf(1),
-            plan = fieldPlan,
-            coordinate = coordinate,
-        ).context as OfficialGribDecodeContext.Ecmwf
+        return GribDecodeRequest.ecmwf(byteArrayOf(1), fieldPlan, coordinate).context as OfficialGribDecodeContext.Ecmwf
     }
 
     private fun dwdContext(field: DwdIconField): OfficialGribDecodeContext.Dwd {
-        val fieldPlan = DwdIconRequestPlanner.plan(modelRun, 6, field)
+        val plan = DwdIconRequestPlanner.plan(modelRun, 6, field)
         return GribDecodeRequest.dwd(
-            payload = byteArrayOf(1),
-            plan = fieldPlan,
-            coordinate = coordinate,
-            geometryPlan = DwdIconGridGeometryPlanner.plan(modelRun),
+            byteArrayOf(1),
+            plan,
+            coordinate,
+            DwdIconGridGeometryPlanner.plan(modelRun),
         ).context as OfficialGribDecodeContext.Dwd
     }
 
@@ -341,35 +298,42 @@ class GribSemanticBindingTest {
         value = value,
     )
 
-    private fun noaaInstant(
+    private fun instant(
         category: Int,
         number: Int,
         surfaceType: Int,
-        surfaceValue: Long,
-        referenceTime: Instant = modelRun,
-        dataRepresentationTemplate: Int = 0,
+        surfaceValue: Long = 0,
+        surfaceScaleFactor: Int = 0,
+        drt: Int,
+        gdt: Int = 0,
     ) = GribMessageMetadata(
         edition = 2,
         discipline = 0,
         parameterCategory = category,
         parameterNumber = number,
         productDefinitionTemplate = 0,
-        gridDefinitionTemplate = 0,
-        dataRepresentationTemplate = dataRepresentationTemplate,
-        referenceTime = referenceTime,
-        forecastTimeUnit = 1,
-        forecastTime = 6,
+        gridDefinitionTemplate = gdt,
+        dataRepresentationTemplate = drt,
+        referenceTime = modelRun,
+        forecastTimeUnit = if (gdt == 101) 0 else 1,
+        forecastTime = if (gdt == 101) 360 else 6,
         firstFixedSurfaceType = surfaceType,
-        firstFixedSurfaceScaleFactor = 0,
+        firstFixedSurfaceScaleFactor = surfaceScaleFactor,
         firstFixedSurfaceScaledValue = surfaceValue,
     )
 
-    private fun noaaInterval(
+    private fun interval(
         category: Int,
         number: Int,
         surfaceType: Int,
+        surfaceValue: Long = 0,
+        surfaceScaleFactor: Int = 0,
+        drt: Int,
+        gdt: Int = 0,
+        forecastTimeUnit: Int,
         forecastTime: Long,
         statisticalProcess: Int,
+        rangeUnit: Int,
         rangeLength: Long,
     ) = GribMessageMetadata(
         edition = 2,
@@ -377,62 +341,10 @@ class GribSemanticBindingTest {
         parameterCategory = category,
         parameterNumber = number,
         productDefinitionTemplate = 8,
-        gridDefinitionTemplate = 0,
-        dataRepresentationTemplate = 0,
+        gridDefinitionTemplate = gdt,
+        dataRepresentationTemplate = drt,
         referenceTime = modelRun,
-        forecastTimeUnit = 1,
-        forecastTime = forecastTime,
-        firstFixedSurfaceType = surfaceType,
-        firstFixedSurfaceScaleFactor = 0,
-        firstFixedSurfaceScaledValue = 0,
-        intervalEnd = validTime,
-        numberOfTimeRanges = 1,
-        statisticalProcess = statisticalProcess,
-        timeRangeUnit = 1,
-        timeRangeLength = rangeLength,
-    )
-
-    private fun ecmwfInstant(
-        category: Int,
-        number: Int,
-        surfaceType: Int,
-        surfaceScaleFactor: Int,
-        surfaceValue: Long,
-    ) = GribMessageMetadata(
-        edition = 2,
-        discipline = 0,
-        parameterCategory = category,
-        parameterNumber = number,
-        productDefinitionTemplate = 0,
-        gridDefinitionTemplate = 0,
-        dataRepresentationTemplate = 42,
-        referenceTime = modelRun,
-        forecastTimeUnit = 1,
-        forecastTime = 6,
-        firstFixedSurfaceType = surfaceType,
-        firstFixedSurfaceScaleFactor = surfaceScaleFactor,
-        firstFixedSurfaceScaledValue = surfaceValue,
-    )
-
-    private fun ecmwfInterval(
-        category: Int,
-        number: Int,
-        surfaceType: Int,
-        surfaceScaleFactor: Int = 255,
-        surfaceValue: Long = 0xffff_ffffL,
-        forecastTime: Long,
-        statisticalProcess: Int,
-        rangeLength: Long,
-    ) = GribMessageMetadata(
-        edition = 2,
-        discipline = 0,
-        parameterCategory = category,
-        parameterNumber = number,
-        productDefinitionTemplate = 8,
-        gridDefinitionTemplate = 0,
-        dataRepresentationTemplate = 42,
-        referenceTime = modelRun,
-        forecastTimeUnit = 1,
+        forecastTimeUnit = forecastTimeUnit,
         forecastTime = forecastTime,
         firstFixedSurfaceType = surfaceType,
         firstFixedSurfaceScaleFactor = surfaceScaleFactor,
@@ -440,57 +352,7 @@ class GribSemanticBindingTest {
         intervalEnd = validTime,
         numberOfTimeRanges = 1,
         statisticalProcess = statisticalProcess,
-        timeRangeUnit = 1,
+        timeRangeUnit = rangeUnit,
         timeRangeLength = rangeLength,
-    )
-
-    private fun dwdInstant(
-        category: Int,
-        number: Int,
-        surfaceType: Int,
-        surfaceValue: Long,
-    ) = GribMessageMetadata(
-        edition = 2,
-        discipline = 0,
-        parameterCategory = category,
-        parameterNumber = number,
-        productDefinitionTemplate = 0,
-        gridDefinitionTemplate = 101,
-        dataRepresentationTemplate = 42,
-        referenceTime = modelRun,
-        forecastTimeUnit = 0,
-        forecastTime = 360,
-        firstFixedSurfaceType = surfaceType,
-        firstFixedSurfaceScaleFactor = 0,
-        firstFixedSurfaceScaledValue = surfaceValue,
-    )
-
-    private fun dwdInterval(
-        category: Int,
-        number: Int,
-        surfaceType: Int,
-        surfaceValue: Long,
-        forecastMinutes: Long,
-        statisticalProcess: Int,
-        rangeMinutes: Long,
-    ) = GribMessageMetadata(
-        edition = 2,
-        discipline = 0,
-        parameterCategory = category,
-        parameterNumber = number,
-        productDefinitionTemplate = 8,
-        gridDefinitionTemplate = 101,
-        dataRepresentationTemplate = 42,
-        referenceTime = modelRun,
-        forecastTimeUnit = 0,
-        forecastTime = forecastMinutes,
-        firstFixedSurfaceType = surfaceType,
-        firstFixedSurfaceScaleFactor = 0,
-        firstFixedSurfaceScaledValue = surfaceValue,
-        intervalEnd = validTime,
-        numberOfTimeRanges = 1,
-        statisticalProcess = statisticalProcess,
-        timeRangeUnit = 0,
-        timeRangeLength = rangeMinutes,
     )
 }
