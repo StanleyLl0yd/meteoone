@@ -1,0 +1,40 @@
+{
+  "android_abi": "arm64-v8a",
+  "android_api": 26,
+  "ecbuild_commit": "60e7d659ec10a4316e0ec27be28254092dcd7921",
+  "eccodes_commit": "19e71ddcc8f45862a3909b4dae690c3cc95bbc16",
+  "files": {
+    "assets/eccodes-definitions.zip": {
+      "bytes": 5885714,
+      "sha256": "600af8a8c746dd541397c54ac13554155f2f9e7b7eea6d06f02afe54f3be2007"
+    },
+    "jniLibs/arm64-v8a/libaec.so": {
+      "bytes": 122016,
+      "sha256": "9737e1dc253255fdef3bfce632a39666a4bd44d5ff62f09338d0b325ac2edaa4"
+    },
+    "jniLibs/arm64-v8a/libeccodes.so": {
+      "bytes": 37868248,
+      "sha256": "2d4b36951860fa6afea66823dd2f069634d465f6f88b8d111d21c5755940f5ad"
+    },
+    "jniLibs/arm64-v8a/libsz.so": {
+      "bytes": 137648,
+      "sha256": "bba32e23b008448f2216e054416488ea4fb10bc29571aac2fd30ce4b14038d70"
+    },
+    "licenses/eccodes-LICENSE": {
+      "bytes": 11337,
+      "sha256": "c4e6f453639281d2d0f3eaf32140bb4a0d8cbeb01045b73a5f2a6ca3c1fec69d"
+    },
+    "licenses/eccodes-NOTICE": {
+      "bytes": 771,
+      "sha256": "8a73c2ffa4c7b56513d27830fbb22eb30bb73df80612c1395b416570f1637393"
+    },
+    "licenses/libaec-LICENSE.txt": {
+      "bytes": 1346,
+      "sha256": "66924e663d6e156dc45fe5aba993f5dcb131a8a5400b5580d956877c2c77c717"
+    }
+  },
+  "flexible_page_sizes": true,
+  "libaec_commit": "7204505af7d6635734fc12a38d6bd0a6253c9c6d",
+  "memfs": false,
+  "schema_version": 1
+}
