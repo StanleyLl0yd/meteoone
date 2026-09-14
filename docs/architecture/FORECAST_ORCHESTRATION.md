@@ -1,6 +1,6 @@
 # Forecast orchestration
 
-M1 keeps provider-attempt coordination in `:forecast:domain`, above provider transport and below presentation/persistence concerns.
+M1 keeps provider-result coordination in `:forecast:domain`, above provider transport and below presentation/persistence concerns. Production source execution and the UI-independent M1 composition root live in `:forecast:data`; the domain layer remains free of Android, HTTP, decoder, and provider implementation details.
 
 ## Attempt identity
 
@@ -25,14 +25,16 @@ Provider identity and model-family identity are intentionally separate. NOAA GFS
 
 They are not independent meteorological votes. `ForecastFusionEngine` remains the authority for family-level de-duplication, so alternate providers for the same `ModelFamily` contribute one independent fusion vote while still remaining visible as distinct provider paths.
 
-## Categorical weather conditions
+## M1 production composition
 
-Canonical `WeatherCondition` values use the same independent-evidence grouping as scalar fusion. `UNKNOWN` represents missing or unresolved categorical evidence and does not vote.
+`M1ForecastEngine` accepts a canonical `ForecastLocation` and derives the already privacy-normalized `ForecastCoordinate` used by provider requests. It performs one bounded direct-official cross-check for NOAA GFS, ECMWF IFS and DWD ICON, together with the three exact 72-hour model-specific Open-Meteo delivery paths.
 
-Within one model-family evidence group, one distinct non-`UNKNOWN` condition becomes that family's categorical vote. If alternate provider deliveries for the same family disagree on non-`UNKNOWN` conditions, that family is unresolved for the condition field rather than receiving multiple provider votes.
+A successful Open-Meteo path is required to establish the complete 72-point hourly M1 horizon. Direct-official cross-checks are deliberately sparse and cannot by themselves turn an incomplete point/field sample into a complete forecast. All successful source forecasts are restricted to the same validated 72-hour timestamp window before the existing domain orchestrator and fusion engine are invoked.
 
-Across resolved independent evidence groups, the fusion engine selects a condition only when one category has a unique plurality. A categorical tie remains `WeatherCondition.UNKNOWN`; MeteoOne does not invent a severity ordering or arbitrary weather-state tie-break before measured evidence justifies one.
+Source attempts fail independently. Transport, decode, native linkage and validation failures are reduced to the corresponding provider/model `ForecastSourceResult.Failure`; another valid 72-hour source can still produce an available forecast. Direct and Open-Meteo delivery of the same model family remain separate provider paths but one independent meteorological evidence group.
+
+The direct run policy selects a conservative already-published 00/06/12/18 UTC operational cycle from the injected generation time. NOAA and DWD cross-check the next hourly valid step; ECMWF is aligned to the next supported three-hour direct step and is never represented as direct hourly IFS.
 
 ## M1 boundary
 
-This layer does not execute HTTP requests and does not define coroutine, cancellation, retry/backoff, rate-limit, provider-health, persistence, cache, stale-data, or UI policy. Those concerns remain outside this M1 domain boundary or belong to later milestones.
+The domain orchestration layer itself still does not execute HTTP requests. Production execution is synchronous inside `:forecast:data`; Android callers must invoke it off the main thread. M1 does not define retry/backoff, request pacing or sleep, provider-health state, persistence, Room, DataStore, cache, stale-data, repository-flow, or UI policy. Those concerns belong to M2 or later milestones.
