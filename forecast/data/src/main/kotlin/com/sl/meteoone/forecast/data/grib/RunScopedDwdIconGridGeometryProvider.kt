@@ -85,7 +85,7 @@ internal class RunScopedDwdIconGridGeometryProvider(
         val message = messages.single()
         validateCoordinateMessage(message, field)
         return message.values.also { values ->
-            require(values.all(field::isValidValue)) {
+            require(values.all(field.isValidValue)) {
                 "DWD ICON ${field.label} contains an invalid coordinate"
             }
         }
