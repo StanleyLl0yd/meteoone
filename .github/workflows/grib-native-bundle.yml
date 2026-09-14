@@ -1,0 +1,66 @@
+name: GRIB Native Bundle
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/grib-native-bundle.yml"
+      - "forecast/data/native/**"
+      - "research/grib_decoder_candidates/pins.json"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: grib-native-bundle-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      NDK_VERSION: 28.2.13676358
+      ANDROID_API: "26"
+      ANDROID_ABI: arm64-v8a
+      OUTPUT_DIR: ${{ runner.temp }}/meteoone-grib-native-output
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Verify CI supply-chain policy
+        run: python3 scripts/verify_ci_supply_chain.py
+
+      - name: Validate bundle script syntax
+        run: bash -n forecast/data/native/build_grib_bundle.sh
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          cmdline-tools-version: 15859902
+
+      - name: Install exact NDK and build tools
+        run: |
+          set -euo pipefail
+          sdkmanager --install "ndk;$NDK_VERSION" "build-tools;37.0.0"
+          ndk="$ANDROID_HOME/ndk/$NDK_VERSION"
+          test -f "$ndk/build/cmake/android.toolchain.cmake"
+          printf 'NDK_ROOT=%s\n' "$ndk" >> "$GITHUB_ENV"
+
+      - name: Build verified production bundle
+        run: bash forecast/data/native/build_grib_bundle.sh
+
+      - name: Upload native bundle and evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: meteoone-m1-grib-native-bundle-${{ github.run_id }}
+          path: ${{ runner.temp }}/meteoone-grib-native-output
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
