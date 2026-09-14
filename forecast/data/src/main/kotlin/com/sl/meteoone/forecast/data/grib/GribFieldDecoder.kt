@@ -1,6 +1,15 @@
 package com.sl.meteoone.forecast.data.grib
 
+import com.sl.meteoone.core.model.ForecastCoordinate
+import com.sl.meteoone.core.model.ForecastProvider
+import com.sl.meteoone.core.model.ModelFamily
+import com.sl.meteoone.forecast.data.dwd.DwdIconGridGeometryPlan
+import com.sl.meteoone.forecast.data.dwd.DwdIconRequestPlan
+import com.sl.meteoone.forecast.data.ecmwf.EcmwfFieldRangePlan
+import com.sl.meteoone.forecast.data.noaa.NoaaGfsRequestPlan
 import java.time.Instant
+
+private const val MAX_DECODED_GRIB_PAYLOAD_BYTES = 64 * 1024 * 1024
 
 enum class GribForecastParameter {
     TEMPERATURE_2M,
@@ -46,6 +55,96 @@ data class DecodedGribField(
     }
 }
 
+/**
+ * Provider-bound context for one official GRIB decode.
+ *
+ * Only privacy-normalized coordinates or provider-side snapped grid points reach this boundary.
+ * Raw device coordinates must never be carried by these types.
+ */
+sealed interface OfficialGribDecodeContext {
+    val provider: ForecastProvider
+    val modelFamily: ModelFamily
+    val modelRun: Instant
+    val validTime: Instant
+
+    data class Noaa internal constructor(
+        val plan: NoaaGfsRequestPlan,
+    ) : OfficialGribDecodeContext {
+        override val provider: ForecastProvider = plan.provider
+        override val modelFamily: ModelFamily = plan.modelFamily
+        override val modelRun: Instant = plan.modelRun
+        override val validTime: Instant = plan.validTime
+    }
+
+    data class Ecmwf internal constructor(
+        val plan: EcmwfFieldRangePlan,
+        val coordinate: ForecastCoordinate,
+    ) : OfficialGribDecodeContext {
+        override val provider: ForecastProvider = plan.provider
+        override val modelFamily: ModelFamily = plan.modelFamily
+        override val modelRun: Instant = plan.modelRun
+        override val validTime: Instant = plan.validTime
+    }
+
+    data class Dwd internal constructor(
+        val plan: DwdIconRequestPlan,
+        val coordinate: ForecastCoordinate,
+        val geometryPlan: DwdIconGridGeometryPlan,
+    ) : OfficialGribDecodeContext {
+        init {
+            require(geometryPlan.modelRun == plan.modelRun) {
+                "DWD grid geometry must belong to the same model run as the forecast field"
+            }
+        }
+
+        override val provider: ForecastProvider = plan.provider
+        override val modelFamily: ModelFamily = plan.modelFamily
+        override val modelRun: Instant = plan.modelRun
+        override val validTime: Instant = plan.validTime
+    }
+}
+
+class GribDecodeRequest private constructor(
+    val payload: ByteArray,
+    val context: OfficialGribDecodeContext,
+) {
+    init {
+        require(payload.isNotEmpty()) { "GRIB payload must not be empty" }
+        require(payload.size <= MAX_DECODED_GRIB_PAYLOAD_BYTES) {
+            "GRIB payload exceeds the bounded decode limit"
+        }
+    }
+
+    companion object {
+        fun noaa(
+            payload: ByteArray,
+            plan: NoaaGfsRequestPlan,
+        ): GribDecodeRequest = GribDecodeRequest(
+            payload = payload,
+            context = OfficialGribDecodeContext.Noaa(plan),
+        )
+
+        fun ecmwf(
+            payload: ByteArray,
+            plan: EcmwfFieldRangePlan,
+            coordinate: ForecastCoordinate,
+        ): GribDecodeRequest = GribDecodeRequest(
+            payload = payload,
+            context = OfficialGribDecodeContext.Ecmwf(plan, coordinate),
+        )
+
+        fun dwd(
+            payload: ByteArray,
+            plan: DwdIconRequestPlan,
+            coordinate: ForecastCoordinate,
+            geometryPlan: DwdIconGridGeometryPlan,
+        ): GribDecodeRequest = GribDecodeRequest(
+            payload = payload,
+            context = OfficialGribDecodeContext.Dwd(plan, coordinate, geometryPlan),
+        )
+    }
+}
+
 fun interface GribFieldDecoder {
-    fun decode(payload: ByteArray): List<DecodedGribField>
+    fun decode(request: GribDecodeRequest): List<DecodedGribField>
 }
