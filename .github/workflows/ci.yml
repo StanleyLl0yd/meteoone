@@ -82,6 +82,10 @@ jobs:
         run: |
           bash -n research/grib_decoder_candidates/build_android_runtime_bundle.sh
           bash -n research/grib_decoder_candidates/run_android_runtime_smoke.sh
+          bash -n research/grib_decoder_candidates/run_production_jni_corpus_regression.sh
+          rm -rf "$RUNNER_TEMP/production-jni-regression-classes"
+          javac -d "$RUNNER_TEMP/production-jni-regression-classes" \
+            research/grib_decoder_candidates/production_jni/ProductionJniCorpusRegression.java
           python -m unittest discover -s research/grib_decoder_candidates/tests -v
 
       - name: Verify

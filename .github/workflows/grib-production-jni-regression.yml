@@ -1,0 +1,79 @@
+name: GRIB Production JNI Corpus Regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/grib-production-jni-regression.yml"
+      - "forecast/data/native/meteoone_grib_jni.c"
+      - "research/grib_decoder_candidates/pins.json"
+      - "research/grib_decoder_candidates/corpus.py"
+      - "research/grib_decoder_candidates/verify_corpus.py"
+      - "research/grib_decoder_candidates/run_production_jni_corpus_regression.sh"
+      - "research/grib_decoder_candidates/production_jni/**"
+      - "research/grib_capabilities/grib2.py"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/grib-production-jni-regression.yml"
+      - "forecast/data/native/meteoone_grib_jni.c"
+      - "research/grib_decoder_candidates/pins.json"
+      - "research/grib_decoder_candidates/corpus.py"
+      - "research/grib_decoder_candidates/verify_corpus.py"
+      - "research/grib_decoder_candidates/run_production_jni_corpus_regression.sh"
+      - "research/grib_decoder_candidates/production_jni/**"
+      - "research/grib_capabilities/grib2.py"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: grib-production-jni-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  host-jni-corpus:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Verify CI supply-chain policy
+        run: python3 scripts/verify_ci_supply_chain.py
+
+      - name: Set up JDK
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13"
+
+      - name: Run production JNI against immutable provider corpus
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVIDENCE_DIR: research-output/grib-production-jni
+        run: |
+          set -euo pipefail
+          bash -n research/grib_decoder_candidates/run_production_jni_corpus_regression.sh
+          bash research/grib_decoder_candidates/run_production_jni_corpus_regression.sh
+
+      - name: Upload production JNI regression evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: meteoone-m1-production-jni-regression-${{ github.run_id }}
+          path: research-output/grib-production-jni
+          if-no-files-found: warn
+          retention-days: 90
+          compression-level: 6
