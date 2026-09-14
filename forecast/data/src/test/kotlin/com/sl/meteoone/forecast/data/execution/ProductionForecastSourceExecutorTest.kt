@@ -36,25 +36,36 @@ class ProductionForecastSourceExecutorTest {
     private val modelRun = Instant.parse("2026-09-14T00:00:00Z")
 
     @Test
-    fun executesOpenMeteoRequestAndExact72HourMapper() {
+    fun executesAllModelSpecificOpenMeteoRequestsAndExact72HourMapper() {
         val transport = RecordingTransport { request ->
             assertEquals("api.open-meteo.com", request.uri.host)
             success(openMeteoPayload().toByteArray())
         }
         val executor = executor(transport)
-
-        val forecast = executor.openMeteo(
-            model = OpenMeteoModel.NOAA_GFS_GLOBAL,
-            coordinate = coordinate,
-            location = location,
-            generatedAt = generatedAt,
+        val expected = listOf(
+            OpenMeteoModel.NOAA_GFS_GLOBAL to ModelFamily.NOAA_GFS,
+            OpenMeteoModel.ECMWF_IFS to ModelFamily.ECMWF_IFS,
+            OpenMeteoModel.DWD_ICON_GLOBAL to ModelFamily.DWD_ICON,
         )
 
-        assertEquals(ForecastProvider.OPEN_METEO, forecast.origin.provider)
-        assertEquals(ModelFamily.NOAA_GFS, forecast.origin.modelFamily)
-        assertEquals(72, forecast.hourly.size)
-        assertEquals(1, transport.requests.size)
-        assertTrue(transport.requests.single().uri.rawQuery.contains("models=ncep_gfs_global"))
+        val forecasts = expected.map { (model, _) ->
+            executor.openMeteo(
+                model = model,
+                coordinate = coordinate,
+                location = location,
+                generatedAt = generatedAt,
+            )
+        }
+
+        forecasts.zip(expected).forEach { (forecast, expectedPath) ->
+            assertEquals(ForecastProvider.OPEN_METEO, forecast.origin.provider)
+            assertEquals(expectedPath.second, forecast.origin.modelFamily)
+            assertEquals(72, forecast.hourly.size)
+        }
+        assertEquals(3, transport.requests.size)
+        assertTrue(transport.requests[0].uri.rawQuery.contains("models=ncep_gfs_global"))
+        assertTrue(transport.requests[1].uri.rawQuery.contains("models=ecmwf_ifs025"))
+        assertTrue(transport.requests[2].uri.rawQuery.contains("models=icon_global"))
     }
 
     @Test
