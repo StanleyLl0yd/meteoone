@@ -110,6 +110,7 @@ jobs:
               "assets/eccodes-definitions.zip",
               "jniLibs/arm64-v8a/libaec.so",
               "jniLibs/arm64-v8a/libeccodes.so",
+              "jniLibs/arm64-v8a/libmeteoone_grib_jni.so",
               "jniLibs/arm64-v8a/libsz.so",
               "licenses/eccodes-LICENSE",
               "licenses/eccodes-NOTICE",

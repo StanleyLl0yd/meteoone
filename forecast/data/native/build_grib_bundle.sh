@@ -17,9 +17,11 @@ if [[ "$ANDROID_API" != "26" || "$ANDROID_ABI" != "arm64-v8a" ]]; then
 fi
 
 toolchain="$NDK_ROOT/build/cmake/android.toolchain.cmake"
-readelf="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+llvm_root="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64"
+readelf="$llvm_root/bin/llvm-readelf"
+android_clang="$llvm_root/bin/aarch64-linux-android${ANDROID_API}-clang"
 zipalign="$ANDROID_HOME/build-tools/37.0.0/zipalign"
-for path in "$toolchain" "$readelf" "$zipalign"; do
+for path in "$toolchain" "$readelf" "$android_clang" "$zipalign"; do
   test -f "$path"
 done
 
@@ -72,7 +74,7 @@ fetch_exact "$ECBUILD_REPOSITORY" "$ECBUILD_COMMIT" "$src_root/ecbuild"
   printf 'android_api\t%s\n' "$ANDROID_API"
   printf 'android_abi\t%s\n' "$ANDROID_ABI"
   cmake --version | head -n 1
-  "$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" --version | head -n 1
+  "$llvm_root/bin/clang" --version | head -n 1
 } > "$evidence_root/toolchain.tsv"
 
 cmake -S "$src_root/libaec" -B "$build_root/libaec" \
@@ -123,10 +125,31 @@ cmake -S "$src_root/eccodes" -B "$build_root/eccodes" \
 cmake --build "$build_root/eccodes" --target install --parallel 2 \
   2>&1 | tee "$evidence_root/eccodes-build.log"
 
+bridge_library="$build_root/libmeteoone_grib_jni.so"
+"$android_clang" \
+  -std=c11 \
+  -O2 \
+  -fPIC \
+  -Wall \
+  -Wextra \
+  -Werror \
+  -I"$eccodes_prefix/include" \
+  -shared \
+  -Wl,--no-undefined \
+  -Wl,-z,max-page-size=16384 \
+  -Wl,-soname,libmeteoone_grib_jni.so \
+  forecast/data/native/meteoone_grib_jni.c \
+  -L"$eccodes_prefix/lib" \
+  -leccodes \
+  -lm \
+  -o "$bridge_library" \
+  2>&1 | tee "$evidence_root/jni-bridge-build.log"
+
 libraries=(
   "$eccodes_prefix/lib/libeccodes.so"
   "$aec_prefix/lib/libaec.so"
   "$aec_prefix/lib/libsz.so"
+  "$bridge_library"
 )
 : > "$evidence_root/native-elf.txt"
 : > "$evidence_root/native-sizes.tsv"
