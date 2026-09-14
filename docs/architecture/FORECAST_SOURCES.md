@@ -18,6 +18,8 @@ The same model family delivered by two provider paths remains one independent fu
 
 Direct-source plans share one provider/model/time metadata guard backed by `OfficialProviderIdentity`. Provider-specific plans additionally bind their actual request URI and transport bounds to the planned run, forecast hour, grid point or field as applicable, so unrelated bytes cannot retain trusted official provenance after manual construction or data-class copying.
 
+The M1 production engine selects one conservative 00/06/12/18 UTC operational cycle at least seven hours behind its injected generation time for its bounded direct-official cross-checks. It does not probe newer cycles, sleep for publication, retry another run, or maintain provider-health/rate-limit state. NOAA and DWD use the next hourly valid step from that run; ECMWF aligns to the next supported three-hour direct step.
+
 ## NOAA/NCEP GFS
 
 M1 uses the official NOMADS GFS 0.25 degree GRIB Filter path.
@@ -34,7 +36,7 @@ Observed against the live service on 2026-09-10:
 
 `NoaaGfsRequestPlan` binds the exact bounded NOMADS request to its run, forecast hour and snapped source-grid point. The request's fixed field/level set, 2 MiB response bound and 10 second minimum spacing therefore cannot drift independently from the plan metadata.
 
-MeteoOne requests only the fields needed by the canonical forecast model and uses a bounded geographic subset rather than downloading the hundreds-of-megabytes global GRIB files.
+MeteoOne requests only the fields needed by the canonical forecast model and uses a bounded geographic subset rather than downloading the hundreds-of-megabytes global GRIB files. The M1 production engine executes one such point-subset request as the direct GFS cross-check; it does not loop through the complete 72-hour NOMADS series and therefore does not implement a pacing scheduler in M1.
 
 Official references:
 
@@ -48,7 +50,7 @@ ECMWF Open Data publishes a free public subset of deterministic IFS output in GR
 
 Current Cycle 50r1 behavior was re-verified on 2026-09-10. All four deterministic atmospheric cycles, 00, 06, 12 and 18 UTC, now use `stream=oper` and `type=fc`. The former `scda` stream for 06/18 UTC was discontinued in May 2026. Files from older cycles or third-party mirrors can retain the historical naming, but the M1 real-time direct adapter targets the current official path.
 
-For the M1 0–72 h window, deterministic IFS output is available every three hours. MeteoOne therefore must not pretend that the official direct source is hourly. Hourly product normalization is a later data-mapping concern and must preserve accumulation semantics rather than fabricating observed model steps.
+For the M1 0–72 h window, deterministic IFS output is available every three hours. MeteoOne therefore must not pretend that the official direct source is hourly. The production direct cross-check is explicitly aligned to a real three-hour IFS step; the complete hourly M1 horizon is supplied by the model-specific normalized delivery paths rather than fabricated direct IFS timestamps.
 
 `EcmwfIfsRequestPlan` validates ECMWF Open Data / IFS provenance, requires its `validTime` to equal `modelRun + forecastHour`, and binds both the `.index` request and companion `.grib2` URI to that exact run/hour under the official endpoint. The 2 MiB index-response bound is part of the plan invariant; operational cycle, horizon and three-hour cadence policy remain planner responsibilities.
 
@@ -72,6 +74,8 @@ Relative humidity is not requested as a separate IFS field in this slice because
 
 The index parser ignores unrelated JSON keys but fails closed on malformed records, missing/invalid byte ranges, arithmetic overflow, duplicate selected fields, wrong level type, wrong run provenance or selected fields larger than the configured single-field transport bound.
 
+The M1 production engine uses the validated index only to select the `2t` range for one current-horizon direct cross-check. It performs one exact byte-range request and does not expand that cross-check into a 72-hour by field matrix on-device.
+
 Open-data reuse must preserve the applicable ECMWF attribution and licence requirements; current Open Data documentation identifies CC BY 4.0 together with ECMWF terms.
 
 Official references:
@@ -94,9 +98,11 @@ Live directories verified on 2026-09-10 expose 00, 06, 12 and 18 UTC cycles and 
 
 Unlike NOMADS, the DWD global directories do not provide a point/geographic subset endpoint. A single compressed global field observed during the M1 source audit is commonly several MiB (for example roughly 3 MiB for T2M and roughly 4 MiB for some humidity/cloud/gust fields). Repeating full-global field downloads for many parameters across 73 forecast hours would therefore be unsuitable as a routine on-device transport strategy.
 
-The M1 request planner intentionally plans one bounded field/hour request at a time and preserves the real official filenames. It does **not** imply that downloading the entire planned matrix on Android is acceptable. Before a production direct DWD adapter is enabled on-device, MeteoOne must establish a bounded spatial extraction strategy or explicitly route the direct official-source processing through the later MeteoOne backend while retaining Open-Meteo as the client fallback/cross-check path. This transport constraint must not be hidden by treating Open-Meteo as if it were DWD itself.
+The M1 request planner intentionally plans one bounded field/hour request at a time and preserves the real official filenames. The M1 production engine permits exactly one bounded `T_2M` field/hour download as a direct-source cross-check, followed by bounded bzip2 decompression, run-scoped CLAT/CLON geometry lookup, point selection and canonical mapping. This narrow cross-check proves the real official DWD execution path without turning addressability into a routine global-matrix forecast strategy.
 
-Global ICON spatial lookup also requires icosahedral grid geometry; DWD publishes time-invariant `clat` and `clon` fields for that grid. A decoder/spatial-selection implementation must account for those coordinates rather than treating global ICON as a regular latitude/longitude raster.
+Downloading the full planned DWD hour-by-field matrix on Android remains prohibited. A future complete direct-ICON forecast path still requires bounded spatial extraction or routing through the later MeteoOne backend; Open-Meteo remains the client path that can provide the complete hourly ICON-family horizon without pretending to be DWD provenance.
+
+Global ICON spatial lookup requires icosahedral grid geometry; DWD publishes time-invariant `clat` and `clon` fields for that grid. The production decoder uses the run-bound geometry lifecycle rather than treating global ICON as a regular latitude/longitude raster.
 
 Official reference:
 
@@ -104,22 +110,25 @@ Official reference:
 
 ## GRIB boundary
 
-The three direct official source paths are GRIB-oriented, which justifies one shared data-layer decoding seam. This does not justify selecting a decoder library before Android compatibility, maintenance, licence, binary size and required GRIB2 template support are verified.
+The three direct official source paths are GRIB-oriented and share one data-layer decoding seam. Production M1 uses the bundled ecCodes JNI decoder selected after Android compatibility, licence, template/packing coverage, binary-size and native-boundary verification.
 
-The intended boundary is:
+The production boundary is:
 
 ```text
 official provider request plan
     -> bounded HTTPS response / indexed byte range
-    -> GRIB field decoder
+    -> bounded decompression when required
+    -> ecCodes GRIB decode
+    -> provider-bound point selection and semantic validation
     -> provider-specific normalization/mapping
     -> SourceForecast
+    -> M1 production composition
     -> ForecastFusionEngine
 ```
 
-`GribFieldDecoder` and its decoded field types live in `:forecast:data`. They do not expose third-party decoder classes to `:forecast:domain` or `:core:model`.
+`GribFieldDecoder`, decoded field types, native metadata, ecCodes definitions and full-grid representations live in `:forecast:data`. They do not expose third-party decoder classes or native/full-grid data to `:forecast:domain` or `:core:model`.
 
-Any future decoder implementation must support the actual templates/packing used by all required MeteoOne fields, reject malformed/truncated input, remain bounded in memory/CPU, and be verified for Android API 26+ before it is accepted.
+The decoder rejects malformed or semantically mismatched input, enforces bounded message/value counts, preserves provider/run/valid-time binding, and has production corpus plus Android-native evidence for the required NOAA, ECMWF and DWD paths. Exact duplicate decoded fields may collapse only when every canonical field property is identical; conflicting duplicates continue to fail closed.
 
 ## Transport rules
 
@@ -135,8 +144,8 @@ The transport boundary:
 
 `:forecast:data` adds provider-plan response validation on top of that generic transport. Ordinary NOAA, DWD, ECMWF-index and Open-Meteo requests accept only HTTP 200. ECMWF selected-field requests send the exact planned `Range`, accept only HTTP 206, require exactly one matching `Content-Range`, and require the returned body length to equal the selected range length. A redirect response is therefore rejected rather than followed.
 
-Direct-source planning continues to preserve provider pacing guidance and per-request response ceilings. Minimum request spacing remains planner metadata in M1; no shared scheduler, retry/backoff state, provider-health state or cache policy is introduced by this transport slice.
+Direct-source planning continues to preserve provider pacing guidance and per-request response ceilings. Minimum request spacing remains planner metadata in M1; no shared scheduler, retry/backoff state, provider-health state or cache policy is introduced by production execution.
 
-Direct source adapters must continue to request the smallest useful geographic/field subset that the provider actually exposes, avoid bulk global downloads on-device merely because an official server makes them addressable, never embed secret provider credentials, and preserve provider and model-family provenance separately.
+Direct source adapters continue to request the smallest useful geographic/field subset that each provider actually exposes, avoid bulk global downloads on-device merely because an official server makes them addressable, never embed secret provider credentials, and preserve provider and model-family provenance separately.
 
 These rules do not change the M0 equal-weight model-family fusion baseline.
