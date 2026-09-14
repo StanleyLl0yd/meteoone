@@ -53,9 +53,17 @@ The normalized forecast uses:
 
 Missing JSON values remain missing. A missing gust therefore has no interval metadata. Unknown weather codes normalize to `WeatherCondition.UNKNOWN`; values are never fabricated from another provider.
 
+## Production execution
+
+The M1 production forecast engine executes all three explicit model-specific Open-Meteo requests through the bounded HTTPS adapter. At least one successfully validated Open-Meteo response is required to establish the exact 72-point hourly forecast horizon; a bounded direct-official point or field cross-check alone is not treated as a complete forecast.
+
+When multiple Open-Meteo model paths succeed, the first validated 72-hour response establishes the canonical timestamp window and all successful source forecasts are restricted to that same window before fusion. This keeps sequential network calls from widening the final forecast if a request happens to cross an hour boundary.
+
+Open-Meteo failures remain independent provider/model failures. A successful alternate model path can still produce the M1 forecast, and direct official-source results retain their own provider provenance while sharing the same model-family evidence group.
+
 ## Scope boundary
 
-This M1 slice does not execute HTTP requests and does not introduce coroutine, cancellation, retry/backoff, rate-limit, provider-health, persistence, cache, or stale-data policy. The request object only carries the URI, explicit model identity, normalized coordinate, and hard response-size bound needed by a later transport executor.
+M1 execution remains synchronous and UI-independent. Android callers must run it off the main thread. M1 does not introduce retry/backoff, request pacing or sleep, provider-health state, persistence, Room, DataStore, cache, stale-data policy, or repository flows; those remain M2 or later concerns.
 
 Official references:
 
