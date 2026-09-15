@@ -14,10 +14,11 @@ class ForecastModuleBoundaryTest(unittest.TestCase):
         self.assertIn('implementation(project(":forecast:data"))', app_build)
         self.assertNotIn('project(":forecast:domain")', app_build)
 
-    def test_data_module_exports_domain_types_used_by_public_facade(self) -> None:
+    def test_data_module_hides_domain_behind_public_facade(self) -> None:
         data_build = FORECAST_DATA_BUILD.read_text(encoding="utf-8")
 
-        self.assertIn('api(project(":forecast:domain"))', data_build)
+        self.assertIn('implementation(project(":forecast:domain"))', data_build)
+        self.assertNotIn('api(project(":forecast:domain"))', data_build)
 
 
 if __name__ == "__main__":

@@ -18,7 +18,6 @@ import com.sl.meteoone.forecast.data.ecmwf.EcmwfIfsFieldSelector
 import com.sl.meteoone.forecast.data.ecmwf.EcmwfIfsRequestPlanner
 import com.sl.meteoone.forecast.data.ecmwf.EcmwfSurfaceField
 import com.sl.meteoone.forecast.data.grib.AndroidEcCodesNativeSession
-import com.sl.meteoone.forecast.data.grib.DecodedGribField
 import com.sl.meteoone.forecast.data.grib.EcCodesGribFieldDecoder
 import com.sl.meteoone.forecast.data.grib.GribDecodeRequest
 import com.sl.meteoone.forecast.data.grib.GribFieldDecoder
@@ -210,17 +209,6 @@ internal fun productionForecastSourceExecutor(
     )
 }
 
-sealed interface M1ForecastEngineResult {
-    data class Available(
-        val orchestration: ForecastOrchestrationResult.Available,
-    ) : M1ForecastEngineResult
-
-    data class Unavailable(
-        val successfulCrossChecks: List<ForecastSourceIdentity>,
-        val failedSources: List<ForecastSourceIdentity>,
-    ) : M1ForecastEngineResult
-}
-
 class M1ForecastEngine internal constructor(
     private val sourceExecutor: ForecastSourceExecutor,
     private val orchestrator: ForecastSourceOrchestrator = ForecastSourceOrchestrator(),
@@ -323,10 +311,11 @@ class M1ForecastEngine internal constructor(
                 successfulCrossChecks = results
                     .filterIsInstance<ForecastSourceResult.Success>()
                     .map { it.identity }
-                    .filter { it.provider != ForecastProvider.OPEN_METEO },
+                    .filter { it.provider != ForecastProvider.OPEN_METEO }
+                    .map { it.toM1Identity() },
                 failedSources = results
                     .filterIsInstance<ForecastSourceResult.Failure>()
-                    .map { it.identity },
+                    .map { it.identity.toM1Identity() },
             )
         }
 
@@ -349,7 +338,11 @@ class M1ForecastEngine internal constructor(
         require(combined.forecast.hourly.map { it.weather.time } == horizonTimes) {
             "M1 fused forecast must preserve the exact 72-hour baseline horizon"
         }
-        return M1ForecastEngineResult.Available(combined)
+        return M1ForecastEngineResult.Available(
+            forecast = combined.forecast,
+            successfulSources = combined.successfulSources.map { it.toM1Identity() },
+            failedSources = combined.failedSources.map { it.toM1Identity() },
+        )
     }
 
     private fun attempt(
@@ -411,6 +404,12 @@ class M1ForecastEngine internal constructor(
         )
     }
 }
+
+private fun ForecastSourceIdentity.toM1Identity(): M1ForecastSourceIdentity =
+    M1ForecastSourceIdentity(
+        provider = provider,
+        modelFamily = modelFamily,
+    )
 
 internal object M1OfficialRunPolicy {
     fun selectModelRun(generatedAt: Instant): Instant {
