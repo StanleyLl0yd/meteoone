@@ -43,7 +43,7 @@ private val LEVELS = listOf(
     "lev_surface",
 )
 
-data class NoaaGfsRequestPlan(
+internal data class NoaaGfsRequestPlan(
     val request: OfficialSourceRequest,
     val provider: ForecastProvider,
     val modelFamily: ModelFamily,
@@ -69,7 +69,7 @@ data class NoaaGfsRequestPlan(
     }
 }
 
-object NoaaGfsRequestPlanner {
+internal object NoaaGfsRequestPlanner {
     fun plan(
         modelRun: Instant,
         coordinate: ForecastCoordinate,
