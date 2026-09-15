@@ -29,9 +29,10 @@ class M1ForecastEngineTest {
     @Test
     fun composesExact72HourBaselineWithBoundedDirectCrossChecks() {
         val executor = FakeForecastSourceExecutor()
-        val result = M1ForecastEngine(executor).forecast(location, generatedAt)
+        val available = assertIs<M1ForecastEngineResult.Available>(
+            M1ForecastEngine(executor).forecast(location, generatedAt),
+        )
 
-        val available = assertIs<M1ForecastEngineResult.Available>(result).orchestration
         assertEquals(72, available.forecast.hourly.size)
         assertEquals(
             Instant.parse("2026-09-14T13:00:00Z"),
@@ -76,17 +77,17 @@ class M1ForecastEngineTest {
 
         val available = assertIs<M1ForecastEngineResult.Available>(
             M1ForecastEngine(executor).forecast(location, generatedAt),
-        ).orchestration
+        )
 
         assertEquals(72, available.forecast.hourly.size)
         assertEquals(4, available.successfulSources.size)
         assertEquals(2, available.failedSources.size)
         assertTrue(
-            ForecastSourceIdentity(ForecastProvider.ECMWF_OPEN_DATA, ModelFamily.ECMWF_IFS) in
+            m1Identity(ForecastProvider.ECMWF_OPEN_DATA, ModelFamily.ECMWF_IFS) in
                 available.failedSources,
         )
         assertTrue(
-            ForecastSourceIdentity(ForecastProvider.OPEN_METEO, ModelFamily.DWD_ICON) in
+            m1Identity(ForecastProvider.OPEN_METEO, ModelFamily.DWD_ICON) in
                 available.failedSources,
         )
     }
@@ -107,9 +108,9 @@ class M1ForecastEngineTest {
 
         assertEquals(
             setOf(
-                ForecastSourceIdentity(ForecastProvider.NOAA_NOMADS, ModelFamily.NOAA_GFS),
-                ForecastSourceIdentity(ForecastProvider.ECMWF_OPEN_DATA, ModelFamily.ECMWF_IFS),
-                ForecastSourceIdentity(ForecastProvider.DWD_OPEN_DATA, ModelFamily.DWD_ICON),
+                m1Identity(ForecastProvider.NOAA_NOMADS, ModelFamily.NOAA_GFS),
+                m1Identity(ForecastProvider.ECMWF_OPEN_DATA, ModelFamily.ECMWF_IFS),
+                m1Identity(ForecastProvider.DWD_OPEN_DATA, ModelFamily.DWD_ICON),
             ),
             unavailable.successfulCrossChecks.toSet(),
         )
@@ -174,6 +175,11 @@ class M1ForecastEngineTest {
             ),
         )
     }
+
+    private fun m1Identity(
+        provider: ForecastProvider,
+        modelFamily: ModelFamily,
+    ) = M1ForecastSourceIdentity(provider, modelFamily)
 
     private inner class FakeForecastSourceExecutor(
         private val failures: Set<ForecastSourceIdentity> = emptySet(),
