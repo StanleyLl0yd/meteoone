@@ -1,10 +1,12 @@
 package com.sl.meteoone.core.location
 
 import com.sl.meteoone.core.model.ForecastCoordinate
+import kotlin.ConsistentCopyVisibility
 
 sealed interface ForecastLocationTarget {
     data object CurrentDevice : ForecastLocationTarget
 
+    @ConsistentCopyVisibility
     data class Manual private constructor(
         val coordinate: ForecastCoordinate,
     ) : ForecastLocationTarget {
