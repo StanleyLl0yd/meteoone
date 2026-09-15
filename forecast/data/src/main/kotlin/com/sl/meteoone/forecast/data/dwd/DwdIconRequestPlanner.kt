@@ -12,7 +12,7 @@ private const val BASE_URL = "https://opendata.dwd.de/weather/nwp/icon/grib"
 private const val MAX_FORECAST_HOUR = 72
 private const val MAX_COMPRESSED_FIELD_BYTES = 8L * 1024L * 1024L
 
-enum class DwdIconField(
+internal enum class DwdIconField(
     val directory: String,
     val fileToken: String,
     val firstForecastHour: Int = 0,
@@ -29,7 +29,7 @@ enum class DwdIconField(
     WEATHER_CODE("ww", "WW"),
 }
 
-data class DwdIconRequestPlan(
+internal data class DwdIconRequestPlan(
     val request: OfficialSourceRequest,
     val provider: ForecastProvider,
     val modelFamily: ModelFamily,
@@ -58,7 +58,7 @@ data class DwdIconRequestPlan(
     }
 }
 
-object DwdIconRequestPlanner {
+internal object DwdIconRequestPlanner {
     fun plan(
         modelRun: Instant,
         forecastHour: Int,

@@ -8,7 +8,7 @@ import java.time.Instant
 
 private const val MAX_SOURCE_RESPONSE_BYTES = 64L * 1024L * 1024L
 
-data class OfficialSourceRequest(
+internal data class OfficialSourceRequest(
     val uri: URI,
     val maxResponseBytes: Long,
     val minimumRequestSpacing: Duration = Duration.ZERO,
@@ -21,7 +21,7 @@ data class OfficialSourceRequest(
     }
 }
 
-data class SourceGridPoint(
+internal data class SourceGridPoint(
     val latitude: Double,
     val longitudeDegreesEast: Double,
 ) {
@@ -31,7 +31,7 @@ data class SourceGridPoint(
     }
 }
 
-data class PlannedForecastRequest(
+internal data class PlannedForecastRequest(
     val request: OfficialSourceRequest,
     val provider: ForecastProvider,
     val modelFamily: ModelFamily,
