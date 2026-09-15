@@ -38,7 +38,7 @@ import java.time.Instant
 import java.time.ZoneOffset
 
 private const val M1_HORIZON_HOURS = 72
-private const val SECONDS_PER_HOUR = 3600L
+private val M1_HOURLY_CADENCE = Duration.ofHours(1)
 private val OFFICIAL_PUBLICATION_GUARD = Duration.ofHours(7)
 
 internal interface ForecastSourceExecutor {
@@ -316,7 +316,7 @@ class M1ForecastEngine internal constructor(
             "M1 baseline must contain exactly $M1_HORIZON_HOURS hourly points"
         }
         require(horizonTimes.zipWithNext().all { (previous, next) ->
-            Duration.between(previous, next).seconds == SECONDS_PER_HOUR
+            Duration.between(previous, next) == M1_HOURLY_CADENCE
         }) {
             "M1 baseline must use an exact hourly cadence"
         }
