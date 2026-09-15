@@ -53,6 +53,28 @@ class ForecastCoordinateNormalizerTest {
     }
 
     @Test
+    fun canonicalizesPositiveAntimeridianToNegativeAntimeridian() {
+        val expected = ForecastCoordinate(latitude = 0.0, longitude = -180.0)
+
+        assertEquals(
+            expected,
+            ForecastCoordinateNormalizer.normalize(latitude = 0.0, longitude = 179.96),
+        )
+        assertEquals(
+            expected,
+            ForecastCoordinateNormalizer.normalize(latitude = 0.0, longitude = 180.0),
+        )
+        assertEquals(
+            expected,
+            ForecastCoordinateNormalizer.normalize(latitude = 0.0, longitude = -179.96),
+        )
+        assertEquals(
+            expected,
+            ForecastCoordinateNormalizer.normalize(expected.latitude, expected.longitude),
+        )
+    }
+
+    @Test
     fun canonicalizesNegativeZero() {
         val normalized = ForecastCoordinateNormalizer.normalize(
             latitude = -0.01,
