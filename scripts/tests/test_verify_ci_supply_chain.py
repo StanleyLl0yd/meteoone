@@ -51,6 +51,44 @@ class CiSupplyChainVerifierTest(unittest.TestCase):
             [f"{path}:4: actions/checkout must set persist-credentials: false"],
         )
 
+    def test_setup_android_requires_static_nonlegacy_packages(self) -> None:
+        path = Path(".github/workflows/example.yml")
+        prefix = (
+            "jobs:\n"
+            "  verify:\n"
+            "    steps:\n"
+            f"      - uses: android-actions/setup-android@{ACTION_SHA}\n"
+            "        with:\n"
+        )
+
+        missing = verify_document(
+            path,
+            prefix + "          cmdline-tools-version: 15859902\n",
+            is_workflow=False,
+        )
+        self.assertTrue(any("must set explicit packages" in error for error in missing))
+
+        legacy = verify_document(
+            path,
+            prefix + "          packages: tools platform-tools\n",
+            is_workflow=False,
+        )
+        self.assertTrue(any("must not request legacy tools" in error for error in legacy))
+
+        dynamic = verify_document(
+            path,
+            prefix + "          packages: ${{ matrix.android_packages }}\n",
+            is_workflow=False,
+        )
+        self.assertTrue(any("packages must be static" in error for error in dynamic))
+
+        accepted = verify_document(
+            path,
+            prefix + "          packages: platform-tools\n",
+            is_workflow=False,
+        )
+        self.assertEqual(accepted, [])
+
     def test_dynamic_container_image_is_rejected_as_unverifiable(self) -> None:
         path = Path(".github/workflows/example.yml")
         errors = verify_document(

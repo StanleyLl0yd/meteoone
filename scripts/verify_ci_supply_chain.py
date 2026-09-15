@@ -9,6 +9,9 @@ from pathlib import Path
 ROOTS = (Path(".github/workflows"), Path(".github/actions"))
 ACTION_REF = re.compile(r"^(?P<indent>\s*)(?:-\s+)?uses:\s*([^\s#]+)")
 IMAGE = re.compile(r"^\s*image:\s*(?P<target>.+?)\s*(?:#.*)?$")
+SETUP_ANDROID_PACKAGES = re.compile(
+    r"^\s*packages:\s*(?P<target>.+?)\s*(?:#.*)?$"
+)
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 DIGEST = re.compile(r"@sha256:[0-9a-f]{64}$")
 TOP_LEVEL_PERMISSIONS = re.compile(r"(?m)^permissions:\s*(?:\{\}|$)")
@@ -18,6 +21,16 @@ def _unquote(value: str) -> str:
     if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
         return value[1:-1]
     return value
+
+
+def _step_block(lines: list[str], *, start: int, indent: int) -> list[str]:
+    block: list[str] = []
+    for following in lines[start:]:
+        following_indent = len(following) - len(following.lstrip())
+        if following.lstrip().startswith("- ") and following_indent <= indent:
+            break
+        block.append(following)
+    return block
 
 
 def verify_document(path: Path, text: str, *, is_workflow: bool) -> list[str]:
@@ -53,14 +66,10 @@ def verify_document(path: Path, text: str, *, is_workflow: bool) -> list[str]:
                 errors.append(
                     f"{path}:{number}: {owner_action} must use a full 40-character SHA"
                 )
+
+            indent = len(action.group("indent"))
+            block = _step_block(lines, start=number, indent=indent)
             if owner_action == "actions/checkout":
-                indent = len(action.group("indent"))
-                block = []
-                for following in lines[number:]:
-                    following_indent = len(following) - len(following.lstrip())
-                    if following.lstrip().startswith("- ") and following_indent <= indent:
-                        break
-                    block.append(following)
                 if not any(
                     re.match(r"^\s*persist-credentials:\s*false\s*(?:#.*)?$", value)
                     for value in block
@@ -68,6 +77,27 @@ def verify_document(path: Path, text: str, *, is_workflow: bool) -> list[str]:
                     errors.append(
                         f"{path}:{number}: actions/checkout must set persist-credentials: false"
                     )
+
+            if owner_action == "android-actions/setup-android":
+                package_values = [
+                    _unquote(match.group("target").strip())
+                    for value in block
+                    if (match := SETUP_ANDROID_PACKAGES.match(value)) is not None
+                ]
+                if len(package_values) != 1:
+                    errors.append(
+                        f"{path}:{number}: android-actions/setup-android must set explicit packages"
+                    )
+                else:
+                    packages = package_values[0]
+                    if "${{" in packages:
+                        errors.append(
+                            f"{path}:{number}: android-actions/setup-android packages must be static"
+                        )
+                    elif "tools" in packages.split():
+                        errors.append(
+                            f"{path}:{number}: android-actions/setup-android must not request legacy tools"
+                        )
 
         image_match = IMAGE.match(line)
         if image_match:
