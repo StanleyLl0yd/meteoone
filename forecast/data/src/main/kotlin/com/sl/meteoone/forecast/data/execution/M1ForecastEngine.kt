@@ -375,9 +375,15 @@ class M1ForecastEngine internal constructor(
     }
 
     companion object {
-        fun android(
+        fun android(context: Context): M1ForecastEngine =
+            android(
+                context = context,
+                transport = DefaultBoundedHttpsTransport(),
+            )
+
+        internal fun android(
             context: Context,
-            transport: BoundedHttpsTransport = DefaultBoundedHttpsTransport(),
+            transport: BoundedHttpsTransport,
         ): M1ForecastEngine = M1ForecastEngine(
             sourceExecutor = productionForecastSourceExecutor(
                 context = context,
