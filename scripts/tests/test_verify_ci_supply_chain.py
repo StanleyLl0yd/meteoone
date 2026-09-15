@@ -6,6 +6,7 @@ from pathlib import Path
 from scripts.verify_ci_supply_chain import verify_document
 
 
+ACTION_SHA = "a" * 40
 DIGEST = "sha256:" + "a" * 64
 
 
@@ -25,6 +26,30 @@ class CiSupplyChainVerifierTest(unittest.TestCase):
             is_workflow=False,
         )
         self.assertEqual(errors, [])
+
+    def test_checkout_requires_persist_credentials_false_in_its_own_step(self) -> None:
+        path = Path(".github/workflows/example.yml")
+        document = (
+            "jobs:\n"
+            "  verify:\n"
+            "    steps:\n"
+            f"      - uses: actions/checkout@{ACTION_SHA}\n"
+            "      - name: separator\n"
+            "        run: echo separator\n"
+            f"      - uses: actions/checkout@{ACTION_SHA}\n"
+            "        with:\n"
+            "          persist-credentials: false\n"
+        )
+        errors = verify_document(path, document, is_workflow=False)
+        checkout_errors = [
+            error
+            for error in errors
+            if "actions/checkout must set persist-credentials: false" in error
+        ]
+        self.assertEqual(
+            checkout_errors,
+            [f"{path}:4: actions/checkout must set persist-credentials: false"],
+        )
 
     def test_dynamic_container_image_is_rejected_as_unverifiable(self) -> None:
         path = Path(".github/workflows/example.yml")

@@ -58,7 +58,7 @@ def verify_document(path: Path, text: str, *, is_workflow: bool) -> list[str]:
                 block = []
                 for following in lines[number:]:
                     following_indent = len(following) - len(following.lstrip())
-                    if following.lstrip().startswith("- ") and following_indent < indent:
+                    if following.lstrip().startswith("- ") and following_indent <= indent:
                         break
                     block.append(following)
                 if not any(
