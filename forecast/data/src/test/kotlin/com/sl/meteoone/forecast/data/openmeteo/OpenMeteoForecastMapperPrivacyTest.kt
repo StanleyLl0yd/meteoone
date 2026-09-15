@@ -11,6 +11,7 @@ import kotlin.test.assertNull
 
 class OpenMeteoForecastMapperPrivacyTest {
     private val coordinate = ForecastCoordinate(latitude = 59.9, longitude = 30.3)
+    private val generatedAt = Instant.parse("2026-09-15T00:00:00Z")
 
     @Test
     fun malformedJsonDoesNotExposePayloadInException() {
@@ -20,8 +21,9 @@ class OpenMeteoForecastMapperPrivacyTest {
                 request = OpenMeteoForecastRequestPlanner.plan(
                     model = OpenMeteoModel.ECMWF_IFS,
                     coordinate = coordinate,
+                    generatedAt = generatedAt,
                 ),
-                generatedAt = Instant.parse("2026-09-15T00:00:00Z"),
+                generatedAt = generatedAt,
                 location = ForecastLocation(
                     latitude = coordinate.latitude,
                     longitude = coordinate.longitude,

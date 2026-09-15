@@ -298,6 +298,7 @@ class OpenMeteoForecastMapperTest {
     private fun request(model: OpenMeteoModel) = OpenMeteoForecastRequestPlanner.plan(
         model = model,
         coordinate = coordinate,
+        generatedAt = generatedAt,
     )
 
     private fun payload(

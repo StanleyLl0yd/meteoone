@@ -87,7 +87,7 @@ internal class ProductionForecastSourceExecutor(
         location: ForecastLocation,
         generatedAt: Instant,
     ): SourceForecast {
-        val request = OpenMeteoForecastRequestPlanner.plan(model, coordinate)
+        val request = OpenMeteoForecastRequestPlanner.plan(model, coordinate, generatedAt)
         val payload = httpAdapter.newOrdinaryCall(request)
             .requireBody("Open-Meteo ${model.apiId}")
             .toString(Charsets.UTF_8)

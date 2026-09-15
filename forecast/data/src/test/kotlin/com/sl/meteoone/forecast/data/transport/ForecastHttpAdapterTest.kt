@@ -45,6 +45,7 @@ class ForecastHttpAdapterTest {
         val openMeteo = OpenMeteoForecastRequestPlanner.plan(
             model = OpenMeteoModel.NOAA_GFS_GLOBAL,
             coordinate = ForecastCoordinate(latitude = 59.9, longitude = 30.3),
+            generatedAt = Instant.parse("2026-09-10T12:30:00Z"),
         )
         transport.result = success(statusCode = 200, body = "{}")
         assertIs<BoundedHttpsResult.Success>(adapter.newOrdinaryCall(openMeteo).execute())
