@@ -3,4 +3,55 @@
     <string name="app_name">MeteoOne</string>
     <string name="tagline">Many models. One forecast.</string>
     <string name="foundation_status">Forecast foundation in development</string>
+
+    <string name="alpha_label">0.1 alpha preview · offline-first</string>
+    <string name="forecast_no_target">Choose a forecast location</string>
+    <string name="forecast_location_explanation">MeteoOne requests approximate location only after you tap the button. The coordinate is rounded to the 0.1° forecast grid before it is saved or used as a cache key.</string>
+    <string name="forecast_target_coordinate">Forecast grid: %1$.1f°, %2$.1f°</string>
+    <string name="forecast_privacy_note">Only the privacy-reduced forecast grid coordinate is persisted.</string>
+    <string name="forecast_target_read_failed">The saved forecast target could not be read. You can replace it with the current approximate location.</string>
+    <string name="forecast_cache_read_failed">The cached forecast could not be read.</string>
+    <string name="forecast_no_cache">No cached forecast yet. Refresh while online to create one.</string>
+    <string name="forecast_generated">Generated: %1$s</string>
+    <string name="forecast_hours_count">%1$d hourly forecast points</string>
+
+    <string name="action_use_approximate_location">Use approximate current location</string>
+    <string name="action_update_location">Update location</string>
+    <string name="action_refresh">Refresh</string>
+
+    <string name="freshness_fresh">Fresh forecast</string>
+    <string name="freshness_stale">Stale forecast · showing cached data</string>
+    <string name="freshness_expired">Expired forecast · showing last cached data</string>
+
+    <string name="status_locating">Getting approximate location…</string>
+    <string name="status_refreshing">Refreshing forecast…</string>
+    <string name="status_target_save_failed">The forecast target could not be saved.</string>
+    <string name="status_location_permission_required">Approximate location permission is required for this action.</string>
+    <string name="status_location_provider_unavailable">Approximate network location is unavailable. Check location services.</string>
+    <string name="status_location_timeout">Location request timed out. Try again.</string>
+    <string name="status_location_cancelled">Location request was cancelled.</string>
+    <string name="status_location_failed">The device could not provide an approximate location.</string>
+    <string name="status_forecast_updated">Forecast updated.</string>
+    <string name="status_forecast_updated_degraded">Forecast updated with fewer sources than usual.</string>
+    <string name="status_forecast_unavailable">No new forecast was available. Cached data was kept.</string>
+    <string name="status_forecast_failed">Refresh failed. Cached data was kept.</string>
+
+    <string name="value_temperature_c">%1$.1f °C</string>
+    <string name="value_unavailable">—</string>
+    <string name="value_precipitation_mm">Precip %1$.1f mm</string>
+    <string name="value_precipitation_unavailable">Precip —</string>
+    <string name="value_wind_mps">Wind %1$.1f m/s</string>
+    <string name="value_wind_unavailable">Wind —</string>
+    <string name="value_evidence">Evidence %1$d</string>
+
+    <string name="condition_unknown">Unknown</string>
+    <string name="condition_clear">Clear</string>
+    <string name="condition_partly_cloudy">Partly cloudy</string>
+    <string name="condition_cloudy">Cloudy</string>
+    <string name="condition_fog">Fog</string>
+    <string name="condition_rain">Rain</string>
+    <string name="condition_heavy_rain">Heavy rain</string>
+    <string name="condition_snow">Snow</string>
+    <string name="condition_sleet">Sleet</string>
+    <string name="condition_thunderstorm">Thunderstorm</string>
 </resources>
