@@ -1,14 +1,14 @@
 package com.sl.meteoone.core.model
 
-import kotlin.math.abs
-import kotlin.math.round
+import java.math.BigDecimal
 
 /**
  * Privacy-reduced coordinate used as forecast request and cache identity.
  *
- * The current M1 invariant is a 0.1 degree grid. Raw device coordinates do not satisfy this type
- * unless they have already been normalized by the location boundary. Longitude uses the canonical
- * half-open interval [-180, 180), so the antimeridian has exactly one request/cache identity.
+ * The current M1 invariant is a canonical 0.1 degree grid. Raw device coordinates do not satisfy
+ * this type unless they have already been normalized by the location boundary. Longitude uses the
+ * canonical half-open interval [-180, 180), so the antimeridian has exactly one request/cache
+ * identity. Canonical grid values also use positive zero and reject near-grid floating-point aliases.
  */
 data class ForecastCoordinate(
     val latitude: Double,
@@ -21,18 +21,18 @@ data class ForecastCoordinate(
         require(longitude.isFinite() && longitude >= -180.0 && longitude < 180.0) {
             "Forecast longitude must be finite and within [-180, 180)"
         }
-        require(isOnForecastGrid(latitude) && isOnForecastGrid(longitude)) {
-            "Forecast coordinates must be normalized to the 0.1 degree grid"
+        require(isCanonicalGridValue(latitude) && isCanonicalGridValue(longitude)) {
+            "Forecast coordinates must use the canonical 0.1 degree grid"
         }
     }
 
-    private fun isOnForecastGrid(value: Double): Boolean {
-        val scaled = value / GRID_STEP_DEGREES
-        return abs(scaled - round(scaled)) < GRID_EPSILON
+    private fun isCanonicalGridValue(value: Double): Boolean {
+        if (value == 0.0 && value.toRawBits() != 0L) return false
+        return BigDecimal.valueOf(value).remainder(GRID_STEP_DECIMAL).signum() == 0
     }
 
     companion object {
         const val GRID_STEP_DEGREES = 0.1
-        private const val GRID_EPSILON = 1e-9
+        private val GRID_STEP_DECIMAL = BigDecimal("0.1")
     }
 }
