@@ -35,7 +35,7 @@ class ForecastRepositoryTest {
     fun observesCachedForecastBeforeAnyRefresh() = runBlocking {
         val cached = forecast(temperatureC = 8.0)
         val store = FakeStore(initial = cached)
-        val repository = repository(store) {
+        val repository = repository(store) { _, _, _, _ ->
             error("refresh source must not run while observing cache")
         }
 
