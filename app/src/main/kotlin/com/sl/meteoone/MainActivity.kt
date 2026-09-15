@@ -4,56 +4,29 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
+import com.sl.meteoone.core.location.AndroidCurrentLocationClient
+import com.sl.meteoone.core.preferences.ForecastTargetStore
+import com.sl.meteoone.forecast.repository.ForecastRepository
 import com.sl.meteoone.ui.theme.MeteoOneTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        val appContext = applicationContext
+        val repository = ForecastRepository.android(appContext)
+        val targetStore = ForecastTargetStore.android(appContext)
+        val locationClient = AndroidCurrentLocationClient(appContext)
+
         setContent {
             MeteoOneTheme {
-                FoundationScreen()
+                AlphaForecastScreen(
+                    repository = repository,
+                    targetStore = targetStore,
+                    locationClient = locationClient,
+                )
             }
-        }
-    }
-}
-
-@Composable
-private fun FoundationScreen() {
-    Scaffold(modifier = Modifier.fillMaxSize()) { contentPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(contentPadding)
-                .padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.headlineLarge,
-            )
-            Text(
-                text = stringResource(R.string.tagline),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                modifier = Modifier.padding(top = 16.dp),
-                text = stringResource(R.string.foundation_status),
-                style = MaterialTheme.typography.bodyMedium,
-            )
         }
     }
 }
