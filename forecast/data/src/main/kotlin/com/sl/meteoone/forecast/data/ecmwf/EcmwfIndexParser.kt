@@ -43,10 +43,9 @@ object EcmwfIndexParser {
 
             val objectValue = try {
                 json.parseToJsonElement(line).jsonObject
-            } catch (error: Exception) {
+            } catch (_: Exception) {
                 throw IllegalArgumentException(
                     "ECMWF index line $lineNumber is not a valid JSON object",
-                    error,
                 )
             }
 
