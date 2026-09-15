@@ -155,12 +155,12 @@ class ForecastHttpAdapterTest {
             maxResponseBytes = 1024,
         )
         val transport = RecordingTransport(
-            BoundedHttpsResult.Failure(BoundedHttpsFailureReason.IO),
+            BoundedHttpsResult.Failure(BoundedHttpsFailureReason.RESPONSE_TOO_LARGE),
         )
         val call = ForecastHttpAdapter(transport).newOrdinaryCall(official)
 
         assertEquals(
-            BoundedHttpsResult.Failure(BoundedHttpsFailureReason.IO),
+            BoundedHttpsResult.Failure(BoundedHttpsFailureReason.RESPONSE_TOO_LARGE),
             call.execute(),
         )
         call.cancel()
