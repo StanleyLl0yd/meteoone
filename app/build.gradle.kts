@@ -48,6 +48,7 @@ android {
 dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:location"))
+    implementation(project(":core:preferences"))
     implementation(project(":forecast:repository"))
 
     implementation(platform(libs.androidx.compose.bom))
@@ -57,6 +58,7 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.kotlinx.coroutines.core)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
