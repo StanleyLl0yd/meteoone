@@ -7,6 +7,20 @@ APP_BUILD = ROOT / "app" / "build.gradle.kts"
 CORE_DATABASE_BUILD = ROOT / "core" / "database" / "build.gradle.kts"
 FORECAST_DATA_BUILD = ROOT / "forecast" / "data" / "build.gradle.kts"
 FORECAST_REPOSITORY_BUILD = ROOT / "forecast" / "repository" / "build.gradle.kts"
+FORECAST_REPOSITORY_FACADE = (
+    ROOT
+    / "forecast"
+    / "repository"
+    / "src"
+    / "main"
+    / "kotlin"
+    / "com"
+    / "sl"
+    / "meteoone"
+    / "forecast"
+    / "repository"
+    / "ForecastRepository.kt"
+)
 
 
 class ForecastModuleBoundaryTest(unittest.TestCase):
@@ -31,6 +45,17 @@ class ForecastModuleBoundaryTest(unittest.TestCase):
         self.assertNotIn('project(":forecast:domain")', repository_build)
         self.assertNotIn('project(":core:network")', repository_build)
         self.assertNotIn('project(":core:location")', repository_build)
+
+    def test_repository_public_facade_hides_execution_and_storage_types(self) -> None:
+        facade = FORECAST_REPOSITORY_FACADE.read_text(encoding="utf-8")
+
+        for forbidden in (
+            "com.sl.meteoone.core.database",
+            "com.sl.meteoone.core.network",
+            "com.sl.meteoone.forecast.data",
+            "com.sl.meteoone.forecast.domain",
+        ):
+            self.assertNotIn(forbidden, facade)
 
     def test_data_module_hides_domain_behind_public_facade(self) -> None:
         data_build = FORECAST_DATA_BUILD.read_text(encoding="utf-8")
