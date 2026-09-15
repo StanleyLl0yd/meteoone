@@ -12,7 +12,7 @@ import kotlin.ConsistentCopyVisibility
 
 private const val MAX_DECODED_GRIB_PAYLOAD_BYTES = 64 * 1024 * 1024
 
-enum class GribForecastParameter {
+internal enum class GribForecastParameter {
     TEMPERATURE_2M,
     DEW_POINT_2M,
     RELATIVE_HUMIDITY_2M,
@@ -25,7 +25,7 @@ enum class GribForecastParameter {
     VISIBILITY,
 }
 
-enum class GribValueUnit {
+internal enum class GribValueUnit {
     KELVIN,
     PASCAL,
     METRES_PER_SECOND,
@@ -34,7 +34,7 @@ enum class GribValueUnit {
     PERCENT,
 }
 
-data class DecodedGribField(
+internal data class DecodedGribField(
     val parameter: GribForecastParameter,
     val value: Double,
     val unit: GribValueUnit,

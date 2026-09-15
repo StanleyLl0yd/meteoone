@@ -13,7 +13,7 @@ import kotlin.math.atan2
 import kotlin.math.exp
 import kotlin.math.hypot
 
-class OfficialGribForecastMapper {
+internal class OfficialGribForecastMapper {
     fun map(
         provider: ForecastProvider,
         modelRun: Instant,
