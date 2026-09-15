@@ -102,4 +102,16 @@ Incomplete, invalid, blank-time-zone, or wrong-type preference combinations deco
 
 The detailed target contract is documented in [`FORECAST_TARGET.md`](FORECAST_TARGET.md).
 
-Retry/rate limiting, app target/repository composition, and UI policy remain later M2 slices.
+## Bounded provider request policy
+
+M2 applies retry and provider-declared pacing inside `:forecast:data`, at the HTTP adapter boundary where transport failure reasons and exact request metadata are still available. The generic `:core:network` HTTPS transport remains retry-free.
+
+Every forecast HTTP attempt is validated before the retry policy sees its result. A request may be attempted at most twice total, and the second attempt is allowed only after `BoundedHttpsFailureReason.IO`. Cancellation, oversized responses, invalid HTTP status/range/header responses, parsing or provenance failures, decompression failures, and native/GRIB failures are never retried.
+
+A retry creates a fresh underlying one-shot HTTP call. The default retry delay is one second. If an official request declares a longer `minimumRequestSpacing`, the stricter interval wins; NOAA NOMADS currently declares ten seconds. Request-start pacing is process-wide per host so constructing another M1 engine instance cannot bypass the spacing contract.
+
+Cancellation wakes a request waiting for a paced/retry start, cancels an active underlying call, and prevents a later retry attempt from being created. A cancelled reservation may conservatively leave a later host slot reserved; it can delay a later request but cannot make provider traffic less bounded.
+
+Provider-health aggregation/circuit breaking is not part of this client-side M2 policy. `ROADMAP.md` places central provider health in M5 together with the MeteoOne backend.
+
+App target/repository composition and the minimal forecast UI remain the final M2/alpha vertical slice.

@@ -90,7 +90,8 @@ class RunScopedDwdIconGridGeometryProviderTest {
             provider.geometryFor(planB)
         }
         assertSame(geometryA, provider.geometryFor(planA))
-        assertEquals(4, transport.requests.size)
+        assertEquals(5, transport.requests.size)
+        assertEquals(2, transport.requests.count { it.uri == planB.longitudeRequest.uri })
     }
 
     @Test

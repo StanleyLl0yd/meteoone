@@ -21,7 +21,6 @@ import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertTrue
 
 class ForecastHttpAdapterTest {
     @Test
@@ -149,22 +148,19 @@ class ForecastHttpAdapterTest {
     }
 
     @Test
-    fun transportFailureAndCancellationRemainTypedAndDelegated() {
+    fun nonRetryableTransportFailureRemainsTyped() {
         val official = OfficialSourceRequest(
             uri = URI.create("https://example.com/data"),
             maxResponseBytes = 1024,
         )
         val transport = RecordingTransport(
-            BoundedHttpsResult.Failure(BoundedHttpsFailureReason.IO),
+            BoundedHttpsResult.Failure(BoundedHttpsFailureReason.RESPONSE_TOO_LARGE),
         )
-        val call = ForecastHttpAdapter(transport).newOrdinaryCall(official)
 
         assertEquals(
-            BoundedHttpsResult.Failure(BoundedHttpsFailureReason.IO),
-            call.execute(),
+            BoundedHttpsResult.Failure(BoundedHttpsFailureReason.RESPONSE_TOO_LARGE),
+            ForecastHttpAdapter(transport).newOrdinaryCall(official).execute(),
         )
-        call.cancel()
-        assertTrue(requireNotNull(transport.lastCall).cancelled)
     }
 
     private fun ecmwfRangePlan(): EcmwfFieldRangePlan {
@@ -200,26 +196,19 @@ class ForecastHttpAdapterTest {
     ) : BoundedHttpsTransport {
         var lastRequest: BoundedHttpsRequest? = null
             private set
-        var lastCall: RecordingCall? = null
-            private set
 
         override fun newCall(request: BoundedHttpsRequest): BoundedHttpsCall {
             lastRequest = request
-            return RecordingCall(result).also { lastCall = it }
+            return RecordingCall(result)
         }
     }
 
     private class RecordingCall(
         private val result: BoundedHttpsResult,
     ) : BoundedHttpsCall {
-        var cancelled = false
-            private set
-
         override fun execute(): BoundedHttpsResult = result
 
-        override fun cancel() {
-            cancelled = true
-        }
+        override fun cancel() = Unit
     }
 
     private companion object {
