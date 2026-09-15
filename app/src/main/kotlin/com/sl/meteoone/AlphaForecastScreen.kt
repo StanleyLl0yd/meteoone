@@ -49,7 +49,6 @@ import com.sl.meteoone.forecast.repository.ForecastRepository
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -64,10 +63,13 @@ internal fun AlphaForecastScreen(
     val scope = rememberCoroutineScope()
     var operation by remember { mutableStateOf<AlphaOperation>(AlphaOperation.Idle) }
     var locationRequest by remember { mutableStateOf<LocationRequestHandle?>(null) }
+    var targetReloadRevision by remember { mutableStateOf(0L) }
+    var cacheReloadRevision by remember { mutableStateOf(0L) }
 
     val targetLoad by produceState<TargetLoadState>(
         initialValue = TargetLoadState.Loading,
         key1 = targetStore,
+        key2 = targetReloadRevision,
     ) {
         try {
             targetStore.target.collect { target ->
@@ -91,6 +93,7 @@ internal fun AlphaForecastScreen(
                     timeZoneId = target.timeZoneId,
                 ),
             )
+            cacheReloadRevision += 1L
         }
     }
 
@@ -115,6 +118,7 @@ internal fun AlphaForecastScreen(
                         operation = AlphaOperation.TargetPersistenceFailed
                         return@launch
                     }
+                    targetReloadRevision += 1L
                     operation = AlphaOperation.Idle
                     refresh(target)
                 }
@@ -191,6 +195,7 @@ internal fun AlphaForecastScreen(
                             modifier = Modifier.weight(1f),
                             target = target,
                             repository = repository,
+                            cacheReloadRevision = cacheReloadRevision,
                             operation = operation,
                             onRefresh = { refresh(target) },
                             onUseLocation = ::chooseCurrentApproximateLocation,
@@ -207,6 +212,7 @@ private fun TargetForecastContent(
     modifier: Modifier,
     target: ForecastTarget,
     repository: ForecastRepository,
+    cacheReloadRevision: Long,
     operation: AlphaOperation,
     onRefresh: () -> Unit,
     onUseLocation: () -> Unit,
@@ -215,6 +221,7 @@ private fun TargetForecastContent(
         initialValue = CacheLoadState.Loading,
         key1 = repository,
         key2 = target.coordinate,
+        key3 = cacheReloadRevision,
     ) {
         try {
             repository.observe(target.coordinate).collect { state ->
@@ -324,9 +331,7 @@ private fun ForecastSnapshot(
         )
         Spacer(Modifier.height(8.dp))
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-        ) {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(
                 items = forecast.hourly,
                 key = { item -> item.weather.time.toEpochMilli() },
@@ -495,6 +500,20 @@ private fun OperationMessage(operation: AlphaOperation) {
     }
 }
 
+@Composable
+private fun conditionLabel(condition: WeatherCondition): String = when (condition) {
+    WeatherCondition.UNKNOWN -> stringResource(R.string.condition_unknown)
+    WeatherCondition.CLEAR -> stringResource(R.string.condition_clear)
+    WeatherCondition.PARTLY_CLOUDY -> stringResource(R.string.condition_partly_cloudy)
+    WeatherCondition.CLOUDY -> stringResource(R.string.condition_cloudy)
+    WeatherCondition.FOG -> stringResource(R.string.condition_fog)
+    WeatherCondition.RAIN -> stringResource(R.string.condition_rain)
+    WeatherCondition.HEAVY_RAIN -> stringResource(R.string.condition_heavy_rain)
+    WeatherCondition.SNOW -> stringResource(R.string.condition_snow)
+    WeatherCondition.SLEET -> stringResource(R.string.condition_sleet)
+    WeatherCondition.THUNDERSTORM -> stringResource(R.string.condition_thunderstorm)
+}
+
 private fun formatInstant(
     instant: Instant,
     timeZoneId: String,
@@ -504,14 +523,6 @@ private fun formatInstant(
         .getOrElse { ZoneId.systemDefault() }
     return formatter.withZone(zone).format(instant)
 }
-
-private fun conditionLabel(condition: WeatherCondition): String =
-    condition.name
-        .lowercase(Locale.getDefault())
-        .replace('_', ' ')
-        .replaceFirstChar { character ->
-            if (character.isLowerCase()) character.titlecase(Locale.getDefault()) else character.toString()
-        }
 
 private sealed interface TargetLoadState {
     data object Loading : TargetLoadState
