@@ -207,6 +207,9 @@ internal class OfficialGribForecastMapper {
         if (u == null || v == null) return null
 
         val speed = hypot(u, v)
+        require(speed <= MAX_WIND_SPEED_MPS) {
+            "10 m wind speed is outside the supported physical range"
+        }
         if (speed <= CALM_WIND_EPSILON_MPS) {
             return WindVector(speedMps = 0.0, directionDegrees = null)
         }
@@ -243,6 +246,7 @@ internal class OfficialGribForecastMapper {
         const val MIN_MSLP_HPA = 500.0
         const val MAX_MSLP_HPA = 1200.0
         const val MAX_WIND_COMPONENT_MPS = 200.0
+        const val MAX_WIND_SPEED_MPS = 200.0
         const val MAX_WIND_GUST_MPS = 200.0
         const val MAX_PRECIPITATION_MM = 5000.0
         const val MAX_VISIBILITY_METRES = 1_000_000.0
