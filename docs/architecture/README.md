@@ -17,7 +17,7 @@ Forecast orchestration + Fusion Engine (:forecast:domain)
     ↓
 M1 forecast result
     ↓
-M2 forecast repository (next slice)
+Offline-first repository (:forecast:repository)
     ↓
 Room snapshot store (:core:database)
     ↓
@@ -28,7 +28,7 @@ Android app
 
 The production forecast path includes model-specific Open-Meteo 72-hour delivery plus bounded direct-official NOAA GFS, ECMWF IFS and DWD ICON cross-checks. Direct GRIB decode and spatial selection remain contained inside `:forecast:data`.
 
-M2 has started with the persistent local forecast foundation in `:core:database`. Room stores complete fused forecast snapshots under privacy-reduced `ForecastCoordinate` keys. Repository wiring, freshness/stale policy, DataStore settings, retry/rate-limit policy and forecast UI remain subsequent M2 slices.
+M2 now has a Room persistence foundation plus a repository source-of-truth layer. Complete fused forecasts are stored under privacy-reduced `ForecastCoordinate` keys, and application forecast access is routed through `:forecast:repository`. Freshness/stale policy, DataStore settings, retry/rate-limit policy and forecast UI remain subsequent M2 slices.
 
 ## Principles
 
@@ -84,18 +84,20 @@ Before sufficient verification data exists, the UI exposes qualitative model agr
 :core:database
 :forecast:domain
 :forecast:data
+:forecast:repository
 ```
 
-`:core:network` is the concrete JVM-testable bounded HTTPS execution boundary. It exposes only MeteoOne-owned request/result/cancellation types; OkHttp remains an implementation detail. `:forecast:data` owns production source execution, direct NOAA/ECMWF/DWD transport/GRIB decode/normalization, model-specific Open-Meteo delivery, and the UI-independent M1 composition root. `:core:location` owns foreground coarse-location acquisition and privacy-preserving forecast-coordinate normalization. `:forecast:domain` remains free of Android, HTTP, decoder and provider implementation details.
+`:core:network` is the concrete JVM-testable bounded HTTPS execution boundary. It exposes only MeteoOne-owned request/result/cancellation types; OkHttp remains an implementation detail. `:forecast:data` owns production source execution, direct NOAA/ECMWF/DWD transport/GRIB decode/normalization, model-specific Open-Meteo delivery, and the UI-independent M1 execution façade. `:core:location` owns foreground coarse-location acquisition and privacy-preserving forecast-coordinate normalization. `:forecast:domain` remains free of Android, HTTP, decoder and provider implementation details.
 
 `:core:database` owns only Room forecast persistence. It exposes MeteoOne model types through `ForecastSnapshotStore`, stores coordinate identity as integer tenths of a degree, and has a policy-enforced dependency boundary that prevents it from depending on location acquisition, networking, forecast execution, or forecast-domain implementation modules.
+
+`:forecast:repository` owns offline-first composition between M1 execution and Room. Its observable API is backed only by the snapshot store; refresh results report update/degradation/failure state separately and never expose provider, GRIB, Room, or network implementation types. The app depends on this layer rather than `:forecast:data` directly.
 
 ## Planned modules and responsibilities
 
 The remaining roadmap modules are created only when their responsibilities become concrete:
 
 ```text
-:forecast:repository  # M2 source-of-truth orchestration
 :core:designsystem    # later UI milestone
 :feature:forecast     # later UI milestone
 :feature:models       # later UI milestone
