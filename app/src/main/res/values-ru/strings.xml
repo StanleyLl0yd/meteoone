@@ -3,4 +3,55 @@
     <string name="app_name">MeteoOne</string>
     <string name="tagline">Несколько моделей. Один прогноз.</string>
     <string name="foundation_status">Разрабатывается ядро прогноза</string>
+
+    <string name="alpha_label">Предпросмотр 0.1 alpha · offline-first</string>
+    <string name="forecast_no_target">Выберите место для прогноза</string>
+    <string name="forecast_location_explanation">MeteoOne запрашивает приблизительное местоположение только после нажатия кнопки. Координата округляется до сетки прогноза 0,1° до сохранения и использования как ключа кэша.</string>
+    <string name="forecast_target_coordinate">Сетка прогноза: %1$.1f°, %2$.1f°</string>
+    <string name="forecast_privacy_note">Сохраняется только координата с пониженной точностью для сетки прогноза.</string>
+    <string name="forecast_target_read_failed">Не удалось прочитать сохранённое место прогноза. Его можно заменить текущим приблизительным местоположением.</string>
+    <string name="forecast_cache_read_failed">Не удалось прочитать сохранённый прогноз.</string>
+    <string name="forecast_no_cache">Сохранённого прогноза пока нет. Выполните обновление при наличии сети.</string>
+    <string name="forecast_generated">Сформирован: %1$s</string>
+    <string name="forecast_hours_count">Почасовых точек прогноза: %1$d</string>
+
+    <string name="action_use_approximate_location">Использовать приблизительное текущее место</string>
+    <string name="action_update_location">Обновить место</string>
+    <string name="action_refresh">Обновить</string>
+
+    <string name="freshness_fresh">Свежий прогноз</string>
+    <string name="freshness_stale">Устаревший прогноз · показаны сохранённые данные</string>
+    <string name="freshness_expired">Срок прогноза истёк · показаны последние сохранённые данные</string>
+
+    <string name="status_locating">Получение приблизительного местоположения…</string>
+    <string name="status_refreshing">Обновление прогноза…</string>
+    <string name="status_target_save_failed">Не удалось сохранить место прогноза.</string>
+    <string name="status_location_permission_required">Для этого действия требуется разрешение на приблизительное местоположение.</string>
+    <string name="status_location_provider_unavailable">Сетевое определение приблизительного местоположения недоступно. Проверьте службы геолокации.</string>
+    <string name="status_location_timeout">Время ожидания местоположения истекло. Попробуйте ещё раз.</string>
+    <string name="status_location_cancelled">Запрос местоположения отменён.</string>
+    <string name="status_location_failed">Устройство не смогло определить приблизительное местоположение.</string>
+    <string name="status_forecast_updated">Прогноз обновлён.</string>
+    <string name="status_forecast_updated_degraded">Прогноз обновлён с меньшим числом источников, чем обычно.</string>
+    <string name="status_forecast_unavailable">Новый прогноз недоступен. Сохранённые данные оставлены без изменений.</string>
+    <string name="status_forecast_failed">Обновление не удалось. Сохранённые данные оставлены без изменений.</string>
+
+    <string name="value_temperature_c">%1$.1f °C</string>
+    <string name="value_unavailable">—</string>
+    <string name="value_precipitation_mm">Осадки %1$.1f мм</string>
+    <string name="value_precipitation_unavailable">Осадки —</string>
+    <string name="value_wind_mps">Ветер %1$.1f м/с</string>
+    <string name="value_wind_unavailable">Ветер —</string>
+    <string name="value_evidence">Свидетельств %1$d</string>
+
+    <string name="condition_unknown">Неизвестно</string>
+    <string name="condition_clear">Ясно</string>
+    <string name="condition_partly_cloudy">Переменная облачность</string>
+    <string name="condition_cloudy">Облачно</string>
+    <string name="condition_fog">Туман</string>
+    <string name="condition_rain">Дождь</string>
+    <string name="condition_heavy_rain">Сильный дождь</string>
+    <string name="condition_snow">Снег</string>
+    <string name="condition_sleet">Мокрый снег</string>
+    <string name="condition_thunderstorm">Гроза</string>
 </resources>
