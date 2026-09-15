@@ -7,6 +7,7 @@ import com.sl.meteoone.core.model.HourlyWeatherPoint
 import com.sl.meteoone.core.model.SourceForecast
 import com.sl.meteoone.core.model.WeatherCondition
 import java.time.Instant
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -34,6 +35,8 @@ class OpenMeteoForecastMapper {
         val root = try {
             Json.parseToJsonElement(payload) as? JsonObject
                 ?: throw IllegalArgumentException("Open-Meteo response must be a JSON object")
+        } catch (_: SerializationException) {
+            throw IllegalArgumentException("Open-Meteo response is not valid JSON")
         } catch (error: IllegalArgumentException) {
             throw error
         } catch (error: Exception) {
