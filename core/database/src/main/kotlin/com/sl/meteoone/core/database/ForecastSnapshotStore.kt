@@ -27,14 +27,22 @@ interface ForecastSnapshotStore {
 object ForecastSnapshotDatabase {
     private const val DATABASE_NAME = "meteoone.db"
 
-    fun open(context: Context): ForecastSnapshotStore {
-        val database = Room.databaseBuilder(
-            context.applicationContext,
-            MeteoOneDatabase::class.java,
-            DATABASE_NAME,
-        ).build()
-        return RoomForecastSnapshotStore(database.forecastSnapshotDao())
-    }
+    @Volatile
+    private var instance: MeteoOneDatabase? = null
+
+    fun open(context: Context): ForecastSnapshotStore =
+        RoomForecastSnapshotStore(database(context).forecastSnapshotDao())
+
+    internal fun database(context: Context): MeteoOneDatabase =
+        instance ?: synchronized(this) {
+            instance ?: Room.databaseBuilder(
+                context.applicationContext,
+                MeteoOneDatabase::class.java,
+                DATABASE_NAME,
+            ).build().also { database ->
+                instance = database
+            }
+        }
 }
 
 internal class RoomForecastSnapshotStore(
