@@ -8,14 +8,21 @@ import com.sl.meteoone.core.model.FusedForecast
 import com.sl.meteoone.forecast.data.execution.M1ForecastEngine
 import com.sl.meteoone.forecast.data.execution.M1ForecastEngineResult
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+
+private val DEFAULT_FRESH_DURATION: Duration = Duration.ofHours(3)
 
 internal fun createAndroidForecastRepository(context: Context): ForecastRepository =
     DefaultForecastRepository(
@@ -68,15 +75,57 @@ internal class M1ForecastRefreshSource(
     }
 }
 
+internal class ForecastFreshnessPolicy(
+    private val freshFor: Duration = DEFAULT_FRESH_DURATION,
+) {
+    init {
+        require(!freshFor.isNegative && !freshFor.isZero) {
+            "Forecast freshness duration must be positive"
+        }
+    }
+
+    fun classify(
+        forecast: FusedForecast,
+        now: Instant,
+    ): ForecastFreshness {
+        val horizonEnd = forecast.hourly.last().weather.time
+        if (now.isAfter(horizonEnd)) return ForecastFreshness.EXPIRED
+
+        val age = if (now.isBefore(forecast.generatedAt)) {
+            Duration.ZERO
+        } else {
+            Duration.between(forecast.generatedAt, now)
+        }
+        return if (age < freshFor) {
+            ForecastFreshness.FRESH
+        } else {
+            ForecastFreshness.STALE
+        }
+    }
+}
+
 internal class DefaultForecastRepository(
     private val store: ForecastSnapshotStore,
     private val refreshSource: ForecastRefreshSource,
     private val clock: Clock = Clock.systemUTC(),
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val freshnessPolicy: ForecastFreshnessPolicy = ForecastFreshnessPolicy(),
     private val refreshMutex: Mutex = Mutex(),
 ) : ForecastRepository {
-    override fun observe(coordinate: ForecastCoordinate): Flow<FusedForecast?> =
-        store.observe(coordinate)
+    private val freshnessRevision = MutableStateFlow(0L)
+
+    override fun observe(coordinate: ForecastCoordinate): Flow<ForecastCacheState?> =
+        combine(
+            store.observe(coordinate),
+            freshnessRevision,
+        ) { forecast, _ ->
+            forecast?.let {
+                ForecastCacheState(
+                    forecast = it,
+                    freshness = freshnessPolicy.classify(it, clock.instant()),
+                )
+            }
+        }.distinctUntilChanged()
 
     override suspend fun refresh(
         coordinate: ForecastCoordinate,
@@ -112,5 +161,7 @@ internal class DefaultForecastRepository(
         ForecastRefreshResult.Failed
     } catch (_: LinkageError) {
         ForecastRefreshResult.Failed
+    } finally {
+        freshnessRevision.update { revision -> revision + 1L }
     }
 }

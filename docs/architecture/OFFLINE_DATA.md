@@ -66,7 +66,7 @@ Room / ForecastSnapshotStore
 Application presentation
 ```
 
-`ForecastRepository.observe(coordinate)` delegates to Room-backed `ForecastSnapshotStore.observe`. There is no parallel in-memory/network forecast stream inside the repository.
+There is no parallel in-memory/network forecast stream inside the repository. `ForecastRepository.observe(coordinate)` derives presentation state only from the Room-backed snapshot flow.
 
 A successful refresh executes M1 off the caller thread, persists the fused forecast, and returns a refresh outcome only after persistence succeeds. Room invalidation is the publication path for the new forecast. The refresh outcome distinguishes a fully successful update from an update where one or more M1 sources degraded, without exposing provider or GRIB implementation types.
 
@@ -74,4 +74,20 @@ A successful refresh executes M1 off the caller thread, persists the fused forec
 
 Refresh execution is serialized by the repository. This intentionally favors a simple bounded first-alpha contract over overlapping expensive six-source M1 executions. A later policy may relax serialization only with explicit per-target/request pacing rules.
 
-Freshness/stale classification, retry/rate limiting, DataStore settings, and UI policy are separate later M2 slices layered above this repository foundation.
+## Freshness and stale fallback
+
+Repository observation wraps each persisted forecast in `ForecastCacheState` with a deterministic `ForecastFreshness` classification:
+
+- `FRESH`: generation age is strictly less than 3 hours and the forecast horizon has not ended;
+- `STALE`: generation age is at least 3 hours while the final hourly forecast timestamp is still current or future;
+- `EXPIRED`: current time is later than the final hourly forecast timestamp.
+
+`shouldRefresh` is false only for `FRESH`; it is true for `STALE` and `EXPIRED`.
+
+If the device clock is earlier than the snapshot `generatedAt`, freshness uses zero generation age rather than treating clock skew as a persistence failure. Horizon expiry still uses the actual current time and the final forecast timestamp.
+
+Age never deletes cached data. Stale and expired forecasts remain observable so an offline caller can present the last known forecast together with its age state instead of collapsing to an empty screen.
+
+Freshness uses an injected `Clock` and has no background timer in this slice. A new observer evaluates freshness immediately. Completion of any explicit refresh attempt also increments an internal re-evaluation signal; that signal contains no forecast payload and only reclassifies the forecast already supplied by Room. Therefore a failed refresh can move an actively observed cached snapshot from `FRESH` to `STALE` without introducing a second source of forecast data.
+
+Retry/rate limiting, DataStore target persistence, and UI policy remain separate M2 slices above this repository foundation.
