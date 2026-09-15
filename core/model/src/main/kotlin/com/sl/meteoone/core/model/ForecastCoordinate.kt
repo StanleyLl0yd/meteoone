@@ -7,7 +7,8 @@ import kotlin.math.round
  * Privacy-reduced coordinate used as forecast request and cache identity.
  *
  * The current M1 invariant is a 0.1 degree grid. Raw device coordinates do not satisfy this type
- * unless they have already been normalized by the location boundary.
+ * unless they have already been normalized by the location boundary. Longitude uses the canonical
+ * half-open interval [-180, 180), so the antimeridian has exactly one request/cache identity.
  */
 data class ForecastCoordinate(
     val latitude: Double,
@@ -17,8 +18,8 @@ data class ForecastCoordinate(
         require(latitude.isFinite() && latitude in -90.0..90.0) {
             "Forecast latitude must be finite and within [-90, 90]"
         }
-        require(longitude.isFinite() && longitude in -180.0..180.0) {
-            "Forecast longitude must be finite and within [-180, 180]"
+        require(longitude.isFinite() && longitude >= -180.0 && longitude < 180.0) {
+            "Forecast longitude must be finite and within [-180, 180)"
         }
         require(isOnForecastGrid(latitude) && isOnForecastGrid(longitude)) {
             "Forecast coordinates must be normalized to the 0.1 degree grid"
