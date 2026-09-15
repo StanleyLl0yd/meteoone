@@ -9,11 +9,13 @@ import com.sl.meteoone.core.network.BoundedHttpsTransport
 import com.sl.meteoone.forecast.data.ecmwf.EcmwfFieldRangePlan
 import com.sl.meteoone.forecast.data.openmeteo.OpenMeteoForecastRequest
 import com.sl.meteoone.forecast.data.source.OfficialSourceRequest
+import java.time.Duration
 
 private val CONTENT_RANGE = Regex("^bytes ([0-9]+)-([0-9]+)/([0-9]+|\\*)$")
 
 internal class ForecastHttpAdapter(
     private val transport: BoundedHttpsTransport,
+    private val executionPolicy: ForecastRequestExecutionPolicy = ForecastRequestExecutionPolicy(),
 ) {
     fun newOrdinaryCall(request: OfficialSourceRequest): BoundedHttpsCall =
         validatingCall(
@@ -21,6 +23,7 @@ internal class ForecastHttpAdapter(
                 uri = request.uri,
                 maxResponseBytes = request.maxResponseBytes,
             ),
+            minimumRequestSpacing = request.minimumRequestSpacing,
             validator = ::validateOrdinaryResponse,
         )
 
@@ -30,6 +33,7 @@ internal class ForecastHttpAdapter(
                 uri = request.uri,
                 maxResponseBytes = request.maxResponseBytes,
             ),
+            minimumRequestSpacing = Duration.ZERO,
             validator = ::validateOrdinaryResponse,
         )
 
@@ -43,15 +47,22 @@ internal class ForecastHttpAdapter(
                     "Accept-Encoding" to "identity",
                 ),
             ),
+            minimumRequestSpacing = plan.request.minimumRequestSpacing,
         ) { response -> validateEcmwfRangeResponse(response, plan) }
 
     private fun validatingCall(
         request: BoundedHttpsRequest,
+        minimumRequestSpacing: Duration,
         validator: (BoundedHttpsResponse) -> BoundedHttpsResult,
-    ): BoundedHttpsCall = ValidatingBoundedHttpsCall(
-        delegate = transport.newCall(request),
-        validator = validator,
-    )
+    ): BoundedHttpsCall = executionPolicy.newCall(
+        host = requireNotNull(request.uri.host),
+        minimumRequestSpacing = minimumRequestSpacing,
+    ) {
+        ValidatingBoundedHttpsCall(
+            delegate = transport.newCall(request),
+            validator = validator,
+        )
+    }
 }
 
 private class ValidatingBoundedHttpsCall(
