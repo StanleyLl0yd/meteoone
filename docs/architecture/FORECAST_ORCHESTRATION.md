@@ -49,4 +49,6 @@ The direct run policy selects a conservative already-published 00/06/12/18 UTC o
 
 The consumer-facing `:forecast:data` surface is the `M1ForecastEngine` façade and `M1ForecastEngineResult`. Provider request planners and DTOs, HTTP adaptation, Open-Meteo mapping, direct-source parsing, GRIB decode values and semantics, native/ecCodes integration, decompression and provider-grid selection are module implementation details and are not supported consumer APIs.
 
+The Android `:app` module declares its production forecast dependency on `:forecast:data`, not directly on `:forecast:domain`. `:forecast:data` currently exports `:forecast:domain` because the public M1 result contract includes domain fusion/diagnostic types; that transitive type exposure does not make the app responsible for production orchestration or provider composition.
+
 The domain orchestration layer itself still does not execute HTTP requests. Production execution is synchronous inside `:forecast:data`; Android callers must invoke it off the main thread. M1 does not define retry/backoff, request pacing or sleep, provider-health state, persistence, Room, DataStore, cache, stale-data, repository-flow, or UI policy. Those concerns belong to M2 or later milestones.
