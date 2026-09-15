@@ -227,10 +227,29 @@ class M1ForecastEngine internal constructor(
 ) {
     /**
      * Executes bounded network work synchronously. Android callers must invoke this off the main thread.
+     *
+     * [coordinate] is already privacy-normalized by `:core:location`; raw latitude/longitude values do
+     * not cross this public data-layer boundary. The canonical [ForecastLocation] retained in source
+     * forecasts is constructed from that coordinate and the supplied non-coordinate metadata.
      */
     fun forecast(
-        location: ForecastLocation,
+        coordinate: ForecastCoordinate,
+        elevationMeters: Int?,
+        timeZoneId: String,
         generatedAt: Instant = Instant.now(),
+    ): M1ForecastEngineResult = forecast(
+        location = ForecastLocation(
+            latitude = coordinate.latitude,
+            longitude = coordinate.longitude,
+            elevationMeters = elevationMeters,
+            timeZoneId = timeZoneId,
+        ),
+        generatedAt = generatedAt,
+    )
+
+    internal fun forecast(
+        location: ForecastLocation,
+        generatedAt: Instant,
     ): M1ForecastEngineResult {
         val coordinate = ForecastCoordinate(
             latitude = location.latitude,
