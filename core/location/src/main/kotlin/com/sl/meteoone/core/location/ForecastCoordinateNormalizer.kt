@@ -18,7 +18,7 @@ object ForecastCoordinateNormalizer {
 
         return ForecastCoordinate(
             latitude = roundToForecastGrid(latitude),
-            longitude = roundToForecastGrid(longitude),
+            longitude = canonicalLongitude(roundToForecastGrid(longitude)),
         )
     }
 
@@ -30,4 +30,7 @@ object ForecastCoordinateNormalizer {
             .toDouble()
         return if (rounded == 0.0) 0.0 else rounded
     }
+
+    private fun canonicalLongitude(longitude: Double): Double =
+        if (longitude == 180.0) -180.0 else longitude
 }

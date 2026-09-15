@@ -17,7 +17,8 @@ manual fallback coordinates ──────┘
 - Permission-request and onboarding UI belongs to M3; the M1 data boundary reports `PERMISSION_REQUIRED` without presenting UI.
 - Raw `android.location.Location` values never leave `:core:location`.
 - Raw device or manual latitude/longitude values are not retained after normalization.
-- `ForecastCoordinate` is rounded to 0.1 degree and is the only coordinate type intended to cross the public location-to-forecast data boundary.
+- `ForecastCoordinate` is rounded to the canonical 0.1 degree grid and is the only coordinate type intended to cross the public location-to-forecast data boundary. Near-grid floating-point aliases and negative zero are not valid coordinate identities.
+- Longitude uses the canonical half-open interval `[-180, 180)`: raw or rounded `+180°` is represented as `-180°`, so the antimeridian has exactly one request/cache identity.
 - No location value is persisted, logged, sent to analytics, or attached to diagnostics in this module.
 
 ## Acquisition behavior
