@@ -59,6 +59,7 @@ class OpenMeteoForecastRequestPlannerTest {
         val query = uri.rawQuery
         assertTrue(query.contains("latitude=59.9"))
         assertTrue(query.contains("longitude=30.3"))
+        assertTrue(query.contains("cell_selection=land"))
         assertTrue(query.contains("models=ncep_gfs_global"))
         assertTrue(query.contains("start_hour=2026-09-10T13%3A00"))
         assertTrue(query.contains("end_hour=2026-09-13T12%3A00"))
@@ -125,6 +126,16 @@ class OpenMeteoForecastRequestPlannerTest {
         }
         assertFailsWith<IllegalArgumentException> {
             request.copy(uri = URI.create(request.uri.toString() + "&models=ncep_gfs_global"))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            request.copy(uri = URI.create(request.uri.toString().replace("&cell_selection=land", "")))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            request.copy(
+                uri = URI.create(
+                    request.uri.toString().replace("cell_selection=land", "cell_selection=nearest"),
+                ),
+            )
         }
         assertFailsWith<IllegalArgumentException> {
             request.copy(uri = URI.create(request.uri.toString().replace("&timezone=UTC", "")))

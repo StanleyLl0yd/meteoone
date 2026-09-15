@@ -16,6 +16,7 @@ import java.time.temporal.ChronoUnit
 internal const val OPEN_METEO_MAX_RESPONSE_BYTES = 512L * 1024L
 private const val OPEN_METEO_FORECAST_HOURS = 72
 private const val OPEN_METEO_LAST_HOUR_OFFSET = OPEN_METEO_FORECAST_HOURS - 1L
+private const val OPEN_METEO_CELL_SELECTION = "land"
 private val OPEN_METEO_HOUR_FORMATTER = DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm")
     .withZone(ZoneOffset.UTC)
 
@@ -82,7 +83,7 @@ internal data class OpenMeteoForecastRequest(
         }
         require(uri.fragment == null) { "Open-Meteo requests must not contain fragments" }
         require(parseQuery(uri.rawQuery) == expectedQuery(model, coordinate, generatedAt)) {
-            "Open-Meteo request query must match model, coordinate, horizon, fields, and units"
+            "Open-Meteo request query must match model, coordinate, cell selection, horizon, fields, and units"
         }
         require(maxResponseBytes in 1..OPEN_METEO_MAX_RESPONSE_BYTES) {
             "Open-Meteo response byte limit is out of bounds"
@@ -132,6 +133,7 @@ private fun expectedQuery(
     return linkedMapOf(
         "latitude" to formatCoordinate(coordinate.latitude),
         "longitude" to formatCoordinate(coordinate.longitude),
+        "cell_selection" to OPEN_METEO_CELL_SELECTION,
         "models" to model.apiId,
         "hourly" to OPEN_METEO_HOURLY_FIELDS.joinToString(","),
         "start_hour" to OPEN_METEO_HOUR_FORMATTER.format(startHour),
