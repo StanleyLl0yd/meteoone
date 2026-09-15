@@ -418,11 +418,16 @@ internal object M1OfficialRunPolicy {
         require(!generatedAt.isBefore(modelRun)) {
             "Forecast generation time must not precede the selected model run"
         }
-        val seconds = Duration.between(modelRun, generatedAt).seconds
-        val hour = ((seconds + SECONDS_PER_HOUR - 1) / SECONDS_PER_HOUR).toInt()
+        val elapsed = Duration.between(modelRun, generatedAt)
+        val completedHours = elapsed.toHours()
+        val hour = if (elapsed.minusHours(completedHours).isZero) {
+            completedHours
+        } else {
+            completedHours + 1
+        }
         require(hour in 0..M1_HORIZON_HOURS) {
             "Selected direct-source cross-check hour must remain inside the M1 horizon"
         }
-        return hour
+        return hour.toInt()
     }
 }
