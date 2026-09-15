@@ -17,7 +17,7 @@ manual fallback coordinates ──────┘
 - Permission-request and onboarding UI belongs to M3; the M1 data boundary reports `PERMISSION_REQUIRED` without presenting UI.
 - Raw `android.location.Location` values never leave `:core:location`.
 - Raw device or manual latitude/longitude values are not retained after normalization.
-- `ForecastCoordinate` is rounded to 0.1 degree and is the only coordinate type intended to cross the module boundary.
+- `ForecastCoordinate` is rounded to 0.1 degree and is the only coordinate type intended to cross the public location-to-forecast data boundary.
 - No location value is persisted, logged, sent to analytics, or attached to diagnostics in this module.
 
 ## Acquisition behavior
@@ -30,6 +30,8 @@ The network provider is intentionally preferred over requesting precise GPS beca
 
 ## Forecast integration
 
-`ForecastCoordinate` is a request/cache identity, not yet a full `ForecastLocation`. Provider normalization may later resolve elevation and time-zone metadata and may snap the coordinate further to a provider/model grid. It must not infer or restore the original device precision.
+`ForecastCoordinate` is the privacy-reduced coordinate identity handed to the public `M1ForecastEngine` façade. The caller supplies elevation and time-zone metadata separately; the engine constructs the canonical `ForecastLocation` retained in source and fused forecasts from the already-normalized coordinate. An arbitrary `ForecastLocation` with raw latitude/longitude is not a public `:forecast:data` input.
+
+Provider planning may snap the normalized coordinate further to a provider/model grid. It must not infer or restore the original device precision.
 
 This module does not own geocoding, UI, persistence, background tracking, or provider networking.

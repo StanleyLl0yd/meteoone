@@ -35,7 +35,7 @@ Across resolved independent evidence groups, the fusion engine selects a conditi
 
 ## M1 production composition
 
-`M1ForecastEngine` accepts a canonical `ForecastLocation` and derives the already privacy-normalized `ForecastCoordinate` used by provider requests. It performs one bounded direct-official cross-check for NOAA GFS, ECMWF IFS and DWD ICON, together with the three exact 72-hour model-specific Open-Meteo delivery paths.
+The public `M1ForecastEngine` forecast entry point accepts an already privacy-normalized `ForecastCoordinate` together with elevation and time-zone metadata. It constructs the canonical `ForecastLocation` retained by source forecasts from that coordinate; arbitrary/raw latitude and longitude values are not public inputs to `:forecast:data`. The engine performs one bounded direct-official cross-check for NOAA GFS, ECMWF IFS and DWD ICON, together with the three exact 72-hour model-specific Open-Meteo delivery paths.
 
 A successful Open-Meteo path is required to establish the complete 72-point hourly M1 horizon. The Open-Meteo request is bound to the same injected generation time used by orchestration: its absolute UTC `start_hour` is the first exact hour at or after that instant, and its inclusive `end_hour` is 71 hours later. Server-relative `forecast_hours` is not used because it would make the baseline depend on Open-Meteo's request-processing clock rather than MeteoOne's orchestration provenance. The response must match those exact first and last timestamps as well as the 72-point hourly cadence.
 
@@ -45,6 +45,8 @@ Source attempts fail independently. Transport, decode, native linkage and valida
 
 The direct run policy selects a conservative already-published 00/06/12/18 UTC operational cycle from the injected generation time. NOAA and DWD cross-check the next hourly valid step; ECMWF is aligned to the next supported three-hour direct step and is never represented as direct hourly IFS.
 
-## M1 boundary
+## M1 public data boundary
+
+The consumer-facing `:forecast:data` surface is the `M1ForecastEngine` façade and `M1ForecastEngineResult`. Provider request planners and DTOs, HTTP adaptation, Open-Meteo mapping, direct-source parsing, GRIB decode values and semantics, native/ecCodes integration, decompression and provider-grid selection are module implementation details and are not supported consumer APIs.
 
 The domain orchestration layer itself still does not execute HTTP requests. Production execution is synchronous inside `:forecast:data`; Android callers must invoke it off the main thread. M1 does not define retry/backoff, request pacing or sleep, provider-health state, persistence, Room, DataStore, cache, stale-data, repository-flow, or UI policy. Those concerns belong to M2 or later milestones.
