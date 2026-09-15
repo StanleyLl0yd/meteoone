@@ -101,6 +101,9 @@ jobs:
           :core:network:test
           :core:location:testDebugUnitTest
           :core:location:lintDebug
+          :core:database:testDebugUnitTest
+          :core:database:lintDebug
+          :core:database:assembleDebug
           :forecast:domain:test
           :forecast:data:testDebugUnitTest
           :forecast:data:lintDebug
@@ -108,6 +111,12 @@ jobs:
           :app:lintDebug
           :app:assembleDebug
           :app:bundleRelease
+
+      - name: Verify Room schema is committed
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- core/database/schemas
+          test -z "$(git status --porcelain --untracked-files=all -- core/database/schemas)"
 
       - name: Verify forecast data native AAR
         run: >-
