@@ -76,8 +76,13 @@ internal class MonotonicForecastRequestStartPacer(
         }
     },
 ) : ForecastRequestStartPacer {
+    private data class Reservation(
+        val startNanos: Long,
+        val requiredSpacingNanos: Long,
+    )
+
     private val lock = Any()
-    private val lastReservedStartNanosByHost = mutableMapOf<String, Long>()
+    private val lastReservationByHost = mutableMapOf<String, Reservation>()
 
     override fun awaitStart(
         host: String,
@@ -88,10 +93,18 @@ internal class MonotonicForecastRequestStartPacer(
         val spacingNanos = minimumSpacing.toNanos()
         val now = nanoTime()
         val delayNanos = synchronized(lock) {
-            val previousStart = lastReservedStartNanosByHost[host]
-            val earliestStart = previousStart?.let { saturatingAdd(it, spacingNanos) } ?: now
+            val previous = lastReservationByHost[host]
+            val earliestStart = if (previous == null) {
+                now
+            } else {
+                val requiredGap = maxOf(previous.requiredSpacingNanos, spacingNanos)
+                saturatingAdd(previous.startNanos, requiredGap)
+            }
             val reservedStart = maxOf(now, earliestStart)
-            lastReservedStartNanosByHost[host] = reservedStart
+            lastReservationByHost[host] = Reservation(
+                startNanos = reservedStart,
+                requiredSpacingNanos = spacingNanos,
+            )
             (reservedStart - now).coerceAtLeast(0L)
         }
         return awaitDelay(delayNanos, cancellationSignal) && cancellationSignal.count != 0L
