@@ -112,10 +112,11 @@ jobs:
           :app:assembleDebug
           :app:bundleRelease
 
-      - name: Show generated Room schema
+      - name: Verify Room schema is committed
         run: |
           set -euo pipefail
-          find core/database/schemas -type f -name '*.json' -print -exec cat {} \;
+          git diff --exit-code -- core/database/schemas
+          test -z "$(git status --porcelain --untracked-files=all -- core/database/schemas)"
 
       - name: Verify forecast data native AAR
         run: >-
