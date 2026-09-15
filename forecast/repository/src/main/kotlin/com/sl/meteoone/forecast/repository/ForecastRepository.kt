@@ -6,7 +6,7 @@ import com.sl.meteoone.core.model.FusedForecast
 import kotlinx.coroutines.flow.Flow
 
 interface ForecastRepository {
-    fun observe(coordinate: ForecastCoordinate): Flow<FusedForecast?>
+    fun observe(coordinate: ForecastCoordinate): Flow<ForecastCacheState?>
 
     suspend fun refresh(
         coordinate: ForecastCoordinate,
@@ -18,6 +18,20 @@ interface ForecastRepository {
         fun android(context: Context): ForecastRepository =
             createAndroidForecastRepository(context.applicationContext)
     }
+}
+
+data class ForecastCacheState(
+    val forecast: FusedForecast,
+    val freshness: ForecastFreshness,
+) {
+    val shouldRefresh: Boolean
+        get() = freshness != ForecastFreshness.FRESH
+}
+
+enum class ForecastFreshness {
+    FRESH,
+    STALE,
+    EXPIRED,
 }
 
 sealed interface ForecastRefreshResult {

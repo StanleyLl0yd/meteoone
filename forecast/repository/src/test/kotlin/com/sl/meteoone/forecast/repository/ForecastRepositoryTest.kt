@@ -8,7 +8,9 @@ import com.sl.meteoone.core.model.FusedHourlyForecast
 import com.sl.meteoone.core.model.HourlyWeatherPoint
 import com.sl.meteoone.core.model.ModelAgreement
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -16,14 +18,17 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 class ForecastRepositoryTest {
@@ -39,7 +44,10 @@ class ForecastRepositoryTest {
             error("refresh source must not run while observing cache")
         }
 
-        assertEquals(cached, repository.observe(coordinate).first())
+        val state = requireNotNull(repository.observe(coordinate).first())
+        assertEquals(cached, state.forecast)
+        assertEquals(ForecastFreshness.FRESH, state.freshness)
+        assertFalse(state.shouldRefresh)
         assertEquals(0, store.replaceCount)
     }
 
@@ -60,7 +68,7 @@ class ForecastRepositoryTest {
         )
         assertEquals(generatedAt, observedGeneratedAt)
         assertEquals(fresh, store.lastReplacement)
-        assertEquals(fresh, repository.observe(coordinate).first())
+        assertEquals(fresh, repository.observe(coordinate).first()?.forecast)
     }
 
     @Test
@@ -89,7 +97,7 @@ class ForecastRepositoryTest {
             repository.refresh(coordinate, elevationMeters = null, timeZoneId = "UTC"),
         )
         assertEquals(0, store.replaceCount)
-        assertEquals(cached, repository.observe(coordinate).first())
+        assertEquals(cached, repository.observe(coordinate).first()?.forecast)
     }
 
     @Test
@@ -105,7 +113,7 @@ class ForecastRepositoryTest {
             repository.refresh(coordinate, elevationMeters = null, timeZoneId = "UTC"),
         )
         assertEquals(0, store.replaceCount)
-        assertEquals(cached, repository.observe(coordinate).first())
+        assertEquals(cached, repository.observe(coordinate).first()?.forecast)
     }
 
     @Test
@@ -121,7 +129,7 @@ class ForecastRepositoryTest {
             ForecastRefreshResult.Failed,
             repository.refresh(coordinate, elevationMeters = null, timeZoneId = "UTC"),
         )
-        assertEquals(cached, repository.observe(coordinate).first())
+        assertEquals(cached, repository.observe(coordinate).first()?.forecast)
     }
 
     @Test
@@ -138,7 +146,41 @@ class ForecastRepositoryTest {
             repository.refresh(coordinate, elevationMeters = null, timeZoneId = "UTC"),
         )
         assertEquals(fresh, store.lastReplacement)
-        assertEquals(cached, repository.observe(coordinate).first())
+        assertEquals(cached, repository.observe(coordinate).first()?.forecast)
+    }
+
+    @Test
+    fun failedRefreshReevaluatesFreshnessWithoutReplacingCache() = runBlocking {
+        val cached = forecast(temperatureC = 8.0, horizonHours = 6)
+        val mutableClock = MutableClock(generatedAt)
+        val store = FakeStore(initial = cached)
+        val repository = repository(
+            store = store,
+            clock = mutableClock,
+        ) { _, _, _, _ -> ForecastRefreshSourceResult.Unavailable }
+        val firstObserved = CompletableDeferred<Unit>()
+        val observed = mutableListOf<ForecastCacheState?>()
+        val collector = launch {
+            repository.observe(coordinate).collect { state ->
+                observed += state
+                if (observed.size == 1) firstObserved.complete(Unit)
+                if (observed.size == 2) return@collect
+            }
+        }
+
+        firstObserved.await()
+        assertEquals(ForecastFreshness.FRESH, observed.single()?.freshness)
+        mutableClock.now = generatedAt.plus(Duration.ofHours(3))
+        assertEquals(
+            ForecastRefreshResult.Unavailable,
+            repository.refresh(coordinate, elevationMeters = null, timeZoneId = "UTC"),
+        )
+        while (observed.size < 2) delay(1)
+        collector.cancel()
+
+        assertEquals(listOf(ForecastFreshness.FRESH, ForecastFreshness.STALE), observed.take(2).map { it?.freshness })
+        assertEquals(cached, observed[1]?.forecast)
+        assertEquals(0, store.replaceCount)
     }
 
     @Test
@@ -207,6 +249,7 @@ class ForecastRepositoryTest {
 
     private fun repository(
         store: ForecastSnapshotStore,
+        clock: Clock = this.clock,
         source: ForecastRefreshSource,
     ): ForecastRepository = DefaultForecastRepository(
         store = store,
@@ -215,7 +258,10 @@ class ForecastRepositoryTest {
         ioDispatcher = Dispatchers.Unconfined,
     )
 
-    private fun forecast(temperatureC: Double): FusedForecast = FusedForecast(
+    private fun forecast(
+        temperatureC: Double,
+        horizonHours: Long = 1,
+    ): FusedForecast = FusedForecast(
         location = ForecastLocation(
             latitude = coordinate.latitude,
             longitude = coordinate.longitude,
@@ -223,10 +269,10 @@ class ForecastRepositoryTest {
             timeZoneId = "Europe/Moscow",
         ),
         generatedAt = generatedAt,
-        hourly = listOf(
+        hourly = (1L..horizonHours).map { hour ->
             FusedHourlyForecast(
                 weather = HourlyWeatherPoint(
-                    time = generatedAt.plusSeconds(3600),
+                    time = generatedAt.plus(Duration.ofHours(hour)),
                     temperatureC = temperatureC,
                     feelsLikeC = null,
                     dewPointC = null,
@@ -243,9 +289,110 @@ class ForecastRepositoryTest {
                 providerCount = 1,
                 independentEvidenceCount = 1,
                 agreement = ModelAgreement.INSUFFICIENT,
-            ),
-        ),
+            )
+        },
     )
+}
+
+class ForecastFreshnessPolicyTest {
+    private val generatedAt = Instant.parse("2026-09-15T20:00:00Z")
+    private val policy = ForecastFreshnessPolicy()
+
+    @Test
+    fun isFreshImmediatelyBeforeThreeHours() {
+        assertEquals(
+            ForecastFreshness.FRESH,
+            policy.classify(forecast(horizonHours = 6), generatedAt.plus(Duration.ofHours(3)).minusNanos(1)),
+        )
+    }
+
+    @Test
+    fun becomesStaleExactlyAtThreeHours() {
+        assertEquals(
+            ForecastFreshness.STALE,
+            policy.classify(forecast(horizonHours = 6), generatedAt.plus(Duration.ofHours(3))),
+        )
+    }
+
+    @Test
+    fun futureGeneratedAtFromClockSkewUsesZeroAge() {
+        assertEquals(
+            ForecastFreshness.FRESH,
+            policy.classify(forecast(horizonHours = 6), generatedAt.minus(Duration.ofHours(2))),
+        )
+    }
+
+    @Test
+    fun horizonEndIsStillUsableAtExactTimestamp() {
+        val forecast = forecast(horizonHours = 3)
+        assertEquals(
+            ForecastFreshness.STALE,
+            policy.classify(forecast, forecast.hourly.last().weather.time),
+        )
+    }
+
+    @Test
+    fun becomesExpiredAfterFinalForecastTimestamp() {
+        val forecast = forecast(horizonHours = 3)
+        assertEquals(
+            ForecastFreshness.EXPIRED,
+            policy.classify(forecast, forecast.hourly.last().weather.time.plusNanos(1)),
+        )
+    }
+
+    @Test
+    fun staleAndExpiredStatesRequestRefresh() {
+        val forecast = forecast(horizonHours = 6)
+        assertFalse(ForecastCacheState(forecast, ForecastFreshness.FRESH).shouldRefresh)
+        assertTrue(ForecastCacheState(forecast, ForecastFreshness.STALE).shouldRefresh)
+        assertTrue(ForecastCacheState(forecast, ForecastFreshness.EXPIRED).shouldRefresh)
+    }
+
+    private fun forecast(horizonHours: Long): FusedForecast {
+        val coordinate = ForecastCoordinate(59.9, 30.3)
+        return FusedForecast(
+            location = ForecastLocation(
+                latitude = coordinate.latitude,
+                longitude = coordinate.longitude,
+                elevationMeters = null,
+                timeZoneId = "UTC",
+            ),
+            generatedAt = generatedAt,
+            hourly = (1L..horizonHours).map { hour ->
+                FusedHourlyForecast(
+                    weather = HourlyWeatherPoint(
+                        time = generatedAt.plus(Duration.ofHours(hour)),
+                        temperatureC = 10.0,
+                        feelsLikeC = null,
+                        dewPointC = null,
+                        humidityPercent = null,
+                        pressureSeaLevelHpa = null,
+                        windSpeedMps = null,
+                        windGustMps = null,
+                        windDirectionDegrees = null,
+                        precipitationMm = null,
+                        precipitationProbabilityPercent = null,
+                        cloudCoverPercent = null,
+                        visibilityMeters = null,
+                    ),
+                    providerCount = 1,
+                    independentEvidenceCount = 1,
+                    agreement = ModelAgreement.INSUFFICIENT,
+                )
+            },
+        )
+    }
+}
+
+private class MutableClock(
+    var now: Instant,
+    private val zone: ZoneId = ZoneOffset.UTC,
+) : Clock() {
+    override fun getZone(): ZoneId = zone
+
+    override fun withZone(zone: ZoneId): Clock = MutableClock(now, zone)
+
+    override fun instant(): Instant = now
 }
 
 private class FakeStore(
