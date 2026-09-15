@@ -17,10 +17,8 @@ concurrency:
 
 jobs:
   analyze:
-    # Kotlin 2.4.20 is newer than the current CodeQL extractor supports.
-    # Keep automatic scans disabled until a real manual probe succeeds, then set
-    # CODEQL_KOTLIN_SUPPORTED=true. workflow_dispatch remains the explicit probe.
-    if: ${{ vars.CODEQL_KOTLIN_SUPPORTED == 'true' || github.event_name == 'workflow_dispatch' }}
+    # Current CodeQL language support includes Kotlin 2.4.20. Keep this workflow
+    # enabled so pull requests and main continuously prove extractor compatibility.
     name: Analyze Java/Kotlin
     runs-on: ubuntu-24.04
     timeout-minutes: 30
