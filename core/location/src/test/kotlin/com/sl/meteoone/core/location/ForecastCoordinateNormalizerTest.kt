@@ -29,6 +29,17 @@ class ForecastCoordinateNormalizerTest {
     }
 
     @Test
+    fun removesFloatingPointAliases() {
+        assertEquals(
+            ForecastCoordinate(latitude = 0.3, longitude = 59.9),
+            ForecastCoordinateNormalizer.normalize(
+                latitude = 0.1 + 0.2,
+                longitude = 59.900000000000006,
+            ),
+        )
+    }
+
+    @Test
     fun normalizationIsIdempotent() {
         val first = ForecastCoordinateNormalizer.normalize(
             latitude = 45.67,
