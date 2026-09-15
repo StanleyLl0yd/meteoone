@@ -62,7 +62,7 @@ data class DecodedGribField(
  * Only privacy-normalized coordinates or provider-side snapped grid points reach this boundary.
  * Raw device coordinates must never be carried by these types.
  */
-sealed interface OfficialGribDecodeContext {
+internal sealed interface OfficialGribDecodeContext {
     val provider: ForecastProvider
     val modelFamily: ModelFamily
     val modelRun: Instant
@@ -108,7 +108,7 @@ sealed interface OfficialGribDecodeContext {
     }
 }
 
-class GribDecodeRequest private constructor(
+internal class GribDecodeRequest private constructor(
     val payload: ByteArray,
     val context: OfficialGribDecodeContext,
 ) {
@@ -149,6 +149,6 @@ class GribDecodeRequest private constructor(
     }
 }
 
-fun interface GribFieldDecoder {
+internal fun interface GribFieldDecoder {
     fun decode(request: GribDecodeRequest): List<DecodedGribField>
 }
