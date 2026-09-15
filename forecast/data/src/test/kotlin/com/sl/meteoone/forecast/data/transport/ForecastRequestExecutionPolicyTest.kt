@@ -202,6 +202,26 @@ class ForecastRequestExecutionPolicyTest {
     }
 
     @Test
+    fun monotonicPacerPreservesTheStricterPreviousHostSpacing() {
+        var nowNanos = 1_000L
+        val waits = mutableListOf<Long>()
+        val pacer = MonotonicForecastRequestStartPacer(
+            nanoTime = { nowNanos },
+            awaitDelay = { delayNanos, cancellation ->
+                waits += delayNanos
+                nowNanos += delayNanos
+                cancellation.count != 0L
+            },
+        )
+        val cancellation = CountDownLatch(1)
+
+        assertTrue(pacer.awaitStart("same.example", Duration.ofNanos(100), cancellation))
+        assertTrue(pacer.awaitStart("same.example", Duration.ZERO, cancellation))
+
+        assertEquals(listOf(0L, 100L), waits)
+    }
+
+    @Test
     fun callIsOneShotLikeUnderlyingHttpCall() {
         val call = ForecastRequestExecutionPolicy(
             startPacer = immediatePacer(),
