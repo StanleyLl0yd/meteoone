@@ -10,7 +10,7 @@ import java.time.ZoneOffset
 
 private const val MAX_SELECTED_FIELD_BYTES = 16L * 1024L * 1024L
 
-enum class EcmwfSurfaceField(
+internal enum class EcmwfSurfaceField(
     val parameter: String,
     val parameterAliases: Set<String> = emptySet(),
 ) {
@@ -28,7 +28,7 @@ enum class EcmwfSurfaceField(
     val acceptedParameters: Set<String> = setOf(parameter) + parameterAliases
 }
 
-class EcmwfFieldRangePlan internal constructor(
+internal class EcmwfFieldRangePlan internal constructor(
     val request: OfficialSourceRequest,
     val range: ByteRange,
     val field: EcmwfSurfaceField,
@@ -61,7 +61,7 @@ class EcmwfFieldRangePlan internal constructor(
     }
 }
 
-object EcmwfIfsFieldSelector {
+internal object EcmwfIfsFieldSelector {
     fun select(
         indexContent: String,
         plan: EcmwfIfsRequestPlan,
