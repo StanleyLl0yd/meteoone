@@ -30,7 +30,7 @@ internal object EcCodesNativeBridge {
     ): Array<NativeGribMessage>
 }
 
-internal object ProductionEcCodesNativeApi : EcCodesNativeApi {
+private object BridgeEcCodesNativeApi : EcCodesNativeApi {
     override fun configureDefinitions(definitionsPath: String) {
         EcCodesNativeBridge.nativeConfigureDefinitions(definitionsPath)
     }
@@ -45,3 +45,36 @@ internal object ProductionEcCodesNativeApi : EcCodesNativeApi {
         maxTotalValues = maxTotalValues,
     )
 }
+
+/**
+ * Serializes access to one ecCodes API delegate.
+ *
+ * The vendored M1 ecCodes bundle is built without `ENABLE_ECCODES_THREADS`, so configuration and
+ * decode calls must not overlap even when separate engine/session instances are used concurrently.
+ */
+internal class SerializedEcCodesNativeApi(
+    private val delegate: EcCodesNativeApi,
+    private val lock: Any = Any(),
+) : EcCodesNativeApi {
+    override fun configureDefinitions(definitionsPath: String) {
+        synchronized(lock) {
+            delegate.configureDefinitions(definitionsPath)
+        }
+    }
+
+    override fun decode(
+        payload: ByteArray,
+        maxMessages: Int,
+        maxTotalValues: Int,
+    ): Array<NativeGribMessage> = synchronized(lock) {
+        delegate.decode(
+            payload = payload,
+            maxMessages = maxMessages,
+            maxTotalValues = maxTotalValues,
+        )
+    }
+}
+
+internal object ProductionEcCodesNativeApi : EcCodesNativeApi by SerializedEcCodesNativeApi(
+    delegate = BridgeEcCodesNativeApi,
+)
