@@ -39,9 +39,10 @@ class ForecastTargetPreferenceBoundaryTest(unittest.TestCase):
         self.assertIn("Flow<ForecastTarget?>", interface)
         self.assertIn("suspend fun set(target: ForecastTarget)", interface)
         self.assertIn("suspend fun clear()", interface)
+        self.assertIn("fun android(context: Context): ForecastTargetStore", interface)
         for forbidden in (
             "DataStore<",
-            "Preferences",
+            "androidx.datastore",
             "ForecastLocation",
             "android.location.Location",
             "M1ForecastEngine",
