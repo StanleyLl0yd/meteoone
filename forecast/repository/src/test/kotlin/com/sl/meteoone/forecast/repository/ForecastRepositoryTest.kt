@@ -151,7 +151,7 @@ class ForecastRepositoryTest {
 
     @Test
     fun failedRefreshReevaluatesFreshnessWithoutReplacingCache() = runBlocking {
-        val cached = forecast(temperatureC = 8.0)
+        val cached = forecast(temperatureC = 8.0, horizonHours = 6)
         val mutableClock = MutableClock(generatedAt)
         val store = FakeStore(initial = cached)
         val repository = repository(
@@ -258,7 +258,10 @@ class ForecastRepositoryTest {
         ioDispatcher = Dispatchers.Unconfined,
     )
 
-    private fun forecast(temperatureC: Double): FusedForecast = FusedForecast(
+    private fun forecast(
+        temperatureC: Double,
+        horizonHours: Long = 1,
+    ): FusedForecast = FusedForecast(
         location = ForecastLocation(
             latitude = coordinate.latitude,
             longitude = coordinate.longitude,
@@ -266,10 +269,10 @@ class ForecastRepositoryTest {
             timeZoneId = "Europe/Moscow",
         ),
         generatedAt = generatedAt,
-        hourly = listOf(
+        hourly = (1L..horizonHours).map { hour ->
             FusedHourlyForecast(
                 weather = HourlyWeatherPoint(
-                    time = generatedAt.plusSeconds(3600),
+                    time = generatedAt.plus(Duration.ofHours(hour)),
                     temperatureC = temperatureC,
                     feelsLikeC = null,
                     dewPointC = null,
@@ -286,8 +289,8 @@ class ForecastRepositoryTest {
                 providerCount = 1,
                 independentEvidenceCount = 1,
                 agreement = ModelAgreement.INSUFFICIENT,
-            ),
-        ),
+            )
+        },
     )
 }
 
