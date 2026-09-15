@@ -10,7 +10,7 @@ import kotlinx.serialization.json.longOrNull
 private const val MAX_INDEX_BYTES = 2 * 1024 * 1024
 private const val MAX_INDEX_LINE_BYTES = 64 * 1024
 
-data class EcmwfIndexEntry(
+internal data class EcmwfIndexEntry(
     val domain: String,
     val date: String,
     val time: String,
@@ -23,7 +23,7 @@ data class EcmwfIndexEntry(
     val range: ByteRange,
 )
 
-object EcmwfIndexParser {
+internal object EcmwfIndexParser {
     private val json = Json
 
     fun parse(content: String): List<EcmwfIndexEntry> {
