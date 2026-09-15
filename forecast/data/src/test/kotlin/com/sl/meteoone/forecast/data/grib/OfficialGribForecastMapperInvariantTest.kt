@@ -91,6 +91,34 @@ class OfficialGribForecastMapperInvariantTest {
         }
     }
 
+    @Test
+    fun windVectorMagnitudeMustStayInsidePhysicalSpeedEnvelope() {
+        val accepted = mapper.map(
+            provider = ForecastProvider.NOAA_NOMADS,
+            modelRun = modelRun,
+            generatedAt = modelRun.plusSeconds(60),
+            location = location,
+            fields = listOf(
+                windComponent(GribForecastParameter.WIND_U_10M, 120.0),
+                windComponent(GribForecastParameter.WIND_V_10M, 160.0),
+            ),
+        )
+        assertEquals(200.0, accepted.hourly.single().windSpeedMps)
+
+        assertFailsWith<IllegalArgumentException> {
+            mapper.map(
+                provider = ForecastProvider.NOAA_NOMADS,
+                modelRun = modelRun,
+                generatedAt = modelRun.plusSeconds(60),
+                location = location,
+                fields = listOf(
+                    windComponent(GribForecastParameter.WIND_U_10M, 150.0),
+                    windComponent(GribForecastParameter.WIND_V_10M, 150.0),
+                ),
+            )
+        }
+    }
+
     private fun map(field: DecodedGribField) = mapper.map(
         provider = ForecastProvider.NOAA_NOMADS,
         modelRun = modelRun,
@@ -110,6 +138,16 @@ class OfficialGribForecastMapperInvariantTest {
         parameter = GribForecastParameter.DEW_POINT_2M,
         value = value,
         unit = GribValueUnit.KELVIN,
+        validTime = validTime,
+    )
+
+    private fun windComponent(
+        parameter: GribForecastParameter,
+        value: Double,
+    ) = DecodedGribField(
+        parameter = parameter,
+        value = value,
+        unit = GribValueUnit.METRES_PER_SECOND,
         validTime = validTime,
     )
 
