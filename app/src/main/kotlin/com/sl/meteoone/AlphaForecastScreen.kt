@@ -64,7 +64,6 @@ internal fun AlphaForecastScreen(
     var operation by remember { mutableStateOf<AlphaOperation>(AlphaOperation.Idle) }
     var locationRequest by remember { mutableStateOf<LocationRequestHandle?>(null) }
     var targetReloadRevision by remember { mutableStateOf(0L) }
-    var cacheReloadRevision by remember { mutableStateOf(0L) }
 
     val targetLoad by produceState<TargetLoadState>(
         initialValue = TargetLoadState.Loading,
@@ -93,7 +92,6 @@ internal fun AlphaForecastScreen(
                     timeZoneId = target.timeZoneId,
                 ),
             )
-            cacheReloadRevision += 1L
         }
     }
 
@@ -195,7 +193,6 @@ internal fun AlphaForecastScreen(
                             modifier = Modifier.weight(1f),
                             target = target,
                             repository = repository,
-                            cacheReloadRevision = cacheReloadRevision,
                             operation = operation,
                             onRefresh = { refresh(target) },
                             onUseLocation = ::chooseCurrentApproximateLocation,
@@ -212,7 +209,6 @@ private fun TargetForecastContent(
     modifier: Modifier,
     target: ForecastTarget,
     repository: ForecastRepository,
-    cacheReloadRevision: Long,
     operation: AlphaOperation,
     onRefresh: () -> Unit,
     onUseLocation: () -> Unit,
@@ -221,7 +217,6 @@ private fun TargetForecastContent(
         initialValue = CacheLoadState.Loading,
         key1 = repository,
         key2 = target.coordinate,
-        key3 = cacheReloadRevision,
     ) {
         try {
             repository.observe(target.coordinate).collect { state ->
