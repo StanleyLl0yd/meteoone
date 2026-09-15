@@ -8,7 +8,7 @@ M2 makes persistent local forecast state the application source of truth without
 
 Its public surface is deliberately small:
 
-- `ForecastSnapshotDatabase.open(context)` creates the process-lifetime Room database composition object;
+- `ForecastSnapshotDatabase.open(context)` creates the process-lifetime Room-backed store;
 - `ForecastSnapshotStore.observe(coordinate)` exposes the persisted forecast as a `Flow<FusedForecast?>`;
 - `ForecastSnapshotStore.read(coordinate)` performs a point read;
 - `ForecastSnapshotStore.replace(coordinate, forecast)` atomically replaces one coordinate snapshot.
@@ -52,20 +52,26 @@ The initial schema is database version 1.
 
 ## Repository source of truth
 
-The next M2 layer is a forecast repository above `:core:database` and `:forecast:data`.
+`:forecast:repository` sits above `:core:database` and `:forecast:data`. The Android app depends on this repository rather than reaching the M1 execution layer directly.
 
-Its required direction is:
+The direction is:
 
 ```text
 M1 network/provider execution
         ↓ refresh
-Forecast repository
+:forecast:repository
         ↓ atomic write
 Room / ForecastSnapshotStore
         ↓ Flow
 Application presentation
 ```
 
-A successful network refresh writes the fused forecast to Room. It does not directly emit an independent network result to consumers. Room invalidation is the publication path for updated forecast data.
+`ForecastRepository.observe(coordinate)` delegates to Room-backed `ForecastSnapshotStore.observe`. There is no parallel in-memory/network forecast stream inside the repository.
 
-A failed refresh must leave an existing cached forecast untouched and observable. Freshness/stale classification, retry/rate limiting, DataStore settings, and UI policy are separate later M2 slices layered above this persistence foundation.
+A successful refresh executes M1 off the caller thread, persists the fused forecast, and returns a refresh outcome only after persistence succeeds. Room invalidation is the publication path for the new forecast. The refresh outcome distinguishes a fully successful update from an update where one or more M1 sources degraded, without exposing provider or GRIB implementation types.
+
+`Unavailable`, unexpected source failure, native linkage failure, or persistence failure does not delete or replace an existing cached forecast. Coroutine cancellation is propagated rather than converted into an ordinary refresh failure.
+
+Refresh execution is serialized by the repository. This intentionally favors a simple bounded first-alpha contract over overlapping expensive six-source M1 executions. A later policy may relax serialization only with explicit per-target/request pacing rules.
+
+Freshness/stale classification, retry/rate limiting, DataStore settings, and UI policy are separate later M2 slices layered above this repository foundation.
