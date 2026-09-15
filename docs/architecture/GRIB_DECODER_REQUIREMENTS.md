@@ -1,8 +1,8 @@
 # GRIB decoder capability gate
 
-Status: M1 measured-evidence and Android acceptance gates satisfied. **Selected M1 production decoder path: ecCodes 2.48.0 + libaec 1.1.4.**
+Status: M1 measured-evidence, Android acceptance and production-integration gates satisfied. **Selected and integrated M1 production decoder path: ecCodes 2.48.0 + libaec 1.1.4.**
 
-This document records the minimum GRIB2 capability envelope measured from MeteoOne's official-source probes and the Android acceptance evidence used to select the production decoder path. Issue #26 is the authority for the immutable measured-source corpus. Issue #82 is the decoder-candidate selection authority.
+This document records the minimum GRIB2 capability envelope measured from MeteoOne's official-source probes, the Android acceptance evidence used to select the production decoder path, and the production boundary that now implements it. Issue #26 is the authority for the immutable measured-source corpus. Issue #82 is the decoder-candidate selection authority.
 
 ## Measured minimum envelope
 
@@ -32,7 +32,7 @@ Exact research source pins are recorded in `research/grib_decoder_candidates/pin
 
 | Candidate | M1 status | Reason |
 | --- | --- | --- |
-| ECMWF ecCodes 2.48.0 + libaec 1.1.4 | **Selected** | Passed the exact immutable corpus, API 26 `arm64-v8a` build/package gate, minimum-Android runtime execution, real Android 15 16 KiB runtime execution, malformed-input rejection, licence review and resource/binary evidence. Direct C API and permissive Apache-2.0/BSD-2-Clause licensing keep the production boundary narrow. |
+| ECMWF ecCodes 2.48.0 + libaec 1.1.4 | **Selected and integrated** | Passed the exact immutable corpus, API 26 `arm64-v8a` build/package gate, minimum-Android runtime execution, real Android 15 16 KiB runtime execution, malformed-input rejection, licence review and resource/binary evidence. Direct C API and permissive Apache-2.0/BSD-2-Clause licensing keep the production boundary narrow. |
 | netCDF-Java 5.10.0 | **Blocked fallback** | DRT 42 uses JNA plus native libaec. Upstream native binaries do not provide an Android path, so adoption would require a custom Android libaec package plus JNA/API26/16 KiB proof. |
 | NOAA wgrib2 3.8.0 | **Not advanced in M1** | The exact DRT 42 path requires NCEPLIBS-g2c 2.3.0; the stock library surface also carries broader native and licence/maintenance obligations, including GPL-3.0-or-later source. A source-pruned fork would be a distinct future candidate. |
 
@@ -77,11 +77,11 @@ The package-shaped archive contains only those three arm64 shared libraries and 
 
 Representative Android runtime peak RSS remained bounded around the measured full-field envelope: approximately 45-46 MiB for the largest DWD/ECMWF representatives, while the measured concatenated NOAA point sample remained around 14-15 MiB. These measurements are research evidence for the current exact build, not a promise of final APK/AAB download size or final production memory use.
 
-The production integration must continue to avoid retaining or decoding an unbounded multi-hour × multi-field matrix. #89 owns coordinate-aware point selection and the native/grid ownership boundary.
+The production path continues to avoid retaining or decoding an unbounded multi-hour × multi-field matrix. #89 established coordinate-aware point selection and the native/grid ownership boundary.
 
 ## Production native acceptance contract
 
-The selected decoder does not waive future native-code requirements. Production integration and future decoder/version changes must preserve:
+The selected decoder does not waive future native-code requirements. The current production integration and any future decoder/version change must preserve:
 
 1. minimum Android API 26 support;
 2. mandatory `arm64-v8a` output;
@@ -104,7 +104,7 @@ The spatial and ownership boundary is deliberately contained inside `:forecast:d
 - full ECMWF GDT 0 geometry and DWD CLAT/CLON arrays are represented only by `internal` `:forecast:data` types;
 - decoded native metadata/geometry/value arrays are validated, reduced to one selected grid value and translated into `DecodedGribField` before mapping to the canonical `SourceForecast` model;
 - `OfficialGribDecodeContext` accepts only validated provider plans plus `ForecastCoordinate`; raw Android `Location` values are normalized in `:core:location` before they can enter forecast planning;
-- `:forecast:domain` depends only on `:core:model`, and the Android app depends on `:forecast:domain` rather than on native/ecCodes types.
+- `:forecast:domain` depends only on `:core:model`; the Android app reaches the production M1 composition through `:forecast:data`, while native/ecCodes implementation types remain internal to that module.
 
 Issue #89 point-selection regressions establish the provider-specific behavior:
 
@@ -137,22 +137,22 @@ These production results supplement rather than replace the accepted Android API
 
 ## Malformed-input and fuzz/sanitizer strategy
 
-The deterministic truncated DRT 42 case is the first regression gate. Production native integration must additionally:
+The deterministic truncated DRT 42 case is an established regression gate. Additional native hardening should:
 
 - add a host Clang ASan+UBSan build of the narrow decode entry point;
 - seed mutation/fuzz runs with the exact #26 representatives, including concatenated NOAA and decompressed DWD samples;
 - cover truncation, section-length corruption, duplicated/reordered sections, invalid template identifiers, bitmap/value-count inconsistencies and random byte mutations;
-- validate Kotlin/JNI lengths and ownership before native calls;
-- convert decoder failures into bounded provider errors rather than process termination;
+- continue validating Kotlin/JNI lengths and ownership before native calls;
+- continue converting decoder failures into bounded provider errors rather than process termination;
 - preserve minimized crashing cases as regression fixtures when redistribution permits.
 
 Longer fuzz campaigns may remain outside normal PR CI when their duration/resource use is unsuitable for the standard gate.
 
-## Integration sequencing
+## Current milestone state
 
-Issue #82 completed the candidate-selection phase before production integration began. The selected ecCodes path, coordinate-aware selection, run-scoped DWD geometry and real production-JNI corpus regression are now present in `main`. After the #89 acceptance evidence above is merged, repository-wide M1 verification must prove the top-level official-source execution, Open-Meteo fallback/orchestration, full 72-hour path and graceful partial-provider behavior before M1 can close.
+Issue #82 candidate selection, the selected ecCodes production integration, #89 coordinate-aware selection and native/grid containment, run-scoped DWD geometry, the production-JNI corpus regression, and the top-level M1 forecast execution/orchestration are all present in the completed M1 codebase.
 
-M2/M3 remain out of scope until M1 Forecast Core is complete.
+This document remains the decoder acceptance contract for future native/toolchain changes. M2 is a separate roadmap milestone for persistence, cache/repository flows, retry/rate-limit policy and related offline-first concerns; none of those responsibilities are introduced by this decoder boundary.
 
 ## Upstream references
 

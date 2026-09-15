@@ -4,7 +4,7 @@ Status: Evidence-backed M0 baseline
 
 The M0 engine remains deliberately simple and explainable. The initial production strategy is **equal weight per independent model family** after duplicate provider exposure is consolidated.
 
-This decision is now backed by the August 2026 benchmark campaign rather than by a heuristic assumption.
+This decision is backed by the August 2026 benchmark campaign rather than by a heuristic assumption.
 
 ## Independent evidence
 
@@ -94,7 +94,7 @@ The evidence does not support one global model ordering:
 
 A single unequal model weight would therefore improve some parameters by construction while degrading the evidence basis for others.
 
-The campaign is also one month in one season, and the planned M1 direct official-source adapters will change the delivery pipeline from the Open-Meteo benchmark path. M0 therefore does not convert these measured errors into arbitrary numeric weight ratios.
+The campaign is one month in one season. M1 now includes bounded direct official-source cross-checks while the historical M0 campaign used archived Open-Meteo delivery. That delivery-path difference is an additional reason not to convert the M0 measured errors into arbitrary numeric weight ratios.
 
 Parameter-, region-, season-, and lead-specific adaptive weights belong to the verification work in M4 after broader out-of-sample evidence exists.
 
@@ -112,7 +112,7 @@ Directions use circular averaging so values around north, such as 350° and 10°
 
 ## Conditions
 
-Weather condition codes are not fused in M0. The fused condition remains `UNKNOWN` until a canonical condition resolver is defined from normalized weather parameters.
+Weather condition codes were not fused in M0. The historical M0 fused condition therefore remained `UNKNOWN`; later M1 categorical fusion is a separate production evolution of the domain behavior.
 
 ## Model agreement
 

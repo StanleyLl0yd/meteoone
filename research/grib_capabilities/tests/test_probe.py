@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import bz2
+import io
 import unittest
+from unittest.mock import patch
 
 from research.grib_capabilities.grib2 import Grib2MessageInfo
 from research.grib_capabilities.probe import (
@@ -9,6 +11,7 @@ from research.grib_capabilities.probe import (
     NOAA_MAX_MESSAGES,
     DownloadedSample,
     _decompress_bzip2_bounded,
+    _fetch_bounded,
     _forecast_hour,
     _parse_content_length,
     _parse_run,
@@ -17,6 +20,27 @@ from research.grib_capabilities.probe import (
     _validate_ecmwf_entry,
     _validate_source_url,
 )
+
+
+class _FakeResponse:
+    status = 200
+    headers: dict[str, str] = {}
+
+    def __init__(self, payload: bytes, final_url: str) -> None:
+        self._payload = io.BytesIO(payload)
+        self._final_url = final_url
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+    def read(self, size: int = -1) -> bytes:
+        return self._payload.read(size)
+
+    def geturl(self) -> str:
+        return self._final_url
 
 
 class ProbeHelpersTest(unittest.TestCase):
@@ -98,6 +122,31 @@ class ProbeHelpersTest(unittest.TestCase):
                 "https://opendata.dwd.de/weather/nwp/icon/",
                 expected_host="data.ecmwf.int",
             )
+
+    def test_fetch_bounded_validates_redirect_before_follow(self) -> None:
+        url = "https://data.ecmwf.int/forecasts/x"
+        response = _FakeResponse(b"ok", url)
+
+        def fake_open(request, *, timeout_seconds, validate_redirect):
+            self.assertEqual(request.full_url, url)
+            self.assertEqual(timeout_seconds, 30)
+            with self.assertRaisesRegex(RuntimeError, "Cross-host redirect"):
+                validate_redirect("https://opendata.dwd.de/weather/nwp/icon/")
+            return response
+
+        with patch(
+            "research.grib_capabilities.probe.open_with_validated_redirects",
+            side_effect=fake_open,
+        ):
+            payload, status, final_url = _fetch_bounded(
+                url,
+                max_bytes=2,
+                require_status=200,
+            )
+
+        self.assertEqual(payload, b"ok")
+        self.assertEqual(status, 200)
+        self.assertEqual(final_url, url)
 
     def test_content_length_rejects_non_numeric_and_negative_values(self) -> None:
         self.assertEqual(

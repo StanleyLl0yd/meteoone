@@ -62,7 +62,9 @@ The result is bounded to 0..100%. No RH is fabricated when either temperature or
 
 The start must be strictly earlier than `validTime`. At the official-source mapper boundary, a non-null start must also be greater than or equal to that forecast's `modelRun`; an interval from an earlier run is malformed input and is rejected. The mapper converts accepted metadata to canonical `ForecastInterval(start, validTime)`.
 
-Multiple GRIB messages for the same canonical parameter and valid time are **not** resolved in the mapper. They are rejected as duplicates. Provider-specific selection must first choose the correct product/time-range semantics. This is intentional: live NOAA probing has already measured multiple `APCP` and `TCDC` messages in a single field/level subset, so silently taking the first message would be unsafe.
+The mapper first collapses exact duplicate `DecodedGribField` values. After that, more than one **distinct** decoded field for the same canonical parameter and valid time is rejected as ambiguous. Provider-specific selection must therefore choose the correct product/time-range semantics before normalization. Duplicate transport copies that decode to the same field do not create a second semantic value, but conflicting products cannot be silently resolved by taking the first message.
+
+This distinction matters because live NOAA probing measured multiple `APCP` and `TCDC` messages in a single field/level subset. Production selectors explicitly choose the intended message semantics before the mapper is called.
 
 Cloud cover currently has no canonical interval metadata. A provider selector must therefore select the intended instantaneous cloud-cover product before normalization; statistical cloud-cover products cannot be mixed in as if they were instantaneous.
 
@@ -73,7 +75,7 @@ M1 requires graceful partial-provider failure. Missing parameters are therefore 
 - ECMWF direct output may not provide visibility in the selected Open Data field set;
 - a temporary field-level failure may leave wind unavailable while temperature remains usable.
 
-Missing data is distinct from malformed data. Wrong units, duplicate parameters, impossible signs/percentages, unsupported ranges and valid times before the model run are rejected.
+Missing data is distinct from malformed data. Wrong units, conflicting duplicate parameters, impossible signs/percentages, unsupported ranges and valid times before the model run are rejected.
 
 ## Provenance
 

@@ -57,6 +57,7 @@ jobs:
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
         with:
           cmdline-tools-version: 15859902
+          packages: platform-tools
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
@@ -74,6 +75,6 @@ jobs:
       - name: Run Qodana
         uses: JetBrains/qodana-action@10be11607eb323a180e2b76b26c9c5cdceac3e77 # v2026.2.1
         with:
-          args: --linter qodana-jvm-community --within-docker false --only-directory app/src --print-problems
+          args: --linter qodana-jvm-community --within-docker false --print-problems
           upload-result: true
           artifact-name: qodana-report

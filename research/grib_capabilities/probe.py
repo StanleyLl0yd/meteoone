@@ -13,6 +13,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+from research.http_security import open_with_validated_redirects
+
 from .grib2 import Grib2MessageInfo, inspect_grib2
 
 
@@ -162,9 +164,13 @@ def _fetch_bounded(
         request_headers.update(headers)
     request = urllib.request.Request(url, headers=request_headers)
 
-    with urllib.request.urlopen(  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+    with open_with_validated_redirects(
         request,
-        timeout=30,
+        timeout_seconds=30,
+        validate_redirect=lambda redirect_url: _validate_source_url(
+            redirect_url,
+            expected_host=origin_host,
+        ),
     ) as response:
         status = response.status
         final_url = response.geturl()
