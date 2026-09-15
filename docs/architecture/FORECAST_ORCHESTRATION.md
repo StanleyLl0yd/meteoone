@@ -37,7 +37,9 @@ Across resolved independent evidence groups, the fusion engine selects a conditi
 
 `M1ForecastEngine` accepts a canonical `ForecastLocation` and derives the already privacy-normalized `ForecastCoordinate` used by provider requests. It performs one bounded direct-official cross-check for NOAA GFS, ECMWF IFS and DWD ICON, together with the three exact 72-hour model-specific Open-Meteo delivery paths.
 
-A successful Open-Meteo path is required to establish the complete 72-point hourly M1 horizon. Direct-official cross-checks are deliberately sparse and cannot by themselves turn an incomplete point/field sample into a complete forecast. All successful source forecasts are restricted to the same validated 72-hour timestamp window before the existing domain orchestrator and fusion engine are invoked.
+A successful Open-Meteo path is required to establish the complete 72-point hourly M1 horizon. The Open-Meteo request is bound to the same injected generation time used by orchestration: its absolute UTC `start_hour` is the first exact hour at or after that instant, and its inclusive `end_hour` is 71 hours later. Server-relative `forecast_hours` is not used because it would make the baseline depend on Open-Meteo's request-processing clock rather than MeteoOne's orchestration provenance. The response must match those exact first and last timestamps as well as the 72-point hourly cadence.
+
+Direct-official cross-checks are deliberately sparse and cannot by themselves turn an incomplete point/field sample into a complete forecast. All successful source forecasts are restricted to the same validated 72-hour timestamp window before the existing domain orchestrator and fusion engine are invoked.
 
 Source attempts fail independently. Transport, decode, native linkage and validation failures are reduced to the corresponding provider/model `ForecastSourceResult.Failure`; another valid 72-hour source can still produce an available forecast. Direct and Open-Meteo delivery of the same model family remain separate provider paths but one independent meteorological evidence group.
 

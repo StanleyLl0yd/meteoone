@@ -28,6 +28,9 @@ class OpenMeteoForecastMapper {
         require(location.latitude == request.coordinate.latitude && location.longitude == request.coordinate.longitude) {
             "Open-Meteo forecast location must match the privacy-normalized request coordinate"
         }
+        require(generatedAt == request.generatedAt) {
+            "Open-Meteo mapping generation time must match the request horizon provenance"
+        }
         require(payload.toByteArray(Charsets.UTF_8).size <= request.maxResponseBytes) {
             "Open-Meteo response exceeds the configured byte limit"
         }
@@ -56,6 +59,12 @@ class OpenMeteoForecastMapper {
         }
         require(times.zipWithNext().all { (previous, next) -> next - previous == SECONDS_PER_HOUR }) {
             "Open-Meteo timestamps must be strictly hourly"
+        }
+        require(
+            times.first() == request.startHour.epochSecond &&
+                times.last() == request.endHour.epochSecond
+        ) {
+            "Open-Meteo timestamps must match the requested 72-hour horizon"
         }
 
         val temperature = hourly.doubleSeries(
