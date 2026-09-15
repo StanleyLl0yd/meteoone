@@ -90,4 +90,16 @@ Age never deletes cached data. Stale and expired forecasts remain observable so 
 
 Freshness uses an injected `Clock` and has no background timer in this slice. A new observer evaluates freshness immediately. Completion of any explicit refresh attempt also increments an internal re-evaluation signal; that signal contains no forecast payload and only reclassifies the forecast already supplied by Room. Therefore a failed refresh can move an actively observed cached snapshot from `FRESH` to `STALE` without introducing a second source of forecast data.
 
-Retry/rate limiting, DataStore target persistence, and UI policy remain separate M2 slices above this repository foundation.
+## Persisted active target
+
+Room forecast payloads are keyed by privacy-reduced coordinate, so a cold-started offline process also needs a durable identifier telling it which cached coordinate to reopen. `ForecastTarget` provides that identity together with optional elevation and time-zone metadata.
+
+`:core:preferences` owns this small state in AndroidX Preferences DataStore. Its public API accepts and emits only `ForecastTarget`; DataStore keys and preference objects remain implementation details. The module depends on `:core:model` and DataStore only and does not depend on Room, network, location acquisition, provider execution, or the forecast repository.
+
+Latitude and longitude are persisted only as signed integer tenths of a degree, matching Room cache identity. Exact/raw device precision is therefore structurally excluded from this persistence boundary. Set and clear operations each use one atomic DataStore edit.
+
+Incomplete, invalid, blank-time-zone, or wrong-type preference combinations decode to no active target. Physical Preferences-file corruption is recovered by replacing the corrupted payload with empty preferences, also yielding no active target rather than fabricated location state.
+
+The detailed target contract is documented in [`FORECAST_TARGET.md`](FORECAST_TARGET.md).
+
+Retry/rate limiting, app target/repository composition, and UI policy remain later M2 slices.

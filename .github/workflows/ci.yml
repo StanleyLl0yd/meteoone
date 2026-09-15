@@ -104,6 +104,9 @@ jobs:
           :core:database:testDebugUnitTest
           :core:database:lintDebug
           :core:database:assembleDebug
+          :core:preferences:testDebugUnitTest
+          :core:preferences:lintDebug
+          :core:preferences:assembleDebug
           :forecast:domain:test
           :forecast:data:testDebugUnitTest
           :forecast:data:lintDebug

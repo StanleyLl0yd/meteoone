@@ -9,6 +9,9 @@ Device location
     ↓
 Forecast location normalization (:core:location)
     ↓
+Privacy-reduced ForecastTarget (:core:model)
+    ├── durable active target (:core:preferences / DataStore)
+    ↓
 Provider/model execution (:forecast:data)
     ↓
 Canonical normalization
@@ -28,7 +31,7 @@ Android app
 
 The production forecast path includes model-specific Open-Meteo 72-hour delivery plus bounded direct-official NOAA GFS, ECMWF IFS and DWD ICON cross-checks. Direct GRIB decode and spatial selection remain contained inside `:forecast:data`.
 
-M2 now has a Room persistence foundation plus a repository source-of-truth layer. Complete fused forecasts are stored under privacy-reduced `ForecastCoordinate` keys, and application forecast access is routed through `:forecast:repository`. Freshness/stale policy, DataStore settings, retry/rate-limit policy and forecast UI remain subsequent M2 slices.
+M2 now has Room persistence, a repository source-of-truth layer, repository-owned freshness/stale classification, and durable privacy-reduced active-target state. Complete fused forecasts are stored under `ForecastCoordinate` keys, while DataStore persists only the normalized target needed to locate the cache after process restart. Retry/rate-limit policy and the minimal forecast UI remain subsequent M2 slices.
 
 ## Principles
 
@@ -52,7 +55,7 @@ Domain code must not depend on Android, Retrofit, Room, Compose, or provider DTO
 
 Persistent local forecast state is the M2 source of truth. Network refresh updates persistence and presentation observes repository flows backed by Room. Network results are not a second direct presentation data source.
 
-The M2 persistence and repository boundary is documented in [`OFFLINE_DATA.md`](OFFLINE_DATA.md).
+The M2 persistence and repository boundary is documented in [`OFFLINE_DATA.md`](OFFLINE_DATA.md). The durable privacy-safe target boundary is documented in [`FORECAST_TARGET.md`](FORECAST_TARGET.md).
 
 ### Graceful degradation
 
@@ -62,7 +65,7 @@ The M1 partial-provider coordination policy is documented in [`FORECAST_ORCHESTR
 
 ### Privacy by design
 
-Exact location is transient. Forecast requests and persistent cache identity use a normalized location appropriate for weather-model resolution and cache efficiency. Exact coordinates are never persisted.
+Exact location is transient. Forecast requests, persisted active-target identity, and persistent cache identity use a normalized location appropriate for weather-model resolution and cache efficiency. Exact coordinates are never persisted.
 
 The M1 foreground acquisition and normalization boundary is documented in [`LOCATION.md`](LOCATION.md).
 
@@ -82,6 +85,7 @@ Before sufficient verification data exists, the UI exposes qualitative model agr
 :core:network
 :core:location
 :core:database
+:core:preferences
 :forecast:domain
 :forecast:data
 :forecast:repository
@@ -90,6 +94,8 @@ Before sufficient verification data exists, the UI exposes qualitative model agr
 `:core:network` is the concrete JVM-testable bounded HTTPS execution boundary. It exposes only MeteoOne-owned request/result/cancellation types; OkHttp remains an implementation detail. `:forecast:data` owns production source execution, direct NOAA/ECMWF/DWD transport/GRIB decode/normalization, model-specific Open-Meteo delivery, and the UI-independent M1 execution façade. `:core:location` owns foreground coarse-location acquisition and privacy-preserving forecast-coordinate normalization. `:forecast:domain` remains free of Android, HTTP, decoder and provider implementation details.
 
 `:core:database` owns only Room forecast persistence. It exposes MeteoOne model types through `ForecastSnapshotStore`, stores coordinate identity as integer tenths of a degree, and has a policy-enforced dependency boundary that prevents it from depending on location acquisition, networking, forecast execution, or forecast-domain implementation modules.
+
+`:core:preferences` owns the durable active `ForecastTarget`. It persists only integer-tenths normalized coordinates plus target metadata and exposes no DataStore types publicly. It has no dependency on Room, location acquisition, network, or forecast execution.
 
 `:forecast:repository` owns offline-first composition between M1 execution and Room. Its observable API is backed only by the snapshot store; refresh results report update/degradation/failure state separately and never expose provider, GRIB, Room, or network implementation types. The app depends on this layer rather than `:forecast:data` directly.
 
@@ -105,6 +111,6 @@ The remaining roadmap modules are created only when their responsibilities becom
 :feature:about        # later UI milestone
 ```
 
-M2 additionally introduces freshness/stale policy, DataStore-backed settings/target state, bounded retry/rate-limit behavior, and an offline-first forecast presentation path. Those responsibilities are added as focused slices rather than pre-created empty modules.
+M2 additionally introduces bounded retry/rate-limit/provider-health behavior and an offline-first forecast presentation path. Those responsibilities are added as focused slices rather than pre-created empty modules.
 
 The exact split may be adjusted only when real dependency boundaries justify it.
