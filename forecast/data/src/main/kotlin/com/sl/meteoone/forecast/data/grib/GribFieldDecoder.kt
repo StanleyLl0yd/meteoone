@@ -8,6 +8,7 @@ import com.sl.meteoone.forecast.data.dwd.DwdIconRequestPlan
 import com.sl.meteoone.forecast.data.ecmwf.EcmwfFieldRangePlan
 import com.sl.meteoone.forecast.data.noaa.NoaaGfsRequestPlan
 import java.time.Instant
+import kotlin.ConsistentCopyVisibility
 
 private const val MAX_DECODED_GRIB_PAYLOAD_BYTES = 64 * 1024 * 1024
 
@@ -67,6 +68,7 @@ sealed interface OfficialGribDecodeContext {
     val modelRun: Instant
     val validTime: Instant
 
+    @ConsistentCopyVisibility
     data class Noaa internal constructor(
         val plan: NoaaGfsRequestPlan,
     ) : OfficialGribDecodeContext {
@@ -76,6 +78,7 @@ sealed interface OfficialGribDecodeContext {
         override val validTime: Instant = plan.validTime
     }
 
+    @ConsistentCopyVisibility
     data class Ecmwf internal constructor(
         val plan: EcmwfFieldRangePlan,
         val coordinate: ForecastCoordinate,
@@ -86,6 +89,7 @@ sealed interface OfficialGribDecodeContext {
         override val validTime: Instant = plan.validTime
     }
 
+    @ConsistentCopyVisibility
     data class Dwd internal constructor(
         val plan: DwdIconRequestPlan,
         val coordinate: ForecastCoordinate,
