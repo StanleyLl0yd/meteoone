@@ -11,6 +11,7 @@ class ForecastCoordinateTest {
             Double.POSITIVE_INFINITY to 0.0,
             90.1 to 0.0,
             0.0 to Double.NaN,
+            0.0 to 180.0,
             0.0 to 180.1,
             12.34 to 56.8,
             12.3 to 56.78,
