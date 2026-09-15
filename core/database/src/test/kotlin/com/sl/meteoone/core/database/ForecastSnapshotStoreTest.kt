@@ -17,6 +17,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertSame
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.runner.RunWith
@@ -101,6 +102,14 @@ class ForecastSnapshotStoreTest {
             store.replace(coordinate, rawLocationForecast)
         }
         assertEquals(null, store.read(coordinate))
+    }
+
+    @Test
+    fun productionDatabaseIsProcessSingleton() {
+        val first = ForecastSnapshotDatabase.database(context)
+        val second = ForecastSnapshotDatabase.database(context)
+
+        assertSame(first, second)
     }
 
     @Test
