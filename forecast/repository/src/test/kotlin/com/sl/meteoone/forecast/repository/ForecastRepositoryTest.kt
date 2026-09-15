@@ -20,6 +20,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -151,7 +152,7 @@ class ForecastRepositoryTest {
         val source = ForecastRefreshSource { _, _, _, _ ->
             val call = calls.incrementAndGet()
             val nowActive = active.incrementAndGet()
-            maxActive.accumulateAndGet(nowActive, ::maxOf)
+            maxActive.updateAndGet { current -> maxOf(current, nowActive) }
             try {
                 if (call == 1) {
                     firstEntered.countDown()
@@ -181,7 +182,7 @@ class ForecastRepositoryTest {
             repository.refresh(coordinate, elevationMeters = null, timeZoneId = "UTC")
         }
         assertTrue(secondCallerStarted.await(5, TimeUnit.SECONDS))
-        Thread.sleep(100)
+        delay(100)
         assertEquals(1, calls.get(), "second source call entered before first refresh completed")
 
         releaseFirst.countDown()
