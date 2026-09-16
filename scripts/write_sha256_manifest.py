@@ -35,8 +35,23 @@ def build_manifest(paths: list[Path]) -> str:
         seen_names.add(name)
         normalized.append(path)
 
-    lines = [f"{sha256_file(path)}  {path.name}" for path in sorted(normalized, key=lambda item: item.name)]
+    lines = [
+        f"{sha256_file(path)}  {path.name}"
+        for path in sorted(normalized, key=lambda item: item.name)
+    ]
     return "\n".join(lines) + "\n"
+
+
+def write_manifest(paths: list[Path], output: Path) -> None:
+    if output.is_symlink():
+        raise ValueError(f"refusing symlink output: {output}")
+
+    output_absolute = output.absolute()
+    for artifact in paths:
+        if artifact.absolute() == output_absolute:
+            raise ValueError(f"output would overwrite release artifact: {artifact}")
+
+    output.write_text(build_manifest(paths), encoding="utf-8", newline="\n")
 
 
 def main() -> None:
@@ -46,10 +61,7 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
-        manifest = build_manifest(args.artifacts)
-        if args.output.is_symlink():
-            raise ValueError(f"refusing symlink output: {args.output}")
-        args.output.write_text(manifest, encoding="utf-8", newline="\n")
+        write_manifest(args.artifacts, args.output)
     except (OSError, ValueError) as error:
         raise SystemExit(f"SHA-256 manifest generation failed: {error}") from error
 
