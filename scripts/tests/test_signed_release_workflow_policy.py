@@ -56,6 +56,13 @@ class SignedReleaseWorkflowPolicyTest(unittest.TestCase):
         self.assertIn('echo "upload_certificate_sha256=$expected"', self.text)
         self.assertIn('"release/$provenance_name"', self.text)
 
+    def test_exports_only_store_aab_not_upload_key_apk(self) -> None:
+        self.assertIn('source_apk="app/build/outputs/apk/release/app-release.apk"', self.text)
+        self.assertNotIn('apk_name="meteoone-$VERSION_NAME.apk"', self.text)
+        self.assertNotIn("steps.package.outputs.apk_path", self.text)
+        self.assertIn("Attest RuStore upload AAB", self.text)
+        self.assertIn("Upload signed AAB for manual RuStore publication", self.text)
+
     def test_cleans_temporary_keystore(self) -> None:
         self.assertIn("if: always()", self.text)
         self.assertIn('rm -f "$RUNNER_TEMP/meteoone-rustore-upload.jks"', self.text)
