@@ -142,7 +142,7 @@ A RuStore-installed tester build must be able to:
 4. kill/restart and show the cached forecast without network access;
 5. distinguish fresh, stale and expired cached data;
 6. manually refresh online without cached data disappearing during refresh;
-7. retain cached data when a refresh/provider requests fail.
+7. retain cached data when a refresh/provider request fails.
 
 Record the delivered APK application-signing fingerprint and smoke-test result in issue #153. Close #153 only after RuStore acceptance/install and this smoke test succeed.
 
