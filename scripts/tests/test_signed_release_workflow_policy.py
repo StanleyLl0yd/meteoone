@@ -42,6 +42,20 @@ class SignedReleaseWorkflowPolicyTest(unittest.TestCase):
             with self.subTest(secret=secret):
                 self.assertIn(f"secrets.{secret}", self.text)
 
+    def test_requires_release_signing_and_reconfirms_main(self) -> None:
+        self.assertIn('REQUIRE_RELEASE_SIGNING: "true"', self.text)
+        self.assertGreaterEqual(
+            self.text.count('test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"'),
+            2,
+        )
+
+    def test_records_public_build_provenance(self) -> None:
+        self.assertIn('provenance_name="meteoone-$VERSION_NAME-build.txt"', self.text)
+        self.assertIn('echo "source_sha=$GITHUB_SHA"', self.text)
+        self.assertIn('echo "workflow_run=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"', self.text)
+        self.assertIn('echo "upload_certificate_sha256=$expected"', self.text)
+        self.assertIn('"release/$provenance_name"', self.text)
+
     def test_cleans_temporary_keystore(self) -> None:
         self.assertIn("if: always()", self.text)
         self.assertIn('rm -f "$RUNNER_TEMP/meteoone-rustore-upload.jks"', self.text)
