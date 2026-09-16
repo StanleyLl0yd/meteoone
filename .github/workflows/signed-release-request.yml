@@ -1,0 +1,29 @@
+name: Signed Android Artifact Request
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions: {}
+
+jobs:
+  dispatch:
+    name: Dispatch signed alpha build
+    if: >-
+      github.event.issue.number == 153 &&
+      github.event.comment.user.login == github.repository_owner &&
+      github.event.comment.body == '/build-signed-alpha'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write
+
+    steps:
+      - name: Dispatch canonical signed artifact workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run signed-release-build.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main
