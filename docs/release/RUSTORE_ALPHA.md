@@ -2,7 +2,7 @@
 
 This document is the repository-side checklist for the first private MeteoOne alpha, `0.1.0-alpha.1`.
 
-It does not replace RuStore Console configuration or developer/legal review. Secrets, keystores and private signing material must never be committed to this repository.
+It does not replace RuStore Console configuration or developer/legal review. Secrets, keystores and private signing material must never be committed to this repository. RuStore publication is performed manually by the repository owner.
 
 ## Immutable application identity
 
@@ -41,60 +41,61 @@ External weather services receive normal HTTPS transport metadata, which can inc
 
 Before signing any distributable artifact:
 
-1. source revision is contained in protected `main`;
+1. source revision is the current canonical `main`;
 2. RuStore Console version history is checked and confirms repository `versionCode = 1` is acceptable; otherwise bump it in a new reviewed PR first;
 3. `python3 scripts/verify_release_metadata.py --expected-version-name 0.1.0-alpha.1 --expected-version-code 1` passes for the chosen source revision;
-4. repository CI passes, including full Gradle/Android verification;
-5. Room schema drift verification passes;
-6. vendored native AAR verification passes;
-7. release JNI/R8 boundary verification passes;
-8. Semgrep/Security and Quality passes according to repository policy;
-9. Gitleaks/Secret Scan passes;
-10. Dependency Review passes on the release-prep PR;
-11. CodeQL status is recorded honestly; a compatibility-gated skip is not treated as successful Kotlin CodeQL analysis.
+4. repository `CI` push run passes, including full Gradle/Android verification, Room schema drift, native AAR, and release JNI/R8 checks;
+5. `Security and Quality` push run passes;
+6. `Secret Scan` push run passes;
+7. Dependency Review passed on the PR that introduced the source/release changes;
+8. CodeQL status is recorded honestly; a compatibility-gated skip is not treated as successful Kotlin CodeQL analysis.
+
+The manual [Signed Android Artifact](GITHUB_SIGNED_BUILD.md) workflow independently re-checks current `main` and refuses to expose release secrets until the required push workflows above have succeeded on that exact SHA.
 
 ## Signing gate
 
-Follow [SIGNING.md](SIGNING.md).
+Follow [SIGNING.md](SIGNING.md), [GITHUB_SIGNED_BUILD.md](GITHUB_SIGNED_BUILD.md), and [CERTIFICATE_FINGERPRINTS.md](CERTIFICATE_FINGERPRINTS.md).
 
-The first RuStore AAB establishes MeteoOne's long-term Android update identity. Before the first signed upload, provision outside Git:
+The owner has reported that signing key material already exists outside Git. Before the first MeteoOne signed build, confirm its role rather than creating/replacing keys blindly:
 
-- one long-lived **application-signing key** controlled and backed up by the developer;
-- one separate **RuStore upload key** for signing AAB files submitted to RuStore;
-- the SHA-256 public-certificate fingerprint for both key roles;
-- RuStore's required protected import package for the application-signing key;
-- the public PEM certificate for the RuStore upload key;
-- a protected release execution environment or equivalently trusted local/offline signing procedure;
-- immutable protection for published `refs/tags/v*` release tags.
+- identify the long-lived **application-signing key** used for Android update identity;
+- identify the **RuStore upload key** whose JKS will sign AAB files uploaded manually to RuStore;
+- derive and independently verify SHA-256 public-certificate fingerprints for both roles;
+- configure RuStore's application-signing/import side as required by its current AAB flow;
+- add only the upload-key material to the GitHub `release` environment using the five secret names documented in `GITHUB_SIGNED_BUILD.md`;
+- set `ANDROID_UPLOAD_CERT_SHA256` from the independently derived upload certificate fingerprint;
+- keep the long-lived application-signing private key out of ordinary Actions jobs unless RuStore's current procedure explicitly requires a separate protected export/import step.
 
-For the RuStore AAB flow, the developer-supplied AAB is signed with the **upload key**. RuStore-generated APKs delivered to users are signed with the imported **application-signing key**. These roles must not be confused when verifying artifacts or recording fingerprints.
+For the RuStore AAB flow, the GitHub-produced AAB is signed with the **upload key**. RuStore-generated APKs delivered to users must use the configured **application-signing key**. These roles must not be confused when verifying artifacts or recording fingerprints.
 
 The same application-signing identity must be preserved when MeteoOne later enters Google Play. A different store upload key is acceptable; an incompatible application-signing key is not.
 
-Do not create a release tag, GitHub Release, or store upload until these controls exist.
+No release tag or GitHub Release is required for this first closed-alpha artifact path.
 
-## Artifact verification
+## Signed artifact gate
 
-For the exact signed AAB intended for RuStore:
+After the five `release` environment secrets are configured:
 
-- confirm package/application ID is `com.sl.meteoone`;
-- confirm version name is `0.1.0-alpha.1`;
-- confirm its version code matches the reviewed repository/store decision (`1` unless store history forced a reviewed bump before build);
-- verify the AAB is signed by the expected **RuStore upload-key** certificate;
-- separately record/verify the long-lived **application-signing** certificate configured for RuStore-generated APKs;
-- verify the native `arm64-v8a` payload expected by the forecast data layer;
-- retain the matching R8 mapping file;
-- produce and record a SHA-256 checksum for the signed AAB;
-- record the exact source commit and build provenance;
-- ensure no keystore, password, private key or temporary signing material is present in build artifacts or logs.
+1. run **Signed Android Artifact** manually on `main`;
+2. require both workflow jobs to succeed;
+3. download the `meteoone-<version>-signed` Actions artifact;
+4. verify `SHA256SUMS` after download;
+5. keep the downloaded `.aab` byte-for-byte unchanged;
+6. record the workflow run URL, exact source SHA, AAB SHA-256, and upload-certificate fingerprint for the release record.
 
-Generate the checksum manifest from the final immutable artifacts, not from an intermediate unsigned build:
+The workflow verifies:
 
-```text
-python3 scripts/write_sha256_manifest.py path/to/meteoone-0.1.0-alpha.1.aab --output SHA256SUMS
-```
+- package/application ID `com.sl.meteoone`;
+- reviewed version name/code;
+- APK v2/v3 signatures;
+- AAB JAR signature;
+- expected RuStore upload-certificate SHA-256;
+- required arm64 GRIB native libraries in APK and AAB;
+- non-empty matching R8 mapping;
+- deterministic checksums;
+- GitHub artifact attestations for APK/AAB.
 
-The checksum helper accepts only explicit regular files, refuses symlink inputs and duplicate output names, prevents the output from aliasing/overwriting a release artifact, and sorts manifest entries deterministically.
+It then deletes the temporary keystore and only uploads the verified artifacts to the GitHub Actions run. It has no RuStore credentials and performs no store publication.
 
 ## Store metadata
 
@@ -108,14 +109,15 @@ Recheck the current RuStore documentation and console fields immediately before 
 
 ## RuStore Console / external gate
 
-Repository automation cannot complete these owner/store actions:
+Repository automation intentionally stops before these owner/store actions:
 
+- verify the package/version history before accepting repository `versionCode`;
 - create/finish the RuStore application entry and developer/legal/contact details;
-- verify the package/version history before accepting the repository version code;
 - provide a publicly reachable privacy-policy URL based on the reviewed policy in `PRIVACY.md`;
 - complete the current RuStore permission and data-safety declarations;
-- configure/import the long-lived application-signing key and register the separate upload-key certificate as required for AAB distribution;
-- upload the exact verified upload-key-signed AAB and submit it for alpha moderation;
+- configure/import the long-lived application-signing key and register the upload-key certificate as required for AAB distribution;
+- manually upload the exact verified AAB downloaded from GitHub Actions;
+- submit that AAB for alpha moderation;
 - add only intended alpha testers through the RuStore testing flow;
 - verify installation from the RuStore client on at least one supported device and confirm the delivered APK uses the expected application-signing certificate.
 
