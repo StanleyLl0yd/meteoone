@@ -69,6 +69,20 @@ class Sha256ManifestWriterTest(unittest.TestCase):
 
             self.assertEqual(b"signed-release", artifact.read_bytes())
 
+    def test_refuses_overwrite_through_parent_path_alias(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            child = root / "child"
+            child.mkdir()
+            artifact = root / "meteoone.aab"
+            artifact.write_bytes(b"signed-release")
+            aliased_output = child / ".." / "meteoone.aab"
+
+            with self.assertRaises(ValueError):
+                write_manifest([artifact], aliased_output)
+
+            self.assertEqual(b"signed-release", artifact.read_bytes())
+
 
 if __name__ == "__main__":
     unittest.main()
