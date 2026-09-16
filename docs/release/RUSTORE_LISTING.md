@@ -56,13 +56,14 @@ Select the current weather/application category and age rating in RuStore Consol
 
 ## Developer contact
 
-Current RuStore publication documentation requires developer contact details for a new version:
+Current RuStore publication documentation requires at least one developer-contact field for a new version. Available fields include:
 
-- email — required;
-- VK group — optional;
-- website — optional.
+- email;
+- VK group;
+- website;
+- МАКС.
 
-These are owner/account fields and must not be fabricated in repository metadata.
+At least one must be populated; no specific one of these four is mandatory by itself. These are owner/account fields and must not be fabricated in repository metadata.
 
 The repository issue tracker remains the project-level technical/privacy contact:
 
@@ -74,20 +75,23 @@ Use the existing canonical store icon:
 
 `docs/branding/assets/meteoone-icon-store-512.png`
 
-Verify it remains exactly 512×512 and within the current RuStore size/format limit before upload. Repository CI already verifies canonical icon integrity.
+Verify it remains exactly 512×512 and at most 3 MB in PNG or JPG format before upload. Repository CI already verifies canonical icon integrity.
 
 ## Screenshots
 
 Do not generate marketing mockups that show nonexistent functionality. Capture the real `0.1.0-alpha.1` app from a release-equivalent build.
 
-Current RuStore screenshot/API requirements checked on 2026-09-16:
+For the manual RuStore Console path, prepare files that satisfy both the current Console guidance and the stricter structural API rules checked on 2026-09-16:
 
-- minimum 3 screenshots;
+- at least 3 screenshots;
 - one orientation only for the set;
-- portrait 9:16 or landscape 16:9;
+- exact portrait 9:16 or landscape 16:9;
 - JPEG or PNG;
-- each side at least 320 px and at most 3840 px;
-- maximum 5 MB per file.
+- each side at least 320 px;
+- maximum mobile resolution 2160×3840 px;
+- maximum 3 MB per phone screenshot.
+
+The public screenshot API permits larger files/dimensions in some cases, but the manual Console documentation currently applies the stricter phone limits above. Use the stricter intersection for this release.
 
 Suggested real states:
 
