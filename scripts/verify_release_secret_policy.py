@@ -32,6 +32,7 @@ REQUIRED_IGNORE_PATTERNS = frozenset(
 FORBIDDEN_TRACKED_PATTERNS = (
     "*.jks",
     "*.keystore",
+    "*.pem",
     "*.key",
     "*.p12",
     "*.pfx",
@@ -40,7 +41,6 @@ FORBIDDEN_TRACKED_PATTERNS = (
     "secrets.properties",
     ".env",
     ".env.*",
-    ".secrets/*",
     "service-account*.json",
     "pepk.jar",
     "*pepk*.zip",
@@ -60,15 +60,21 @@ def missing_required_patterns(text: str) -> set[str]:
 
 
 def is_forbidden_tracked_path(path: str) -> bool:
-    normalized = PurePosixPath(path).as_posix()
-    basename = PurePosixPath(normalized).name
-    for pattern in FORBIDDEN_TRACKED_PATTERNS:
-        if "/" in pattern:
-            if fnmatch.fnmatchcase(normalized, pattern):
-                return True
-        elif fnmatch.fnmatchcase(basename, pattern):
-            return True
-    return False
+    normalized_path = PurePosixPath(path)
+    lowered = normalized_path.as_posix().casefold()
+    basename = normalized_path.name.casefold()
+
+    if ".secrets" in (part.casefold() for part in normalized_path.parts):
+        return True
+
+    return any(
+        fnmatch.fnmatchcase(basename, pattern.casefold())
+        for pattern in FORBIDDEN_TRACKED_PATTERNS
+    ) or any(
+        fnmatch.fnmatchcase(lowered, pattern.casefold())
+        for pattern in FORBIDDEN_TRACKED_PATTERNS
+        if "/" in pattern
+    )
 
 
 def tracked_files() -> list[str]:
