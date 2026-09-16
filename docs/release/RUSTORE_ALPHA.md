@@ -50,6 +50,10 @@ Current alpha behavior:
 
 For RuStore data-safety/permission forms, disclose approximate location conservatively. MeteoOne may transmit the privacy-reduced 0.1-degree forecast coordinate to weather providers to obtain the forecast. External providers also receive normal HTTPS transport metadata such as the connection's public IP address.
 
+Public privacy-policy URL for the store form:
+
+https://github.com/StanleyLl0yd/meteoone/blob/main/PRIVACY.md
+
 ## Repository verification status
 
 Repository signing/build verification is **COMPLETE** for the frozen release source:
@@ -104,7 +108,9 @@ Prepare console content from:
 - [0.1.0-alpha.1.md](0.1.0-alpha.1.md) — release notes and immutable build evidence;
 - [PRIVACY.md](../../PRIVACY.md) — public privacy-policy source.
 
-Current RuStore screenshot requirements should be checked immediately before submission. The current public API documentation states at least 3 screenshots, one orientation only, JPEG/PNG, 16:9 or 9:16, 320–3840 px sides, max 5 MB each.
+For this manual Console release, prepare screenshot files satisfying the strict intersection of current Console and public API requirements: at least 3 screenshots, one orientation, exact 9:16 or 16:9, JPEG/PNG, minimum side 320 px, maximum mobile resolution 2160×3840 px, and maximum 3 MB per phone screenshot. Recheck the Console immediately before upload because store limits can change independently of Git.
+
+Current RuStore publication documentation also requires at least one developer contact field; current choices include email, VK group, website and МАКС.
 
 ## Remaining external/manual gate
 
@@ -112,7 +118,7 @@ Repository automation intentionally stops here. Still required in RuStore Consol
 
 1. confirm the MeteoOne package/version history permits `versionCode = 1`;
 2. create/finish the app entry and developer/contact/legal information;
-3. provide a publicly reachable privacy-policy URL based on `PRIVACY.md`;
+3. use the public privacy-policy URL above;
 4. complete the current permission/data-safety declarations;
 5. provide real release screenshots/listing assets;
 6. configure/import the intended application-signing key for AAB delivery;
@@ -136,7 +142,7 @@ A RuStore-installed tester build must be able to:
 4. kill/restart and show the cached forecast without network access;
 5. distinguish fresh, stale and expired cached data;
 6. manually refresh online without cached data disappearing during refresh;
-7. retain cached data when refresh/provider requests fail.
+7. retain cached data when a refresh/provider requests fail.
 
 Record the delivered APK application-signing fingerprint and smoke-test result in issue #153. Close #153 only after RuStore acceptance/install and this smoke test succeed.
 
