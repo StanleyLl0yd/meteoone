@@ -36,8 +36,8 @@ class SignedReleaseWorkflowPolicyTest(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertNotIn(value, self.text)
 
-    def test_uses_protected_release_environment_and_explicit_secrets(self) -> None:
-        self.assertIn("environment: release", self.text)
+    def test_uses_repository_secrets_without_release_environment(self) -> None:
+        self.assertNotIn("environment: release", self.text)
         for secret in REQUIRED_SECRETS:
             with self.subTest(secret=secret):
                 self.assertIn(f"secrets.{secret}", self.text)
