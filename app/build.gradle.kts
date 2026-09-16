@@ -17,11 +17,17 @@ val releaseSigningValues = listOf(
 )
 val hasAnyReleaseSigning = releaseSigningValues.any { !it.isNullOrBlank() }
 val hasReleaseSigning = releaseSigningValues.all { !it.isNullOrBlank() }
+val requireReleaseSigning = System.getenv("REQUIRE_RELEASE_SIGNING") == "true"
 
 if (hasAnyReleaseSigning && !hasReleaseSigning) {
     throw GradleException(
         "Release signing is only enabled when ANDROID_KEYSTORE_PATH, " +
             "ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD are all set.",
+    )
+}
+if (requireReleaseSigning && !hasReleaseSigning) {
+    throw GradleException(
+        "Release signing is required but Android signing environment variables are incomplete.",
     )
 }
 
