@@ -2,24 +2,40 @@
 
 ## Current state
 
-MeteoOne is pre-release and has no GitHub Release pipeline yet. Do not create a privileged signing workflow merely to satisfy a checklist before a real release exists.
+MeteoOne is pre-release. GitHub Actions has a **manual signed-artifact build path**, but no workflow publishes to RuStore and no workflow creates a GitHub Release or release tag.
 
 The Android application ID is permanently `com.sl.meteoone`. RuStore and future Google Play distribution must preserve one application-signing lineage.
+
+The manual workflow and required GitHub secrets are documented in [GITHUB_SIGNED_BUILD.md](GITHUB_SIGNED_BUILD.md).
 
 ## Key roles and cross-store lineage
 
 Do not treat an AAB upload key as the application-signing key.
 
-For the first RuStore AAB release, provision outside Git:
+For the first RuStore AAB release, keep outside Git:
 
 1. a long-lived **application-signing key** controlled by the developer and backed up securely;
 2. a separate **RuStore upload key** used to sign the AAB uploaded to RuStore.
 
-Under RuStore's AAB flow, the developer uploads the application-signing key through RuStore's protected signing-import procedure and uploads the public certificate for the upload key. The submitted AAB is signed with the upload key; RuStore-generated APKs delivered to users are signed with the application-signing key.
+Under RuStore's AAB flow, the developer uploads/configures the application-signing key through RuStore's protected signing procedure and registers the public certificate for the upload key. The submitted AAB is signed with the upload key; RuStore-generated APKs delivered to users are signed with the application-signing key.
 
 The long-lived application-signing key chosen for the first RuStore release establishes MeteoOne's Android update identity. Future Google Play onboarding must preserve that identity by importing/using the same application-signing key when the store supports that path; do not silently accept a newly generated incompatible application-signing key. A separate Google Play upload key may be used for routine Play uploads.
 
 Record public SHA-256 certificate fingerprints for the application-signing key and each store upload key in [CERTIFICATE_FINGERPRINTS.md](CERTIFICATE_FINGERPRINTS.md). Never record private key material, certificate files, PEPK exports, or passwords in Git.
+
+## GitHub signing secrets
+
+The `Signed Android Artifact` workflow uses the `release` environment and these explicit secrets:
+
+- `ANDROID_KEYSTORE_BASE64`;
+- `ANDROID_KEYSTORE_PASSWORD`;
+- `ANDROID_KEY_ALIAS`;
+- `ANDROID_KEY_PASSWORD`;
+- `ANDROID_UPLOAD_CERT_SHA256`.
+
+The first four names match the established signing convention already used by the neighboring `StanleyLl0yd/biorhythms` and `StanleyLl0yd/password-generator` Android projects. MeteoOne adds the fifth value so the workflow independently rejects an unexpected upload certificate before and after the build.
+
+Ordinary pull-request and push CI never receives these signing values. Gradle signing is conditional: no signing variables means the existing unsigned release verification path remains available; all four signing variables enables signing; a partial set fails configuration rather than silently producing an unsigned release.
 
 ## Signing key policy
 
@@ -27,39 +43,43 @@ Application-signing and upload private keys are never committed to Git.
 
 Keep the original application-signing keystore and credentials backed up securely outside the development machine. Keep upload keys separate from the long-lived application-signing key so a routine upload credential can be rotated without changing Android application identity when the store supports rotation.
 
-Ordinary pull-request CI must never receive production signing material.
+The `.gitignore` and CI release-secret policy explicitly reject common keystore/PEPK/credential artifacts from repository history. This is defense in depth and does not replace secure off-repository backups.
 
-## Required controls before the first release
+## Trusted signed-build controls
 
-Before publishing the first APK/AAB, implement and verify a trusted release path that:
+Before GitHub Actions exposes signing secrets, the manual workflow:
 
-1. builds from an exact release tag/commit that is already contained in verified `main`;
-2. validates semantic version tag, `versionName`, monotonic positive `versionCode`, namespace and `applicationId`;
-3. obtains signing credentials only from a protected release environment or equivalently trusted store;
-4. reconstructs any temporary keystore with restrictive filesystem permissions;
-5. builds the intended signed upload artifact and any supplementary signed APK;
-6. verifies artifact signatures and the expected upload/application certificate SHA-256 fingerprints for their respective roles;
-7. emits SHA-256 checksums for distributed binaries;
-8. preserves the R8 mapping file when minification is enabled;
-9. generates GitHub artifact attestations/provenance when available and meaningful;
-10. removes temporary signing material even on failure;
-11. refuses to overwrite or move an existing release tag/release.
+1. requires the current canonical `main` branch and exact current `origin/main` SHA;
+2. validates application identity, version metadata, release notes, CI supply-chain policy, and release-secret policy;
+3. requires successful `CI`, `Security and Quality`, and `Secret Scan` push runs on that exact source SHA.
 
-OIDC `id-token: write`, `attestations: write`, and `contents: write` must be scoped only to the release job that genuinely needs them.
+The signing job then:
+
+1. obtains credentials only from the `release` environment;
+2. reconstructs the temporary upload keystore under `RUNNER_TEMP` with restrictive permissions;
+3. verifies the upload certificate against the independently configured expected SHA-256 fingerprint;
+4. builds signed release APK and AAB artifacts;
+5. verifies APK/AAB signatures, package/version identity, certificate fingerprint, and expected native libraries;
+6. emits and re-checks deterministic SHA-256 checksums;
+7. preserves the matching R8 mapping file;
+8. creates GitHub artifact attestations for APK/AAB;
+9. uploads only the verified release files with bounded retention;
+10. removes temporary signing material in an unconditional cleanup step.
+
+The workflow has no repository write permission and no RuStore API credentials. **Publication remains manual.**
 
 ## Release tags
 
-When MeteoOne begins using `vX.Y.Z` release tags, configure owner-side rules so existing release tags cannot be deleted or moved. Tag creation must be tied to a verified release intent; tag immutability is required once published.
+The first RuStore closed alpha does not require GitHub to create a release tag. If MeteoOne later begins using `vX.Y.Z` GitHub release tags, configure owner-side rules so existing tags cannot be deleted or moved. A published release tag must become immutable after creation.
 
 ## Artifacts
 
-A production release should provide:
+The manual signed build provides:
 
-- the signed store-upload AAB;
-- a signed APK when a supplementary/direct APK is intentionally distributed;
-- SHA-256 checksum manifest;
-- R8 mapping file when minification is enabled;
-- release notes;
-- provenance/attestation when supported.
+- signed store-upload AAB;
+- supplementary signed APK for local verification/smoke testing;
+- deterministic `SHA256SUMS`;
+- matching R8 mapping file;
+- GitHub artifact attestations for APK/AAB.
 
 Do not upload complete build directories or signing material as CI artifacts. Use bounded retention for verification artifacts.
