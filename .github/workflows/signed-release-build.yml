@@ -275,11 +275,9 @@ jobs:
           done
 
           mkdir -p release
-          apk_name="meteoone-$VERSION_NAME.apk"
           aab_name="meteoone-$VERSION_NAME.aab"
           mapping_name="meteoone-$VERSION_NAME-mapping.txt"
           provenance_name="meteoone-$VERSION_NAME-build.txt"
-          cp "$source_apk" "release/$apk_name"
           cp "$source_aab" "release/$aab_name"
           cp "$mapping" "release/$mapping_name"
           {
@@ -292,7 +290,6 @@ jobs:
           } > "release/$provenance_name"
 
           python3 scripts/write_sha256_manifest.py \
-            "release/$apk_name" \
             "release/$aab_name" \
             "release/$mapping_name" \
             "release/$provenance_name" \
@@ -303,25 +300,21 @@ jobs:
             sha256sum --check SHA256SUMS
           )
 
-          echo "apk_path=release/$apk_name" >> "$GITHUB_OUTPUT"
           echo "aab_path=release/$aab_name" >> "$GITHUB_OUTPUT"
           echo "mapping_path=release/$mapping_name" >> "$GITHUB_OUTPUT"
           echo "provenance_path=release/$provenance_name" >> "$GITHUB_OUTPUT"
           echo "checksums_path=release/SHA256SUMS" >> "$GITHUB_OUTPUT"
 
-      - name: Attest signed APK and AAB
+      - name: Attest RuStore upload AAB
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: |
-            ${{ steps.package.outputs.apk_path }}
-            ${{ steps.package.outputs.aab_path }}
+          subject-path: ${{ steps.package.outputs.aab_path }}
 
-      - name: Upload signed artifacts for manual RuStore publication
+      - name: Upload signed AAB for manual RuStore publication
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: meteoone-${{ needs.validate.outputs.version_name }}-signed
           path: |
-            ${{ steps.package.outputs.apk_path }}
             ${{ steps.package.outputs.aab_path }}
             ${{ steps.package.outputs.mapping_path }}
             ${{ steps.package.outputs.provenance_path }}
