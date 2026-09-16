@@ -127,6 +127,12 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Reconfirm canonical main before signing
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+
       - name: Verify CI supply-chain policy
         run: python3 scripts/verify_ci_supply_chain.py
 
@@ -208,6 +214,7 @@ jobs:
 
       - name: Build signed APK and AAB
         env:
+          REQUIRE_RELEASE_SIGNING: "true"
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/meteoone-rustore-upload.jks
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -257,8 +264,8 @@ jobs:
           apk_fingerprint="$(awk -F': ' '/certificate SHA-256 digest:/ {print $NF; exit}' "$apk_report" | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
           test "$apk_fingerprint" = "$expected"
 
-          jarsigner -verify "$source_aab" | tee "$RUNNER_TEMP/jarsigner-report.txt"
-          grep -F 'jar verified.' "$RUNNER_TEMP/jarsigner-report.txt"
+          aab_verification="$(jarsigner -verify "$source_aab" 2>&1)"
+          grep -Fq 'jar verified.' <<< "$aab_verification"
           aab_fingerprint="$(keytool -printcert -jarfile "$source_aab" | awk -F': ' '/SHA256:/ {print $NF; exit}' | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
           test "$aab_fingerprint" = "$expected"
 
@@ -271,14 +278,24 @@ jobs:
           apk_name="meteoone-$VERSION_NAME.apk"
           aab_name="meteoone-$VERSION_NAME.aab"
           mapping_name="meteoone-$VERSION_NAME-mapping.txt"
+          provenance_name="meteoone-$VERSION_NAME-build.txt"
           cp "$source_apk" "release/$apk_name"
           cp "$source_aab" "release/$aab_name"
           cp "$mapping" "release/$mapping_name"
+          {
+            echo "source_sha=$GITHUB_SHA"
+            echo "workflow_run=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "application_id=com.sl.meteoone"
+            echo "version_name=$VERSION_NAME"
+            echo "version_code=$VERSION_CODE"
+            echo "upload_certificate_sha256=$expected"
+          } > "release/$provenance_name"
 
           python3 scripts/write_sha256_manifest.py \
             "release/$apk_name" \
             "release/$aab_name" \
             "release/$mapping_name" \
+            "release/$provenance_name" \
             --output release/SHA256SUMS
 
           (
@@ -289,6 +306,7 @@ jobs:
           echo "apk_path=release/$apk_name" >> "$GITHUB_OUTPUT"
           echo "aab_path=release/$aab_name" >> "$GITHUB_OUTPUT"
           echo "mapping_path=release/$mapping_name" >> "$GITHUB_OUTPUT"
+          echo "provenance_path=release/$provenance_name" >> "$GITHUB_OUTPUT"
           echo "checksums_path=release/SHA256SUMS" >> "$GITHUB_OUTPUT"
 
       - name: Attest signed APK and AAB
@@ -306,6 +324,7 @@ jobs:
             ${{ steps.package.outputs.apk_path }}
             ${{ steps.package.outputs.aab_path }}
             ${{ steps.package.outputs.mapping_path }}
+            ${{ steps.package.outputs.provenance_path }}
             ${{ steps.package.outputs.checksums_path }}
           if-no-files-found: error
           retention-days: 30
