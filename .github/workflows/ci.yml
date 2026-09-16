@@ -38,6 +38,9 @@ jobs:
       - name: Verify vendored GRIB native bundle
         run: python3 scripts/verify_forecast_data_native_bundle.py
 
+      - name: Verify release secret policy
+        run: python3 scripts/verify_release_secret_policy.py
+
       - name: Verify application release metadata
         run: python3 scripts/verify_release_metadata.py
 
