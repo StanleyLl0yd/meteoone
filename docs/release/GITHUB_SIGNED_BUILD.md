@@ -1,6 +1,6 @@
 # GitHub signed build for manual RuStore publication
 
-MeteoOne uses GitHub Actions only to produce and verify signed Android artifacts. Upload to RuStore, release creation in RuStore Console, moderation, tester management, and publication remain manual owner actions.
+MeteoOne uses GitHub Actions only to produce and verify a signed Android App Bundle for manual RuStore publication. Upload to RuStore, release creation in RuStore Console, moderation, tester management, and publication remain manual owner actions.
 
 The workflow is `.github/workflows/signed-release-build.yml` (`Signed Android Artifact`). It can run only through `workflow_dispatch` and rejects any source ref other than the current canonical `main`.
 
@@ -20,22 +20,22 @@ Required secrets:
 | `ANDROID_KEY_PASSWORD` | Password for that private-key entry. |
 | `ANDROID_UPLOAD_CERT_SHA256` | Expected SHA-256 fingerprint of the upload certificate. Colons and letter case are accepted. |
 
-The JKS used by this workflow is the key that signs the AAB uploaded manually to RuStore. Keep its role distinct from the long-lived application-signing key imported/configured in RuStore for APKs delivered to users. See [SIGNING.md](SIGNING.md).
+**Do not put the long-lived application-signing key into these GitHub secrets merely because it is the key you already have.** RuStore's AAB flow distinguishes the application-signing key from the upload key. If the existing key is only the APK/application-signing identity and no upload key exists yet, keep that private key outside ordinary Actions and create/register a separate upload key according to the current RuStore procedure. If the existing key is already the registered RuStore upload key, use that JKS here.
 
 ## Preparing the values locally
 
 Do this on a trusted machine. The examples intentionally do not put passwords on the command line.
 
-Base64-encode the keystore for `ANDROID_KEYSTORE_BASE64`:
+Base64-encode the upload keystore for `ANDROID_KEYSTORE_BASE64`:
 
 ```text
 base64 < /secure/path/meteoone-rustore-upload.jks | tr -d '\n'
 ```
 
-Read the certificate fingerprint and confirm the alias interactively:
+Read the upload certificate fingerprint and confirm the alias interactively:
 
 ```text
-keytool -list -v -keystore /secure/path/meteoone-rustore-upload.jks -alias YOUR_ALIAS
+keytool -list -v -keystore /secure/path/meteoone-rustore-upload.jks -alias YOUR_UPLOAD_ALIAS
 ```
 
 Copy the `SHA256:` certificate fingerprint into `ANDROID_UPLOAD_CERT_SHA256`. After the first independently verified run, record the same public fingerprint in [CERTIFICATE_FINGERPRINTS.md](CERTIFICATE_FINGERPRINTS.md) through a normal reviewed PR. The fingerprint is public integrity metadata; the keystore and passwords are not.
@@ -53,18 +53,20 @@ Before any signing secret is used, the workflow:
 
 The signing job then re-checks that the same SHA is still current `origin/main` before touching signing material. It then:
 
-1. reconstructs the keystore only under `RUNNER_TEMP` with restrictive permissions;
+1. reconstructs the upload keystore only under `RUNNER_TEMP` with restrictive permissions;
 2. verifies the keystore alias and certificate SHA-256 against `ANDROID_UPLOAD_CERT_SHA256` before building;
 3. sets `REQUIRE_RELEASE_SIGNING=true`, so Gradle fails closed if release signing is not actually wired even when the workflow continues;
-4. builds a signed release APK and AAB using the same env-driven Gradle signing convention used in the neighboring StanleyLl0yd Android projects;
-5. verifies package name, version code, version name, APK v2/v3 signatures, AAB JAR signature, and certificate fingerprint;
-6. verifies the expected arm64 GRIB native libraries are present in both APK and AAB;
+4. builds a signed release APK and AAB using the env-driven Gradle signing convention used in the neighboring StanleyLl0yd Android projects;
+5. uses the temporary APK only inside the runner to verify package/version, APK v2/v3 signing, certificate identity, and native packaging;
+6. verifies the AAB JAR signature, upload-certificate fingerprint, and expected arm64 GRIB native libraries;
 7. preserves the release R8 mapping file;
 8. writes a public build provenance record with source SHA, Actions run URL, version, application ID, and upload-certificate fingerprint;
-9. generates deterministic `SHA256SUMS` for APK, AAB, mapping, and provenance and verifies it;
-10. creates GitHub artifact attestations for APK/AAB;
-11. uploads the verified files as a GitHub Actions artifact with 30-day retention;
+9. generates deterministic `SHA256SUMS` for the AAB, mapping, and provenance and verifies it;
+10. creates a GitHub artifact attestation for the AAB;
+11. uploads only the AAB, mapping, provenance, and checksums as a 30-day GitHub Actions artifact;
 12. deletes the temporary keystore in an `always()` cleanup step.
+
+The upload-key-signed APK is deliberately **not** exported from the workflow. An APK installed from RuStore is signed with the application-signing key and may have a different certificate, so exposing the temporary upload-key APK as a release artifact would create a misleading installation/update path.
 
 The job has no repository write permission and contains no RuStore upload/publish step.
 
@@ -86,10 +88,9 @@ For the first alpha the expected version is currently `0.1.0-alpha.1`, but the w
 
 The artifact contains:
 
-- `meteoone-<version>.aab` — upload this manually to RuStore;
-- `meteoone-<version>.apk` — supplementary locally installable signed APK for verification/smoke testing;
+- `meteoone-<version>.aab` — upload this exact file manually to RuStore;
 - `meteoone-<version>-mapping.txt` — matching R8 mapping;
 - `meteoone-<version>-build.txt` — source/run/version/fingerprint provenance;
-- `SHA256SUMS` — hashes for all four files above.
+- `SHA256SUMS` — hashes for those three files.
 
 Do not re-sign, modify, zip-repack, or otherwise transform the AAB after this workflow. RuStore must receive the exact AAB whose signature and checksum were verified by the run.
