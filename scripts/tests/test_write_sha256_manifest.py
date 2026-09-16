@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.write_sha256_manifest import build_manifest
+from scripts.write_sha256_manifest import build_manifest, write_manifest
 
 
 class Sha256ManifestWriterTest(unittest.TestCase):
@@ -58,6 +58,16 @@ class Sha256ManifestWriterTest(unittest.TestCase):
 
             with self.assertRaises(ValueError):
                 build_manifest([link])
+
+    def test_refuses_to_overwrite_release_artifact(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            artifact = Path(temporary) / "meteoone.aab"
+            artifact.write_bytes(b"signed-release")
+
+            with self.assertRaises(ValueError):
+                write_manifest([artifact], artifact)
+
+            self.assertEqual(b"signed-release", artifact.read_bytes())
 
 
 if __name__ == "__main__":
