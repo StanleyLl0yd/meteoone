@@ -51,18 +51,20 @@ Before any signing secret is used, the workflow:
 5. requires release notes for the exact source version;
 6. waits for successful `CI`, `Security and Quality`, and `Secret Scan` **push** runs on that exact `main` SHA.
 
-The signing job then:
+The signing job then re-checks that the same SHA is still current `origin/main` before touching signing material. It then:
 
 1. reconstructs the keystore only under `RUNNER_TEMP` with restrictive permissions;
 2. verifies the keystore alias and certificate SHA-256 against `ANDROID_UPLOAD_CERT_SHA256` before building;
-3. builds a signed release APK and AAB using the same conditional Gradle signing boundary used in the other StanleyLl0yd Android projects;
-4. verifies package name, version code, version name, APK v2/v3 signatures, AAB JAR signature, and certificate fingerprint;
-5. verifies the expected arm64 GRIB native libraries are present in both APK and AAB;
-6. preserves the release R8 mapping file;
-7. generates deterministic `SHA256SUMS` and verifies it;
-8. creates GitHub artifact attestations for APK/AAB;
-9. uploads the verified files as a GitHub Actions artifact with 30-day retention;
-10. deletes the temporary keystore in an `always()` cleanup step.
+3. sets `REQUIRE_RELEASE_SIGNING=true`, so Gradle fails closed if release signing is not actually wired even when the workflow continues;
+4. builds a signed release APK and AAB using the same env-driven Gradle signing convention used in the neighboring StanleyLl0yd Android projects;
+5. verifies package name, version code, version name, APK v2/v3 signatures, AAB JAR signature, and certificate fingerprint;
+6. verifies the expected arm64 GRIB native libraries are present in both APK and AAB;
+7. preserves the release R8 mapping file;
+8. writes a public build provenance record with source SHA, Actions run URL, version, application ID, and upload-certificate fingerprint;
+9. generates deterministic `SHA256SUMS` for APK, AAB, mapping, and provenance and verifies it;
+10. creates GitHub artifact attestations for APK/AAB;
+11. uploads the verified files as a GitHub Actions artifact with 30-day retention;
+12. deletes the temporary keystore in an `always()` cleanup step.
 
 The job has no repository write permission and contains no RuStore upload/publish step.
 
@@ -87,6 +89,7 @@ The artifact contains:
 - `meteoone-<version>.aab` — upload this manually to RuStore;
 - `meteoone-<version>.apk` — supplementary locally installable signed APK for verification/smoke testing;
 - `meteoone-<version>-mapping.txt` — matching R8 mapping;
-- `SHA256SUMS` — hashes for all three files.
+- `meteoone-<version>-build.txt` — source/run/version/fingerprint provenance;
+- `SHA256SUMS` — hashes for all four files above.
 
 Do not re-sign, modify, zip-repack, or otherwise transform the AAB after this workflow. RuStore must receive the exact AAB whose signature and checksum were verified by the run.
