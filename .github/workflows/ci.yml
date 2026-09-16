@@ -38,13 +38,8 @@ jobs:
       - name: Verify vendored GRIB native bundle
         run: python3 scripts/verify_forecast_data_native_bundle.py
 
-      - name: Verify application identity
-        run: |
-          set -euo pipefail
-          namespace="$(sed -n 's/^[[:space:]]*namespace = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -1)"
-          application_id="$(sed -n 's/^[[:space:]]*applicationId = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -1)"
-          test "$namespace" = "com.sl.meteoone"
-          test "$application_id" = "com.sl.meteoone"
+      - name: Verify application release metadata
+        run: python3 scripts/verify_release_metadata.py
 
       - name: Set up JDK
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
