@@ -8,12 +8,14 @@ It does not replace RuStore Console configuration or developer/legal review. Sec
 
 - Application ID: `com.sl.meteoone`
 - Version name: `0.1.0-alpha.1`
-- Version code: `1`
+- Repository version code: `1`
 - Primary store: RuStore
 - Intended track: private alpha testing
 - Primary store artifact: signed AAB
 
-`versionCode = 1` is intentional for the first distributed MeteoOne build. It must only increase after a version with code 1 has been submitted/published in a store lineage.
+`versionCode = 1` is the repository default for MeteoOne's intended first distributed build because no release lineage exists in Git. Before signing/uploading, the owner must also confirm in RuStore Console that no earlier package/version already occupies `versionCode >= 1`. Store history is external state and cannot be inferred from Git tags. If a previous RuStore upload requires a higher code, stop: raise `versionCode` in a dedicated PR and rerun the complete release gate before producing the distributable artifact.
+
+After a build is submitted/published in a store lineage, every later version must use a higher version code as required by that store.
 
 ## Privacy and permission declaration baseline
 
@@ -40,15 +42,16 @@ External weather services receive normal HTTPS transport metadata, which can inc
 Before signing any distributable artifact:
 
 1. source revision is contained in protected `main`;
-2. `python3 scripts/verify_release_metadata.py --expected-version-name 0.1.0-alpha.1 --expected-version-code 1` passes;
-3. repository CI passes, including full Gradle/Android verification;
-4. Room schema drift verification passes;
-5. vendored native AAR verification passes;
-6. release JNI/R8 boundary verification passes;
-7. Semgrep/Security and Quality passes according to repository policy;
-8. Gitleaks/Secret Scan passes;
-9. Dependency Review passes on the release-prep PR;
-10. CodeQL status is recorded honestly; a compatibility-gated skip is not treated as successful Kotlin CodeQL analysis.
+2. RuStore Console version history is checked and confirms repository `versionCode = 1` is acceptable; otherwise bump it in a new reviewed PR first;
+3. `python3 scripts/verify_release_metadata.py --expected-version-name 0.1.0-alpha.1 --expected-version-code 1` passes for the chosen source revision;
+4. repository CI passes, including full Gradle/Android verification;
+5. Room schema drift verification passes;
+6. vendored native AAR verification passes;
+7. release JNI/R8 boundary verification passes;
+8. Semgrep/Security and Quality passes according to repository policy;
+9. Gitleaks/Secret Scan passes;
+10. Dependency Review passes on the release-prep PR;
+11. CodeQL status is recorded honestly; a compatibility-gated skip is not treated as successful Kotlin CodeQL analysis.
 
 ## Signing gate
 
@@ -76,7 +79,7 @@ For the exact signed AAB intended for RuStore:
 
 - confirm package/application ID is `com.sl.meteoone`;
 - confirm version name is `0.1.0-alpha.1`;
-- confirm version code is `1`;
+- confirm its version code matches the reviewed repository/store decision (`1` unless store history forced a reviewed bump before build);
 - verify the AAB is signed by the expected **RuStore upload-key** certificate;
 - separately record/verify the long-lived **application-signing** certificate configured for RuStore-generated APKs;
 - verify the native `arm64-v8a` payload expected by the forecast data layer;
@@ -91,7 +94,7 @@ Generate the checksum manifest from the final immutable artifacts, not from an i
 python3 scripts/write_sha256_manifest.py path/to/meteoone-0.1.0-alpha.1.aab --output SHA256SUMS
 ```
 
-The checksum helper accepts only explicit regular files, refuses symlink inputs and duplicate output names, and sorts manifest entries deterministically.
+The checksum helper accepts only explicit regular files, refuses symlink inputs and duplicate output names, prevents the output from aliasing/overwriting a release artifact, and sorts manifest entries deterministically.
 
 ## Store metadata
 
@@ -108,6 +111,7 @@ Recheck the current RuStore documentation and console fields immediately before 
 Repository automation cannot complete these owner/store actions:
 
 - create/finish the RuStore application entry and developer/legal/contact details;
+- verify the package/version history before accepting the repository version code;
 - provide a publicly reachable privacy-policy URL based on the reviewed policy in `PRIVACY.md`;
 - complete the current RuStore permission and data-safety declarations;
 - configure/import the long-lived application-signing key and register the separate upload-key certificate as required for AAB distribution;
