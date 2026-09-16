@@ -19,7 +19,7 @@ Under RuStore's AAB flow, the developer uploads the application-signing key thro
 
 The long-lived application-signing key chosen for the first RuStore release establishes MeteoOne's Android update identity. Future Google Play onboarding must preserve that identity by importing/using the same application-signing key when the store supports that path; do not silently accept a newly generated incompatible application-signing key. A separate Google Play upload key may be used for routine Play uploads.
 
-Record public SHA-256 certificate fingerprints for the application-signing key and each store upload key. Never record private key material or passwords in Git.
+Record public SHA-256 certificate fingerprints for the application-signing key and each store upload key in [CERTIFICATE_FINGERPRINTS.md](CERTIFICATE_FINGERPRINTS.md). Never record private key material, certificate files, PEPK exports, or passwords in Git.
 
 ## Signing key policy
 
