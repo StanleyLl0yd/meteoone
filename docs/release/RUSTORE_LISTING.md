@@ -31,7 +31,13 @@ MeteoOne не запрашивает точное местоположение. 
 
 Это ранняя закрытая версия для технического тестирования. Интерфейс намеренно минимален: сравнение моделей, расширенные экраны, карты, виджеты и другие функции следующих этапов разработки пока не входят в эту сборку.
 
-Политика конфиденциальности: используйте публичный URL актуального `PRIVACY.md` из защищённой ветки `main` после merge release-prep PR.
+## Privacy policy URL
+
+Use the public policy from protected `main`:
+
+https://github.com/StanleyLl0yd/meteoone/blob/main/PRIVACY.md
+
+Do not point the store listing at a feature branch, temporary artifact URL or local file.
 
 ## What's new / Что нового
 
@@ -50,7 +56,14 @@ Select the current weather/application category and age rating in RuStore Consol
 
 ## Developer contact
 
-RuStore requires at least one developer-contact method in the console. This is an owner/account field and must not be fabricated in repository metadata.
+Current RuStore publication documentation requires at least one developer-contact field for a new version. Available fields include:
+
+- email;
+- VK group;
+- website;
+- МАКС.
+
+At least one must be populated; no specific one of these four is mandatory by itself. These are owner/account fields and must not be fabricated in repository metadata.
 
 The repository issue tracker remains the project-level technical/privacy contact:
 
@@ -62,13 +75,25 @@ Use the existing canonical store icon:
 
 `docs/branding/assets/meteoone-icon-store-512.png`
 
-Verify it remains exactly 512×512 and within the current RuStore size/format limit before upload. The repository CI already verifies canonical icon integrity.
+Verify it remains exactly 512×512 and at most 3 MB in PNG or JPG format before upload. Repository CI already verifies canonical icon integrity.
 
 ## Screenshots
 
 Do not generate marketing mockups that show nonexistent functionality. Capture the real `0.1.0-alpha.1` app from a release-equivalent build.
 
-Prepare at least three consistent-orientation phone screenshots so both console/manual and API upload paths are safely covered. Suggested real states:
+For the manual RuStore Console path, prepare files that satisfy both the current Console guidance and the stricter structural API rules checked on 2026-09-16:
+
+- at least 3 screenshots;
+- one orientation only for the set;
+- exact portrait 9:16 or landscape 16:9;
+- JPEG or PNG;
+- each side at least 320 px;
+- maximum mobile resolution 2160×3840 px;
+- maximum 3 MB per phone screenshot.
+
+The public screenshot API permits larger files/dimensions in some cases, but the manual Console documentation currently applies the stricter phone limits above. Use the stricter intersection for this release.
+
+Suggested real states:
 
 1. cached/fresh hourly forecast list with forecast-grid location visible;
 2. stale or expired cached forecast still visible offline;
@@ -76,12 +101,18 @@ Prepare at least three consistent-orientation phone screenshots so both console/
 
 Do not include the Android permission dialog, notification shade, status-bar overlays from another app, or functionality not present in this alpha.
 
-Use 9:16 or 16:9 media consistent with current RuStore requirements and validate final pixel/file limits in the console before submission.
+## Closed-alpha tester handoff
+
+For private testing use RuStore **alpha testing**, not beta testing. Current RuStore rules limit alpha access to explicitly invited testers by VK ID. The tester's VK ID in the console must match the account used in the RuStore mobile app. The current limit is 2000 testers.
+
+For a first alpha, the web catalog link may return 404. Send testers the alpha link for use on a mobile device with RuStore and verify installation there.
 
 ## Public links to recheck at submission
 
 - RuStore application publication guide: https://www.rustore.ru/help/developers/publishing-and-verifying-apps/app-publication
 - RuStore application requirements: https://www.rustore.ru/help/developers/publishing-and-verifying-apps/requirement-apps
 - RuStore alpha testing: https://www.rustore.ru/help/developers/publishing-and-verifying-apps/app-publication/testing/alpha-testing
+- RuStore AAB signing/upload: https://www.rustore.ru/help/developers/publishing-and-verifying-apps/app-publication/new-version-app/upload-aab
+- RuStore screenshot API requirements: https://www.rustore.ru/help/work-with-rustore-api/api-upload-publication-app/apk-screens-upload
 
 Store requirements can change independently of the repository; recheck these pages immediately before upload/moderation.
