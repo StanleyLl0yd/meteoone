@@ -56,17 +56,19 @@ The manual [Signed Android Artifact](GITHUB_SIGNED_BUILD.md) workflow independen
 
 Follow [SIGNING.md](SIGNING.md), [GITHUB_SIGNED_BUILD.md](GITHUB_SIGNED_BUILD.md), and [CERTIFICATE_FINGERPRINTS.md](CERTIFICATE_FINGERPRINTS.md).
 
-The owner has reported that signing key material already exists outside Git. Before the first MeteoOne signed build, confirm its role rather than creating/replacing keys blindly:
+The owner has reported that signing key material already exists outside Git. Before the first MeteoOne RuStore upload, keep the roles explicit rather than creating/replacing keys blindly:
 
 - identify the long-lived **application-signing key** used for Android update identity;
-- identify the **RuStore upload key** whose JKS will sign AAB files uploaded manually to RuStore;
+- identify the certificate RuStore will accept as the **AAB upload key**;
 - derive and independently verify SHA-256 public-certificate fingerprints for both roles;
 - configure RuStore's application-signing/import side as required by its current AAB flow;
-- add only the upload-key material to the GitHub `release` environment using the five secret names documented in `GITHUB_SIGNED_BUILD.md`;
-- set `ANDROID_UPLOAD_CERT_SHA256` from the independently derived upload certificate fingerprint;
-- keep the long-lived application-signing private key out of ordinary Actions jobs unless RuStore's current procedure explicitly requires a separate protected export/import step.
+- store only the JKS actually intended to sign the upload AAB in the five GitHub Actions **repository secrets** documented in `GITHUB_SIGNED_BUILD.md`;
+- set `ANDROID_UPLOAD_CERT_SHA256` from that JKS certificate fingerprint;
+- keep the long-lived application-signing private key out of ordinary Actions when RuStore is configured to use a separate upload key.
 
-For the RuStore AAB flow, the GitHub-produced AAB is signed with the **upload key**. RuStore-generated APKs delivered to users must use the configured **application-signing key**. These roles must not be confused when verifying artifacts or recording fingerprints.
+The currently observed external JKS certificate is already used by neighboring projects to sign distributable release APKs, so its existence alone does not prove that it is a dedicated RuStore upload identity. If the same certificate is intentionally used for both MeteoOne application signing and RuStore upload, record that decision explicitly in `CERTIFICATE_FINGERPRINTS.md` and in the RuStore configuration.
+
+For the RuStore AAB flow, the GitHub-produced AAB is signed with the certificate registered as the **upload key**. RuStore-generated APKs delivered to users use the configured **application-signing key**. These roles must not be confused when verifying artifacts or recording fingerprints.
 
 The same application-signing identity must be preserved when MeteoOne later enters Google Play. A different store upload key is acceptable; an incompatible application-signing key is not.
 
@@ -74,14 +76,14 @@ No release tag or GitHub Release is required for this first closed-alpha artifac
 
 ## Signed artifact gate
 
-After the five `release` environment secrets are configured:
+After the five repository secrets are configured:
 
 1. run **Signed Android Artifact** manually on `main`;
 2. require both workflow jobs to succeed;
 3. download the `meteoone-<version>-signed` Actions artifact;
 4. verify `SHA256SUMS` after download;
 5. keep the downloaded `.aab` byte-for-byte unchanged;
-6. record the workflow run URL, exact source SHA, AAB SHA-256, and upload-certificate fingerprint for the release record.
+6. record the workflow run URL, exact source SHA, AAB SHA-256, and signing-certificate fingerprint for the release record.
 
 The workflow verifies:
 
@@ -89,11 +91,11 @@ The workflow verifies:
 - reviewed version name/code;
 - APK v2/v3 signatures;
 - AAB JAR signature;
-- expected RuStore upload-certificate SHA-256;
+- expected certificate SHA-256;
 - required arm64 GRIB native libraries in APK and AAB;
 - non-empty matching R8 mapping;
 - deterministic checksums;
-- GitHub artifact attestations for APK/AAB.
+- GitHub artifact attestation for the AAB.
 
 It then deletes the temporary keystore and only uploads the verified artifacts to the GitHub Actions run. It has no RuStore credentials and performs no store publication.
 
