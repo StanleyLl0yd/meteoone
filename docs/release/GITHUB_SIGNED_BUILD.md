@@ -2,7 +2,9 @@
 
 MeteoOne uses GitHub Actions only to produce and verify a signed Android App Bundle for manual RuStore publication. Upload to RuStore, release creation in RuStore Console, moderation, tester management, and publication remain manual owner actions.
 
-The workflow is `.github/workflows/signed-release-build.yml` (`Signed Android Artifact`). It can run only through `workflow_dispatch` and rejects any source ref other than the current canonical `main`.
+The signing workflow is `.github/workflows/signed-release-build.yml` (`Signed Android Artifact`). It can run only through `workflow_dispatch` and rejects any source ref other than the current canonical `main`.
+
+For the first closed-alpha release, `.github/workflows/signed-release-request.yml` (`Signed Android Artifact Request`) provides a narrow owner-only request bridge: a new comment whose body is exactly `/build-signed-alpha` on release issue `#153`, authored by the repository owner, dispatches the existing signing workflow on `main`. The bridge receives no signing secrets and has only `actions: write`; it cannot publish to RuStore, write repository contents, create tags, or create releases. All other issue comments make its job skip.
 
 ## GitHub repository secrets
 
@@ -72,19 +74,23 @@ The locally generated APK is deliberately **not** exported from the workflow. An
 
 The job has no repository write permission and contains no RuStore upload/publish step.
 
-## Running a signed build
+## Requesting a signed build
 
-After this workflow has been merged to `main`, and after the five repository secrets exist:
+After the workflows are merged to `main` and the five repository secrets exist, either of these owner actions dispatches the same `Signed Android Artifact` workflow on `main`:
 
-1. open GitHub **Actions**;
-2. select **Signed Android Artifact**;
-3. choose **Run workflow** on `main`;
-4. wait for both `Validate signed build request` and `Build and verify signed artifacts` to succeed;
-5. download `meteoone-<version>-signed` from the workflow run;
-6. verify `SHA256SUMS` after download;
-7. upload the `.aab` to RuStore manually.
+- GitHub **Actions** → **Signed Android Artifact** → **Run workflow**; or
+- comment exactly `/build-signed-alpha` on release issue `#153`.
 
-For the first alpha the expected version is currently `0.1.0-alpha.1`, but the workflow reads the version from the reviewed `app/build.gradle.kts` rather than hard-coding that alpha forever.
+The issue-comment path is intentionally fixed to the first-alpha release issue and the repository owner. It is not a general command interface and it never receives the signing secrets itself.
+
+After dispatch:
+
+1. require both `Validate signed build request` and `Build and verify signed artifacts` to succeed;
+2. download `meteoone-<version>-signed` from the signing workflow run;
+3. verify `SHA256SUMS` after download;
+4. upload the `.aab` to RuStore manually only after the RuStore upload-certificate role has been confirmed.
+
+For the first alpha the expected version is currently `0.1.0-alpha.1`, but the signing workflow reads the version from the reviewed `app/build.gradle.kts` rather than hard-coding that alpha forever.
 
 ## After download
 
