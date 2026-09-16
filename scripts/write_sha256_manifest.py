@@ -46,9 +46,10 @@ def write_manifest(paths: list[Path], output: Path) -> None:
     if output.is_symlink():
         raise ValueError(f"refusing symlink output: {output}")
 
-    output_absolute = output.absolute()
+    output_resolved = output.resolve(strict=False)
     for artifact in paths:
-        if artifact.absolute() == output_absolute:
+        artifact_resolved = artifact.resolve(strict=True)
+        if artifact_resolved == output_resolved:
             raise ValueError(f"output would overwrite release artifact: {artifact}")
 
     output.write_text(build_manifest(paths), encoding="utf-8", newline="\n")
