@@ -26,6 +26,8 @@ secrets.properties
 .npmrc
 .pypirc
 service-account*.json
+pepk.jar
+*pepk*.zip
 
 # Generated / local
 captures/
