@@ -2,20 +2,35 @@
 
 This document is the repository-side checklist for the first private MeteoOne alpha, `0.1.0-alpha.1`.
 
-It does not replace RuStore Console configuration or developer/legal review. Secrets, keystores and private signing material must never be committed to this repository. RuStore publication is performed manually by the repository owner.
+RuStore publication remains a **manual owner action**. Repository automation may build, sign, verify and attest the AAB, but it must not upload or publish to RuStore. Secrets, keystores, private keys and PEPK output must never be committed.
 
-## Immutable application identity
+Current RuStore documentation was rechecked on 2026-09-16:
+
+- closed/private testing uses **alpha testing**;
+- alpha supports APK and AAB;
+- access is limited to explicitly invited testers identified by VK ID;
+- up to 2000 testers can be invited;
+- alpha versions are available through the mobile RuStore client, not the web catalog;
+- if this is the first app version, the alpha web link may return 404 and that is expected;
+- after an alpha consumes a `versionCode`, later alpha/public builds must use a higher code;
+- for AAB delivery the developer signs the AAB with the upload key, while RuStore generates APKs and signs them with the configured application-signing key.
+
+Official references:
+
+- <https://www.rustore.ru/help/developers/publishing-and-verifying-apps/app-publication/testing/alpha-testing>
+- <https://www.rustore.ru/help/developers/publishing-and-verifying-apps/app-publication/new-version-app/upload-aab>
+
+## Release identity
 
 - Application ID: `com.sl.meteoone`
 - Version name: `0.1.0-alpha.1`
 - Repository version code: `1`
 - Primary store: RuStore
-- Intended track: private alpha testing
-- Primary store artifact: signed AAB
+- Intended track: closed/private alpha testing
+- Store artifact: signed AAB
+- GitHub tag/release: not required for this first closed alpha
 
-`versionCode = 1` is the repository default for MeteoOne's intended first distributed build because no release lineage exists in Git. Before signing/uploading, the owner must also confirm in RuStore Console that no earlier package/version already occupies `versionCode >= 1`. Store history is external state and cannot be inferred from Git tags. If a previous RuStore upload requires a higher code, stop: raise `versionCode` in a dedicated PR and rerun the complete release gate before producing the distributable artifact.
-
-After a build is submitted/published in a store lineage, every later version must use a higher version code as required by that store.
+Before store upload, confirm in RuStore Console that no existing MeteoOne package/version history requires `versionCode > 1`. If it does, stop, raise `versionCode` in a reviewed PR, and rerun the signed-artifact gate. If alpha `versionCode = 1` is accepted and used, the next alpha/public build must use a higher version code.
 
 ## Privacy and permission declaration baseline
 
@@ -23,116 +38,106 @@ The store declaration must match the release code and [PRIVACY.md](../../PRIVACY
 
 Current alpha behavior:
 
-- `INTERNET` is used for weather-data requests.
-- `ACCESS_COARSE_LOCATION` is requested only after an explicit user action.
-- `ACCESS_FINE_LOCATION` is not requested.
-- Android-provided location is reduced to the canonical 0.1-degree forecast grid before persistence and before it becomes a forecast/cache identity.
+- `INTERNET` is used for weather-data requests;
+- `ACCESS_COARSE_LOCATION` is requested only after explicit user action;
+- `ACCESS_FINE_LOCATION` is not requested;
+- Android-provided location is reduced to the canonical 0.1-degree forecast grid before persistence and forecast/cache identity;
 - raw device latitude/longitude is not persisted;
-- the active reduced coordinate and time-zone id are stored in DataStore;
-- fused forecast snapshots and provenance/freshness state are stored in Room for offline use;
+- reduced coordinate and time-zone id are stored in DataStore;
+- fused forecast snapshots plus provenance/freshness are stored in Room for offline use;
 - Android backup is disabled;
 - no MeteoOne account, ads, analytics SDK or behavioral-tracking SDK is present in this alpha.
 
-For the RuStore data-safety/permission forms, disclose approximate location conservatively: the app processes approximate location for app functionality and may transmit the privacy-reduced 0.1-degree forecast coordinate to a weather provider when required to obtain the forecast. Do not describe raw/exact device coordinates as stored or transmitted by MeteoOne.
+For RuStore data-safety/permission forms, disclose approximate location conservatively. MeteoOne may transmit the privacy-reduced 0.1-degree forecast coordinate to weather providers to obtain the forecast. External providers also receive normal HTTPS transport metadata such as the connection's public IP address.
 
-External weather services receive normal HTTPS transport metadata, which can include the connection's public IP address. Their processing is outside MeteoOne's local storage boundary.
+## Repository verification status
 
-## Source and CI gate
+Repository signing/build verification is **COMPLETE** for the frozen release source:
 
-Before signing any distributable artifact:
+- source SHA: `ae27269aa753ebcd812922b5023d5f6854810df9`
+- post-merge CI: success
+- Security and Quality: success
+- Secret Scan: success
+- CodeQL: skipped by the existing compatibility gate; not represented as a Kotlin CodeQL pass
+- signed-build request run: `35109388774` — success
+- `Signed Android Artifact` run: `35109403734` — success
+- Actions artifact id: `10451423888`
+- artifact archive SHA-256: `6f16da1bd15162166eca2b4c28e6e9cfb4de2c5c150905ebf7e7da131e328cb4`
+- AAB SHA-256: `b5da2069b7d08d7eec39882aef921702c145d8648fe082ce6c6d0019b7bcd93c`
+- signing/upload-candidate certificate SHA-256: `F0:25:71:C4:07:41:E2:CB:07:15:64:F5:B6:3F:D3:DC:38:A8:75:D0:ED:A1:1A:8C:42:26:9E:D6:35:BC:2A:58`
+- signer: RSA 2048, exactly one signer
+- GitHub build-provenance attestation: `47936791`
 
-1. source revision is the current canonical `main`;
-2. RuStore Console version history is checked and confirms repository `versionCode = 1` is acceptable; otherwise bump it in a new reviewed PR first;
-3. `python3 scripts/verify_release_metadata.py --expected-version-name 0.1.0-alpha.1 --expected-version-code 1` passes for the chosen source revision;
-4. repository `CI` push run passes, including full Gradle/Android verification, Room schema drift, native AAR, and release JNI/R8 checks;
-5. `Security and Quality` push run passes;
-6. `Secret Scan` push run passes;
-7. Dependency Review passed on the PR that introduced the source/release changes;
-8. CodeQL status is recorded honestly; a compatibility-gated skip is not treated as successful Kotlin CodeQL analysis.
+The workflow verified package/version identity, APK v2/v3 signatures, AAB JAR signature, certificate fingerprint, required arm64 GRIB native libraries, R8 mapping, deterministic checksums, provenance and temporary-keystore cleanup. The downloaded artifact was independently rechecked after Actions.
 
-The manual [Signed Android Artifact](GITHUB_SIGNED_BUILD.md) workflow independently re-checks current `main` and refuses to expose release secrets until the required push workflows above have succeeded on that exact SHA.
-
-## Signing gate
+## Signing / RuStore AAB gate
 
 Follow [SIGNING.md](SIGNING.md), [GITHUB_SIGNED_BUILD.md](GITHUB_SIGNED_BUILD.md), and [CERTIFICATE_FINGERPRINTS.md](CERTIFICATE_FINGERPRINTS.md).
 
-The owner has reported that signing key material already exists outside Git. Before the first MeteoOne RuStore upload, keep the roles explicit rather than creating/replacing keys blindly:
+Keep these roles explicit:
 
-- identify the long-lived **application-signing key** used for Android update identity;
-- identify the certificate RuStore will accept as the **AAB upload key**;
-- derive and independently verify SHA-256 public-certificate fingerprints for both roles;
-- configure RuStore's application-signing/import side as required by its current AAB flow;
-- store only the JKS actually intended to sign the upload AAB in the five GitHub Actions **repository secrets** documented in `GITHUB_SIGNED_BUILD.md`;
-- set `ANDROID_UPLOAD_CERT_SHA256` from that JKS certificate fingerprint;
-- keep the long-lived application-signing private key out of ordinary Actions when RuStore is configured to use a separate upload key.
+- **application-signing key** — long-lived Android update identity used by RuStore to sign generated APKs delivered to users;
+- **upload key** — signs the AAB submitted to RuStore and is authenticated by its public certificate.
 
-The currently observed external JKS certificate is already used by neighboring projects to sign distributable release APKs, so its existence alone does not prove that it is a dedicated RuStore upload identity. If the same certificate is intentionally used for both MeteoOne application signing and RuStore upload, record that decision explicitly in `CERTIFICATE_FINGERPRINTS.md` and in the RuStore configuration.
+The verified AAB currently uses certificate:
 
-For the RuStore AAB flow, the GitHub-produced AAB is signed with the certificate registered as the **upload key**. RuStore-generated APKs delivered to users use the configured **application-signing key**. These roles must not be confused when verifying artifacts or recording fingerprints.
+`F0:25:71:C4:07:41:E2:CB:07:15:64:F5:B6:3F:D3:DC:38:A8:75:D0:ED:A1:1A:8C:42:26:9E:D6:35:BC:2A:58`
 
-The same application-signing identity must be preserved when MeteoOne later enters Google Play. A different store upload key is acceptable; an incompatible application-signing key is not.
+RuStore Console must still confirm that this certificate is intentionally registered as MeteoOne's AAB upload identity. The application-signing identity must also be configured in RuStore's AAB signing flow. If the same external key is intentionally used for both roles, record that explicitly; otherwise keep the long-lived application-signing key separate from the GitHub upload-key secrets.
 
-No release tag or GitHub Release is required for this first closed-alpha artifact path.
+RuStore currently asks for both application-signing material and the upload-key certificate during AAB signing setup. The public upload certificate can be exported directly from the verified AAB without accessing private key material:
 
-## Signed artifact gate
+```text
+python3 scripts/export_aab_upload_certificate.py \
+  meteoone-0.1.0-alpha.1.aab \
+  meteoone-0.1.0-alpha.1-uploadcert.pem \
+  --expected-sha256 F0:25:71:C4:07:41:E2:CB:07:15:64:F5:B6:3F:D3:DC:38:A8:75:D0:ED:A1:1A:8C:42:26:9E:D6:35:BC:2A:58
+```
 
-After the five repository secrets are configured:
+The PEM is public certificate material. The PEPK/application-signing export remains sensitive and must be produced only with the RuStore Console's current unique encryption key and the intended application-signing keystore.
 
-1. run **Signed Android Artifact** manually on `main`;
-2. require both workflow jobs to succeed;
-3. download the `meteoone-<version>-signed` Actions artifact;
-4. verify `SHA256SUMS` after download;
-5. keep the downloaded `.aab` byte-for-byte unchanged;
-6. record the workflow run URL, exact source SHA, AAB SHA-256, and signing-certificate fingerprint for the release record.
+## Store metadata / media
 
-The workflow verifies:
+Prepare console content from:
 
-- package/application ID `com.sl.meteoone`;
-- reviewed version name/code;
-- APK v2/v3 signatures;
-- AAB JAR signature;
-- expected certificate SHA-256;
-- required arm64 GRIB native libraries in APK and AAB;
-- non-empty matching R8 mapping;
-- deterministic checksums;
-- GitHub artifact attestation for the AAB.
+- [RUSTORE_LISTING.md](RUSTORE_LISTING.md) — listing copy and screenshot plan;
+- [0.1.0-alpha.1.md](0.1.0-alpha.1.md) — release notes and immutable build evidence;
+- [PRIVACY.md](../../PRIVACY.md) — public privacy-policy source.
 
-It then deletes the temporary keystore and only uploads the verified artifacts to the GitHub Actions run. It has no RuStore credentials and performs no store publication.
+Current RuStore screenshot requirements should be checked immediately before submission. The current public API documentation states at least 3 screenshots, one orientation only, JPEG/PNG, 16:9 or 9:16, 320–3840 px sides, max 5 MB each.
 
-## Store metadata
+## Remaining external/manual gate
 
-Prepare the console content from:
+Repository automation intentionally stops here. Still required in RuStore Console:
 
-- [RUSTORE_LISTING.md](RUSTORE_LISTING.md) for listing copy and screenshot requirements;
-- [0.1.0-alpha.1.md](0.1.0-alpha.1.md) for release notes;
-- [PRIVACY.md](../../PRIVACY.md) for the public privacy-policy source.
+1. confirm the MeteoOne package/version history permits `versionCode = 1`;
+2. create/finish the app entry and developer/contact/legal information;
+3. provide a publicly reachable privacy-policy URL based on `PRIVACY.md`;
+4. complete the current permission/data-safety declarations;
+5. provide real release screenshots/listing assets;
+6. configure/import the intended application-signing key for AAB delivery;
+7. register/confirm the verified AAB upload certificate;
+8. manually upload the exact unchanged AAB with SHA-256 `b5da2069b7d08d7eec39882aef921702c145d8648fe082ce6c6d0019b7bcd93c`;
+9. submit the alpha for moderation;
+10. add intended testers by their matching RuStore/VK ID and share the mobile alpha link;
+11. install through the mobile RuStore client;
+12. verify the certificate on the RuStore-delivered APK;
+13. complete the smoke test below.
 
-Recheck the current RuStore documentation and console fields immediately before submission because store requirements can change independently of the repository.
-
-## RuStore Console / external gate
-
-Repository automation intentionally stops before these owner/store actions:
-
-- verify the package/version history before accepting repository `versionCode`;
-- create/finish the RuStore application entry and developer/legal/contact details;
-- provide a publicly reachable privacy-policy URL based on the reviewed policy in `PRIVACY.md`;
-- complete the current RuStore permission and data-safety declarations;
-- configure/import the long-lived application-signing key and register the upload-key certificate as required for AAB distribution;
-- manually upload the exact verified AAB downloaded from GitHub Actions;
-- submit that AAB for alpha moderation;
-- add only intended alpha testers through the RuStore testing flow;
-- verify installation from the RuStore client on at least one supported device and confirm the delivered APK uses the expected application-signing certificate.
+Do not use the web catalog as the installation test for a first alpha; RuStore documents that the web link may return 404 for a first alpha.
 
 ## Alpha acceptance smoke test
 
-After store installation, a tester must be able to:
+A RuStore-installed tester build must be able to:
 
-1. launch the app without an automatic location prompt;
+1. launch without an automatic location prompt;
 2. explicitly request approximate current location;
 3. fetch and display the forecast;
-4. kill/restart the process and see the cached forecast without network access;
+4. kill/restart and show the cached forecast without network access;
 5. distinguish fresh, stale and expired cached data;
-6. trigger a manual online refresh without cached data disappearing during the refresh;
-7. retain cached data when a refresh/provider request fails.
+6. manually refresh online without cached data disappearing during refresh;
+7. retain cached data when refresh/provider requests fail.
 
-M3 product-polish work is not part of this alpha gate.
+Record the delivered APK application-signing fingerprint and smoke-test result in issue #153. Close #153 only after RuStore acceptance/install and this smoke test succeed.
+
+M3 product-polish work is not part of this alpha gate and must not start before the boundary is resolved.
