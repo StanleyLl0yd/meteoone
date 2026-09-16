@@ -33,15 +33,17 @@ The `Signed Android Artifact` workflow uses the `release` environment and these 
 - `ANDROID_KEY_PASSWORD`;
 - `ANDROID_UPLOAD_CERT_SHA256`.
 
-The first four names match the established signing convention already used by the neighboring `StanleyLl0yd/biorhythms` and `StanleyLl0yd/password-generator` Android projects. MeteoOne adds the fifth value so the workflow independently rejects an unexpected upload certificate before and after the build.
+The first four names match the established signing convention already used by the neighboring `StanleyLl0yd/biorhythms`, `StanleyLl0yd/password-generator`, and `StanleyLl0yd/watchrelay` Android projects. MeteoOne adds the fifth value so the workflow independently rejects an unexpected upload certificate before and after the build.
 
-Ordinary pull-request and push CI never receives these signing values. Gradle signing is conditional: no signing variables means the existing unsigned release verification path remains available; all four signing variables enables signing; a partial set fails configuration rather than silently producing an unsigned release.
+Ordinary pull-request and push CI never receives these signing values. Gradle signing is conditional: no signing variables means the existing unsigned release verification path remains available; all four signing variables enables signing; a partial set fails configuration rather than silently producing an unsigned release. The privileged workflow additionally sets `REQUIRE_RELEASE_SIGNING=true`, making a missing signing configuration fatal even if all signing variables disappear together.
 
 ## Signing key policy
 
 Application-signing and upload private keys are never committed to Git.
 
 Keep the original application-signing keystore and credentials backed up securely outside the development machine. Keep upload keys separate from the long-lived application-signing key so a routine upload credential can be rotated without changing Android application identity when the store supports rotation.
+
+If the existing key is only the application-signing/APK identity and no separate RuStore upload key exists, do not upload the long-lived private key into GitHub merely to satisfy the workflow. Follow the current RuStore AAB procedure to create/register a separate upload key, then place only that upload-key material in the protected `release` environment.
 
 The `.gitignore` and CI release-secret policy explicitly reject common keystore/PEPK/credential artifacts from repository history. This is defense in depth and does not replace secure off-repository backups.
 
@@ -53,18 +55,19 @@ Before GitHub Actions exposes signing secrets, the manual workflow:
 2. validates application identity, version metadata, release notes, CI supply-chain policy, and release-secret policy;
 3. requires successful `CI`, `Security and Quality`, and `Secret Scan` push runs on that exact source SHA.
 
-The signing job then:
+After any environment-approval delay, the signing job re-confirms that its source SHA is still current `origin/main`. It then:
 
 1. obtains credentials only from the `release` environment;
 2. reconstructs the temporary upload keystore under `RUNNER_TEMP` with restrictive permissions;
 3. verifies the upload certificate against the independently configured expected SHA-256 fingerprint;
-4. builds signed release APK and AAB artifacts;
+4. builds signed release APK and AAB artifacts with `REQUIRE_RELEASE_SIGNING=true`;
 5. verifies APK/AAB signatures, package/version identity, certificate fingerprint, and expected native libraries;
-6. emits and re-checks deterministic SHA-256 checksums;
-7. preserves the matching R8 mapping file;
-8. creates GitHub artifact attestations for APK/AAB;
-9. uploads only the verified release files with bounded retention;
-10. removes temporary signing material in an unconditional cleanup step.
+6. keeps the upload-key-signed APK internal to the runner as a verification artifact only;
+7. emits and re-checks deterministic SHA-256 checksums for the distributable AAB, mapping, and public provenance record;
+8. preserves the matching R8 mapping file;
+9. creates a GitHub artifact attestation for the AAB;
+10. uploads only the verified AAB, mapping, provenance, and checksums with bounded retention;
+11. removes temporary signing material in an unconditional cleanup step.
 
 The workflow has no repository write permission and no RuStore API credentials. **Publication remains manual.**
 
@@ -74,12 +77,14 @@ The first RuStore closed alpha does not require GitHub to create a release tag. 
 
 ## Artifacts
 
-The manual signed build provides:
+The downloadable manual signed-build artifact provides:
 
 - signed store-upload AAB;
-- supplementary signed APK for local verification/smoke testing;
 - deterministic `SHA256SUMS`;
 - matching R8 mapping file;
-- GitHub artifact attestations for APK/AAB.
+- public source/run/version/upload-certificate provenance;
+- GitHub artifact attestation for the AAB.
+
+The upload-key-signed APK is intentionally not exported because the APK delivered by RuStore is signed with the application-signing identity and can have a different certificate.
 
 Do not upload complete build directories or signing material as CI artifacts. Use bounded retention for verification artifacts.
