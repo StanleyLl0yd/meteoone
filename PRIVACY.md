@@ -36,7 +36,7 @@ As with any Internet request, an external service can receive ordinary transport
 
 ## Accounts, advertising, and analytics
 
-The `0.1.0-alpha.1` application has no MeteoOne account system, advertising SDK, analytics SDK, or behavioral-tracking SDK. MeteoOne does not sell user data.
+The `0.1.0-alpha.1` application has no MeteoOne account system, advertising SDK, analytics SDK, or behavioral-tracking SDK. The release code contains no mechanism for selling user data.
 
 ## Permissions
 
@@ -99,7 +99,7 @@ MeteoOne получает прогнозы по HTTPS от погодных се
 
 ## Аккаунты, реклама и аналитика
 
-В приложении `0.1.0-alpha.1` нет системы аккаунтов MeteoOne, рекламного SDK, SDK аналитики или SDK поведенческого трекинга. MeteoOne не продаёт пользовательские данные.
+В приложении `0.1.0-alpha.1` нет системы аккаунтов MeteoOne, рекламного SDK, SDK аналитики или SDK поведенческого трекинга. В коде этой версии нет механизма продажи пользовательских данных.
 
 ## Разрешения
 
