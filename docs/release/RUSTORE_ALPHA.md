@@ -85,6 +85,14 @@ For the exact signed AAB intended for RuStore:
 - record the exact source commit and build provenance;
 - ensure no keystore, password, private key or temporary signing material is present in build artifacts or logs.
 
+Generate the checksum manifest from the final immutable artifacts, not from an intermediate unsigned build:
+
+```text
+python3 scripts/write_sha256_manifest.py path/to/meteoone-0.1.0-alpha.1.aab --output SHA256SUMS
+```
+
+The checksum helper accepts only explicit regular files, refuses symlink inputs and duplicate output names, and sorts manifest entries deterministically.
+
 ## Store metadata
 
 Prepare the console content from:
