@@ -4,7 +4,7 @@
     <string name="tagline">Несколько моделей. Один прогноз.</string>
     <string name="foundation_status">Разрабатывается ядро прогноза</string>
 
-    <string name="alpha_label">Предпросмотр 0.1 alpha · offline-first</string>
+    <string name="alpha_label">0.1.0-alpha.1 · offline-first</string>
     <string name="forecast_no_target">Выберите место для прогноза</string>
     <string name="forecast_location_explanation">MeteoOne запрашивает приблизительное местоположение только после нажатия кнопки. Координата округляется до сетки прогноза 0,1° до сохранения и использования как ключа кэша.</string>
     <string name="forecast_target_coordinate">Сетка прогноза: %1$.1f°, %2$.1f°</string>

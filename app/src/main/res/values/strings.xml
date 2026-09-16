@@ -4,7 +4,7 @@
     <string name="tagline">Many models. One forecast.</string>
     <string name="foundation_status">Forecast foundation in development</string>
 
-    <string name="alpha_label">0.1 alpha preview · offline-first</string>
+    <string name="alpha_label">0.1.0-alpha.1 · offline-first</string>
     <string name="forecast_no_target">Choose a forecast location</string>
     <string name="forecast_location_explanation">MeteoOne requests approximate location only after you tap the button. The coordinate is rounded to the 0.1° forecast grid before it is saved or used as a cache key.</string>
     <string name="forecast_target_coordinate">Forecast grid: %1$.1f°, %2$.1f°</string>

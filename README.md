@@ -10,7 +10,7 @@ MeteoOne is an Android weather application that combines forecasts from multiple
 - Model and provider are separate concepts.
 - Forecast fusion is robust and explainable before any ML is introduced.
 - Exact user location is not persisted.
-- Offline-first: cached forecast is shown immediately and refreshed in the background.
+- Offline-first: cached forecast is shown immediately and refreshed explicitly in the current alpha slice.
 - Partial provider failure must degrade gracefully.
 - Confidence is not shown as a calibrated percentage until it is backed by verification data.
 - No API provider is allowed to leak transport DTOs into the domain layer.
@@ -35,15 +35,19 @@ MeteoOne 1.0 targets:
 - Primary: RuStore
 - Later: Google Play
 - Android package: `com.sl.meteoone`
+- First closed-alpha version: `0.1.0-alpha.1` (`versionCode = 1`)
 - Release artifacts: signed AAB and APK
 
 ## Status
 
-Pre-alpha / foundation.
+M2 offline-first data layer is complete. The project is preparing `0.1.0-alpha.1` for private RuStore alpha testing; M3 product-UI work has not started.
 
 See:
 
 - [ROADMAP.md](ROADMAP.md) for milestone sequencing;
+- [PRIVACY.md](PRIVACY.md) for the current alpha privacy policy;
+- [docs/release/RUSTORE_ALPHA.md](docs/release/RUSTORE_ALPHA.md) for the first RuStore alpha gate;
+- [docs/release/SIGNING.md](docs/release/SIGNING.md) for signing and integrity controls;
 - [docs/architecture/README.md](docs/architecture/README.md) for architecture;
 - [docs/branding/BRAND_GUIDE.md](docs/branding/BRAND_GUIDE.md) for brand identity and voice;
 - [docs/design/DESIGN_SYSTEM.md](docs/design/DESIGN_SYSTEM.md) for UI implementation rules;
