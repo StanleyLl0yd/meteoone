@@ -12,14 +12,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -46,6 +47,7 @@ import com.sl.meteoone.core.location.CurrentLocationResult
 import com.sl.meteoone.core.location.LocationRequestHandle
 import com.sl.meteoone.core.model.ForecastTarget
 import com.sl.meteoone.core.model.FusedHourlyForecast
+import com.sl.meteoone.core.model.ModelAgreement
 import com.sl.meteoone.core.model.WeatherCondition
 import com.sl.meteoone.core.preferences.ForecastTargetStore
 import com.sl.meteoone.forecast.repository.ForecastCacheState
@@ -53,6 +55,7 @@ import com.sl.meteoone.forecast.repository.ForecastFreshness
 import com.sl.meteoone.forecast.repository.ForecastRefreshResult
 import com.sl.meteoone.forecast.repository.ForecastRepository
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.CancellationException
@@ -343,10 +346,13 @@ private fun ForecastSnapshot(
 ) {
     val forecast = cache.forecast
     val current = forecast.hourly.firstOrNull()
+    val dayGroups = remember(forecast.hourly, timeZoneId) {
+        groupHourlyByLocalDay(forecast.hourly, timeZoneId)
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
             CurrentConditionsCard(
@@ -374,11 +380,13 @@ private fun ForecastSnapshot(
             )
         }
         items(
-            items = forecast.hourly,
-            key = { item -> item.weather.time.toEpochMilli() },
-        ) { item ->
-            HourlyForecastRow(item = item, timeZoneId = timeZoneId)
-            HorizontalDivider()
+            items = dayGroups,
+            key = { group -> group.date.toEpochDay() },
+        ) { group ->
+            HourlyDayRail(
+                group = group,
+                timeZoneId = timeZoneId,
+            )
         }
     }
 }
@@ -498,63 +506,109 @@ private fun ForecastFreshnessCard(
 }
 
 @Composable
-private fun HourlyForecastRow(
+private fun HourlyDayRail(
+    group: HourlyDayGroup,
+    timeZoneId: String,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            Text(
+                text = DAY_FORMATTER.format(group.date),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(R.string.hourly_day_count, group.items.size),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        LazyRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(
+                items = group.items,
+                key = { item -> item.weather.time.toEpochMilli() },
+            ) { item ->
+                HourlyForecastCard(
+                    item = item,
+                    timeZoneId = timeZoneId,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HourlyForecastCard(
     item: FusedHourlyForecast,
     timeZoneId: String,
 ) {
     val weather = item.weather
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 10.dp),
+    Card(
+        modifier = Modifier.width(152.dp),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = formatInstant(weather.time, timeZoneId, HOUR_FORMATTER),
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                Text(
-                    text = conditionLabel(weather.condition),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+        Column(modifier = Modifier.padding(14.dp)) {
             Text(
+                text = formatInstant(weather.time, timeZoneId, TIME_FORMATTER),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                modifier = Modifier.padding(top = 10.dp),
                 text = weather.temperatureC?.let { value ->
                     stringResource(R.string.value_temperature_c, value)
                 } ?: stringResource(R.string.value_unavailable),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
             )
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
             Text(
+                modifier = Modifier.padding(top = 2.dp),
+                text = conditionLabel(weather.condition),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                modifier = Modifier.padding(top = 12.dp),
                 text = weather.precipitationMm?.let { value ->
                     stringResource(R.string.value_precipitation_mm, value)
                 } ?: stringResource(R.string.value_precipitation_unavailable),
                 style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
+                modifier = Modifier.padding(top = 2.dp),
                 text = weather.windSpeedMps?.let { value ->
                     stringResource(R.string.value_wind_mps, value)
                 } ?: stringResource(R.string.value_wind_unavailable),
                 style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
+                modifier = Modifier.padding(top = 10.dp),
+                text = agreementLabel(item.agreement),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                modifier = Modifier.padding(top = 2.dp),
                 text = stringResource(
-                    R.string.value_evidence,
+                    R.string.value_evidence_compact,
                     item.independentEvidenceCount,
                 ),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -687,6 +741,27 @@ private fun conditionLabel(condition: WeatherCondition): String = when (conditio
     WeatherCondition.THUNDERSTORM -> stringResource(R.string.condition_thunderstorm)
 }
 
+@Composable
+private fun agreementLabel(agreement: ModelAgreement): String = when (agreement) {
+    ModelAgreement.HIGH -> stringResource(R.string.agreement_high)
+    ModelAgreement.MEDIUM -> stringResource(R.string.agreement_medium)
+    ModelAgreement.LOW -> stringResource(R.string.agreement_low)
+    ModelAgreement.INSUFFICIENT -> stringResource(R.string.agreement_insufficient)
+}
+
+private fun groupHourlyByLocalDay(
+    items: List<FusedHourlyForecast>,
+    timeZoneId: String,
+): List<HourlyDayGroup> {
+    val zone = runCatching { ZoneId.of(timeZoneId) }
+        .getOrElse { ZoneId.systemDefault() }
+    return items
+        .groupBy { item -> item.weather.time.atZone(zone).toLocalDate() }
+        .map { (date, groupedItems) ->
+            HourlyDayGroup(date = date, items = groupedItems)
+        }
+}
+
 private fun formatInstant(
     instant: Instant,
     timeZoneId: String,
@@ -696,6 +771,11 @@ private fun formatInstant(
         .getOrElse { ZoneId.systemDefault() }
     return formatter.withZone(zone).format(instant)
 }
+
+private data class HourlyDayGroup(
+    val date: LocalDate,
+    val items: List<FusedHourlyForecast>,
+)
 
 private sealed interface TargetLoadState {
     data object Loading : TargetLoadState
@@ -723,3 +803,5 @@ private sealed interface AlphaOperation {
 
 private val DATE_TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 private val HOUR_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE HH:mm")
+private val TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+private val DAY_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE, d MMM")
