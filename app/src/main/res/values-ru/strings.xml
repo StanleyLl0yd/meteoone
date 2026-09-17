@@ -5,15 +5,25 @@
     <string name="foundation_status">Разрабатывается ядро прогноза</string>
 
     <string name="alpha_label">0.1.0-alpha.1 · offline-first</string>
+    <string name="forecast_screen_subtitle">Ваш объединённый прогноз</string>
+    <string name="nav_forecast">Прогноз</string>
+    <string name="nav_models">Модели</string>
+    <string name="nav_settings">Настройки</string>
+    <string name="onboarding_title">Погода без передачи точного местоположения</string>
+    <string name="onboarding_body">Начните с приблизительного местоположения. MeteoOne объединяет несколько моделей прогноза и сохраняет последний прогноз для работы без сети.</string>
     <string name="forecast_no_target">Выберите место для прогноза</string>
+    <string name="forecast_location_approximate">Приблизительное местоположение</string>
     <string name="forecast_location_explanation">MeteoOne запрашивает приблизительное местоположение только после нажатия кнопки. Координата округляется до сетки прогноза 0,1° до сохранения и использования как ключа кэша.</string>
     <string name="forecast_target_coordinate">Сетка прогноза: %1$.1f°, %2$.1f°</string>
     <string name="forecast_privacy_note">Сохраняется только координата с пониженной точностью для сетки прогноза.</string>
     <string name="forecast_target_read_failed">Не удалось прочитать сохранённое место прогноза. Его можно заменить текущим приблизительным местоположением.</string>
     <string name="forecast_cache_read_failed">Не удалось прочитать сохранённый прогноз.</string>
     <string name="forecast_no_cache">Сохранённого прогноза пока нет. Выполните обновление при наличии сети.</string>
-    <string name="forecast_generated">Сформирован: %1$s</string>
+    <string name="forecast_generated">Обновлён: %1$s</string>
     <string name="forecast_hours_count">Почасовых точек прогноза: %1$d</string>
+    <string name="current_conditions_title">Текущие условия</string>
+    <string name="current_conditions_time">Прогноз на %1$s</string>
+    <string name="hourly_forecast_title">Почасовой прогноз</string>
 
     <string name="action_use_approximate_location">Использовать приблизительное текущее место</string>
     <string name="action_update_location">Обновить место</string>
