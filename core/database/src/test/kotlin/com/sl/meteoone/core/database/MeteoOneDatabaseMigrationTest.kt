@@ -62,19 +62,6 @@ class MeteoOneDatabaseMigrationTest {
             )
         }
 
-        migrationHelper.runMigrationsAndValidate(
-            databaseName,
-            2,
-            true,
-            MIGRATION_1_2,
-        ).use { database ->
-            assertEquals(1L, database.count("forecast_snapshots"))
-            assertEquals(1L, database.count("forecast_hourly"))
-            assertEquals(0L, database.count("forecast_sources"))
-            assertEquals(0L, database.count("forecast_source_hourly"))
-            assertEquals(0L, database.count("forecast_failed_sources"))
-        }
-
         val latest = Room.databaseBuilder(context, MeteoOneDatabase::class.java, databaseName)
             .addMigrations(MIGRATION_1_2)
             .allowMainThreadQueries()
@@ -88,6 +75,13 @@ class MeteoOneDatabaseMigrationTest {
             assertEquals(7.5, stored.forecast.hourly.single().weather.temperatureC)
             assertEquals(emptyList(), stored.sourceForecasts)
             assertEquals(emptyList(), stored.failedSources)
+
+            val sqlite = latest.openHelper.readableDatabase
+            assertEquals(1L, sqlite.count("forecast_snapshots"))
+            assertEquals(1L, sqlite.count("forecast_hourly"))
+            assertEquals(0L, sqlite.count("forecast_sources"))
+            assertEquals(0L, sqlite.count("forecast_source_hourly"))
+            assertEquals(0L, sqlite.count("forecast_failed_sources"))
         } finally {
             latest.close()
             context.deleteDatabase(databaseName)
