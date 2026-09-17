@@ -1,4 +1,4 @@
-name: Signed Android Artifact Request
+name: Signed Android Release Request
 
 on:
   issue_comment:
@@ -8,18 +8,18 @@ permissions: {}
 
 jobs:
   dispatch:
-    name: Dispatch signed alpha build
+    name: Dispatch signed GitHub release
     if: >-
-      github.event.issue.number == 153 &&
+      !github.event.issue.pull_request &&
       github.event.comment.user.login == github.repository_owner &&
-      github.event.comment.body == '/build-signed-alpha'
+      github.event.comment.body == '/build-release'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       actions: write
 
     steps:
-      - name: Dispatch canonical signed artifact workflow
+      - name: Dispatch canonical signed release workflow
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
