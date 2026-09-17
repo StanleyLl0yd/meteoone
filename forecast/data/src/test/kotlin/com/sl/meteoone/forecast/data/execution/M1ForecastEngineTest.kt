@@ -50,6 +50,16 @@ class M1ForecastEngineTest {
         assertEquals(2, ecmwfCrossCheckPoint.providerCount)
         assertEquals(3, ecmwfCrossCheckPoint.independentEvidenceCount)
         assertEquals(6, available.successfulSources.size)
+        assertEquals(
+            available.successfulSources,
+            available.sourceForecasts.map { source ->
+                m1Identity(source.origin.provider, source.origin.modelFamily)
+            },
+        )
+        assertEquals(
+            listOf(1, 72, 1, 72, 1, 72),
+            available.sourceForecasts.map { it.hourly.size },
+        )
 
         assertEquals(Instant.parse("2026-09-14T00:00:00Z"), executor.modelRuns.single())
         assertEquals(listOf(13), executor.noaaHours)
@@ -81,6 +91,12 @@ class M1ForecastEngineTest {
 
         assertEquals(72, available.forecast.hourly.size)
         assertEquals(4, available.successfulSources.size)
+        assertEquals(
+            available.successfulSources,
+            available.sourceForecasts.map { source ->
+                m1Identity(source.origin.provider, source.origin.modelFamily)
+            },
+        )
         assertEquals(2, available.failedSources.size)
         assertTrue(
             m1Identity(ForecastProvider.ECMWF_OPEN_DATA, ModelFamily.ECMWF_IFS) in
