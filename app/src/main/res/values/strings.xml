@@ -5,15 +5,25 @@
     <string name="foundation_status">Forecast foundation in development</string>
 
     <string name="alpha_label">0.1.0-alpha.1 · offline-first</string>
+    <string name="forecast_screen_subtitle">Your fused forecast</string>
+    <string name="nav_forecast">Forecast</string>
+    <string name="nav_models">Models</string>
+    <string name="nav_settings">Settings</string>
+    <string name="onboarding_title">Weather without giving away precise location</string>
+    <string name="onboarding_body">Start with your approximate location. MeteoOne combines several forecast models and keeps the latest forecast available offline.</string>
     <string name="forecast_no_target">Choose a forecast location</string>
+    <string name="forecast_location_approximate">Approximate location</string>
     <string name="forecast_location_explanation">MeteoOne requests approximate location only after you tap the button. The coordinate is rounded to the 0.1° forecast grid before it is saved or used as a cache key.</string>
     <string name="forecast_target_coordinate">Forecast grid: %1$.1f°, %2$.1f°</string>
     <string name="forecast_privacy_note">Only the privacy-reduced forecast grid coordinate is persisted.</string>
     <string name="forecast_target_read_failed">The saved forecast target could not be read. You can replace it with the current approximate location.</string>
     <string name="forecast_cache_read_failed">The cached forecast could not be read.</string>
     <string name="forecast_no_cache">No cached forecast yet. Refresh while online to create one.</string>
-    <string name="forecast_generated">Generated: %1$s</string>
+    <string name="forecast_generated">Updated: %1$s</string>
     <string name="forecast_hours_count">%1$d hourly forecast points</string>
+    <string name="current_conditions_title">Current conditions</string>
+    <string name="current_conditions_time">Forecast for %1$s</string>
+    <string name="hourly_forecast_title">Hourly forecast</string>
 
     <string name="action_use_approximate_location">Use approximate current location</string>
     <string name="action_update_location">Update location</string>
