@@ -111,7 +111,7 @@ jobs:
           exit 1
 
   build-sign:
-    name: Build and verify signed artifacts
+    name: Build and verify signed release
     needs: validate
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -171,7 +171,7 @@ jobs:
       - name: Install Android SDK packages
         run: android sdk install platforms/android-37.0 build-tools/37.0.0
 
-      - name: Restore and validate RuStore upload keystore
+      - name: Restore and validate release keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -187,7 +187,7 @@ jobs:
           test -n "$ANDROID_UPLOAD_CERT_SHA256"
 
           umask 077
-          keystore_path="$RUNNER_TEMP/meteoone-rustore-upload.jks"
+          keystore_path="$RUNNER_TEMP/meteoone-release.jks"
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
           chmod 600 "$keystore_path"
           test -s "$keystore_path"
@@ -209,12 +209,12 @@ jobs:
           [[ "$expected" =~ ^[0-9a-f]{64}$ ]]
           [[ "$actual" =~ ^[0-9a-f]{64}$ ]]
           test "$actual" = "$expected"
-          echo "RuStore upload certificate SHA-256 verified: $actual"
+          echo "Release signing certificate SHA-256 verified: $actual"
 
       - name: Build signed APK and AAB
         env:
           REQUIRE_RELEASE_SIGNING: "true"
-          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/meteoone-rustore-upload.jks
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/meteoone-release.jks
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
@@ -225,7 +225,7 @@ jobs:
           :app:assembleRelease
           :app:bundleRelease
 
-      - name: Verify signed release artifacts
+      - name: Verify and stage signed release artifacts
         id: package
         env:
           ANDROID_UPLOAD_CERT_SHA256: ${{ secrets.ANDROID_UPLOAD_CERT_SHA256 }}
@@ -274,9 +274,11 @@ jobs:
           done
 
           mkdir -p release
+          apk_name="meteoone-$VERSION_NAME.apk"
           aab_name="meteoone-$VERSION_NAME.aab"
           mapping_name="meteoone-$VERSION_NAME-mapping.txt"
           provenance_name="meteoone-$VERSION_NAME-build.txt"
+          cp "$source_apk" "release/$apk_name"
           cp "$source_aab" "release/$aab_name"
           cp "$mapping" "release/$mapping_name"
           {
@@ -285,10 +287,15 @@ jobs:
             echo "application_id=com.sl.meteoone"
             echo "version_name=$VERSION_NAME"
             echo "version_code=$VERSION_CODE"
+            echo "signing_certificate_sha256=$expected"
             echo "upload_certificate_sha256=$expected"
+            echo "apk_role=manual-device-smoke-test"
+            echo "aab_role=manual-rustore-upload-after-apk-pass"
+            echo "not_rustore_delivered_apk=true"
           } > "release/$provenance_name"
 
           python3 scripts/write_sha256_manifest.py \
+            "release/$apk_name" \
             "release/$aab_name" \
             "release/$mapping_name" \
             "release/$provenance_name" \
@@ -299,21 +306,28 @@ jobs:
             sha256sum --check SHA256SUMS
           )
 
+          echo "apk_path=release/$apk_name" >> "$GITHUB_OUTPUT"
           echo "aab_path=release/$aab_name" >> "$GITHUB_OUTPUT"
           echo "mapping_path=release/$mapping_name" >> "$GITHUB_OUTPUT"
           echo "provenance_path=release/$provenance_name" >> "$GITHUB_OUTPUT"
           echo "checksums_path=release/SHA256SUMS" >> "$GITHUB_OUTPUT"
+
+      - name: Attest manual-test APK
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: ${{ steps.package.outputs.apk_path }}
 
       - name: Attest RuStore upload AAB
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: ${{ steps.package.outputs.aab_path }}
 
-      - name: Upload signed AAB for manual RuStore publication
+      - name: Upload signed APK and AAB release bundle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: meteoone-${{ needs.validate.outputs.version_name }}-signed
+          name: meteoone-${{ needs.validate.outputs.version_name }}-signed-release
           path: |
+            ${{ steps.package.outputs.apk_path }}
             ${{ steps.package.outputs.aab_path }}
             ${{ steps.package.outputs.mapping_path }}
             ${{ steps.package.outputs.provenance_path }}
@@ -323,4 +337,4 @@ jobs:
 
       - name: Remove signing material
         if: always()
-        run: rm -f "$RUNNER_TEMP/meteoone-rustore-upload.jks"
+        run: rm -f "$RUNNER_TEMP/meteoone-release.jks"
