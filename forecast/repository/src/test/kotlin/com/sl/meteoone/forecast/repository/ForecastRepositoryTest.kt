@@ -1,12 +1,18 @@
 package com.sl.meteoone.forecast.repository
 
 import com.sl.meteoone.core.database.ForecastSnapshotStore
+import com.sl.meteoone.core.database.StoredForecastSnapshot
+import com.sl.meteoone.core.database.StoredForecastSourceIdentity
 import com.sl.meteoone.core.model.ForecastCoordinate
 import com.sl.meteoone.core.model.ForecastLocation
+import com.sl.meteoone.core.model.ForecastOrigin
+import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.FusedForecast
 import com.sl.meteoone.core.model.FusedHourlyForecast
 import com.sl.meteoone.core.model.HourlyWeatherPoint
 import com.sl.meteoone.core.model.ModelAgreement
+import com.sl.meteoone.core.model.ModelFamily
+import com.sl.meteoone.core.model.SourceForecast
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -52,30 +58,45 @@ class ForecastRepositoryTest {
     }
 
     @Test
-    fun successfulRefreshPublishesOnlyThroughStore() = runBlocking {
+    fun successfulRefreshPublishesForecastAndEvidenceOnlyThroughStore() = runBlocking {
         val old = forecast(temperatureC = 8.0)
         val fresh = forecast(temperatureC = 12.0)
+        val sourceForecast = sourceForecast(ForecastProvider.OPEN_METEO, ModelFamily.ECMWF_IFS, 11.0)
+        val failed = ForecastSourceIdentity(ForecastProvider.DWD_OPEN_DATA, ModelFamily.DWD_ICON)
         val store = FakeStore(initial = old)
         var observedGeneratedAt: Instant? = null
         val repository = repository(store) { _, _, _, sourceGeneratedAt ->
             observedGeneratedAt = sourceGeneratedAt
-            ForecastRefreshSourceResult.Available(forecast = fresh, degraded = false)
+            available(
+                forecast = fresh,
+                sourceForecasts = listOf(sourceForecast),
+                failedSources = listOf(failed),
+                degraded = true,
+            )
         }
 
         assertEquals(
-            ForecastRefreshResult.Updated,
+            ForecastRefreshResult.UpdatedWithDegradation,
             repository.refresh(coordinate, elevationMeters = 12, timeZoneId = "Europe/Moscow"),
         )
         assertEquals(generatedAt, observedGeneratedAt)
         assertEquals(fresh, store.lastReplacement)
-        assertEquals(fresh, repository.observe(coordinate).first()?.forecast)
+        assertEquals(listOf(sourceForecast), store.lastSourceForecasts)
+        assertEquals(
+            listOf(StoredForecastSourceIdentity(failed.provider, failed.modelFamily)),
+            store.lastFailedSources,
+        )
+        val state = requireNotNull(repository.observe(coordinate).first())
+        assertEquals(fresh, state.forecast)
+        assertEquals(listOf(sourceForecast), state.sourceForecasts)
+        assertEquals(listOf(failed), state.failedSources)
     }
 
     @Test
     fun degradedSuccessfulRefreshIsReportedSeparately() = runBlocking {
         val fresh = forecast(temperatureC = 12.0)
         val repository = repository(FakeStore()) { _, _, _, _ ->
-            ForecastRefreshSourceResult.Available(forecast = fresh, degraded = true)
+            available(forecast = fresh, degraded = true)
         }
 
         assertEquals(
@@ -85,28 +106,32 @@ class ForecastRepositoryTest {
     }
 
     @Test
-    fun unavailableRefreshPreservesCachedForecast() = runBlocking {
+    fun unavailableRefreshPreservesCachedForecastAndEvidence() = runBlocking {
         val cached = forecast(temperatureC = 8.0)
-        val store = FakeStore(initial = cached)
-        val repository = repository(store) { _, _, _, _ ->
-            ForecastRefreshSourceResult.Unavailable
-        }
+        val source = sourceForecast(ForecastProvider.OPEN_METEO, ModelFamily.NOAA_GFS, 7.0)
+        val failed = StoredForecastSourceIdentity(ForecastProvider.ECMWF_OPEN_DATA, ModelFamily.ECMWF_IFS)
+        val store = FakeStore(initial = cached, initialSources = listOf(source), initialFailed = listOf(failed))
+        val repository = repository(store) { _, _, _, _ -> ForecastRefreshSourceResult.Unavailable }
 
         assertEquals(
             ForecastRefreshResult.Unavailable,
             repository.refresh(coordinate, elevationMeters = null, timeZoneId = "UTC"),
         )
         assertEquals(0, store.replaceCount)
-        assertEquals(cached, repository.observe(coordinate).first()?.forecast)
+        val state = requireNotNull(repository.observe(coordinate).first())
+        assertEquals(cached, state.forecast)
+        assertEquals(listOf(source), state.sourceForecasts)
+        assertEquals(
+            listOf(ForecastSourceIdentity(failed.provider, failed.modelFamily)),
+            state.failedSources,
+        )
     }
 
     @Test
     fun sourceFailurePreservesCachedForecast() = runBlocking {
         val cached = forecast(temperatureC = 8.0)
         val store = FakeStore(initial = cached)
-        val repository = repository(store) { _, _, _, _ ->
-            error("network execution failed")
-        }
+        val repository = repository(store) { _, _, _, _ -> error("network execution failed") }
 
         assertEquals(
             ForecastRefreshResult.Failed,
@@ -117,19 +142,27 @@ class ForecastRepositoryTest {
     }
 
     @Test
-    fun failedPersistenceDoesNotPublishNetworkForecast() = runBlocking {
+    fun failedPersistenceDoesNotPublishNetworkForecastOrEvidence() = runBlocking {
         val cached = forecast(temperatureC = 8.0)
+        val cachedSource = sourceForecast(ForecastProvider.OPEN_METEO, ModelFamily.NOAA_GFS, 8.0)
         val fresh = forecast(temperatureC = 12.0)
-        val store = FakeStore(initial = cached, failReplace = true)
+        val freshSource = sourceForecast(ForecastProvider.OPEN_METEO, ModelFamily.ECMWF_IFS, 12.0)
+        val store = FakeStore(
+            initial = cached,
+            initialSources = listOf(cachedSource),
+            failReplace = true,
+        )
         val repository = repository(store) { _, _, _, _ ->
-            ForecastRefreshSourceResult.Available(forecast = fresh, degraded = false)
+            available(forecast = fresh, sourceForecasts = listOf(freshSource))
         }
 
         assertEquals(
             ForecastRefreshResult.Failed,
             repository.refresh(coordinate, elevationMeters = null, timeZoneId = "UTC"),
         )
-        assertEquals(cached, repository.observe(coordinate).first()?.forecast)
+        val state = requireNotNull(repository.observe(coordinate).first())
+        assertEquals(cached, state.forecast)
+        assertEquals(listOf(cachedSource), state.sourceForecasts)
     }
 
     @Test
@@ -137,9 +170,7 @@ class ForecastRepositoryTest {
         val cached = forecast(temperatureC = 8.0)
         val fresh = forecast(temperatureC = 12.0)
         val store = FakeStore(initial = cached, publishReplacement = false)
-        val repository = repository(store) { _, _, _, _ ->
-            ForecastRefreshSourceResult.Available(forecast = fresh, degraded = false)
-        }
+        val repository = repository(store) { _, _, _, _ -> available(forecast = fresh) }
 
         assertEquals(
             ForecastRefreshResult.Updated,
@@ -154,10 +185,9 @@ class ForecastRepositoryTest {
         val cached = forecast(temperatureC = 8.0, horizonHours = 6)
         val mutableClock = MutableClock(generatedAt)
         val store = FakeStore(initial = cached)
-        val repository = repository(
-            store = store,
-            clock = mutableClock,
-        ) { _, _, _, _ -> ForecastRefreshSourceResult.Unavailable }
+        val repository = repository(store = store, clock = mutableClock) { _, _, _, _ ->
+            ForecastRefreshSourceResult.Unavailable
+        }
         val firstObserved = CompletableDeferred<Unit>()
         val observed = mutableListOf<ForecastCacheState?>()
         val collector = launch {
@@ -178,7 +208,10 @@ class ForecastRepositoryTest {
         while (observed.size < 2) delay(1)
         collector.cancel()
 
-        assertEquals(listOf(ForecastFreshness.FRESH, ForecastFreshness.STALE), observed.take(2).map { it?.freshness })
+        assertEquals(
+            listOf(ForecastFreshness.FRESH, ForecastFreshness.STALE),
+            observed.take(2).map { it?.freshness },
+        )
         assertEquals(cached, observed[1]?.forecast)
         assertEquals(0, store.replaceCount)
     }
@@ -200,10 +233,7 @@ class ForecastRepositoryTest {
                     firstEntered.countDown()
                     check(releaseFirst.await(5, TimeUnit.SECONDS)) { "first refresh was not released" }
                 }
-                ForecastRefreshSourceResult.Available(
-                    forecast = forecast(temperatureC = 10.0 + call),
-                    degraded = false,
-                )
+                available(forecast = forecast(temperatureC = 10.0 + call))
             } finally {
                 active.decrementAndGet()
             }
@@ -258,39 +288,70 @@ class ForecastRepositoryTest {
         ioDispatcher = Dispatchers.Unconfined,
     )
 
+    private fun available(
+        forecast: FusedForecast,
+        sourceForecasts: List<SourceForecast> = emptyList(),
+        failedSources: List<ForecastSourceIdentity> = emptyList(),
+        degraded: Boolean = false,
+    ) = ForecastRefreshSourceResult.Available(
+        forecast = forecast,
+        sourceForecasts = sourceForecasts,
+        failedSources = failedSources,
+        degraded = degraded,
+    )
+
     private fun forecast(
         temperatureC: Double,
         horizonHours: Long = 1,
     ): FusedForecast = FusedForecast(
-        location = ForecastLocation(
-            latitude = coordinate.latitude,
-            longitude = coordinate.longitude,
-            elevationMeters = 12,
-            timeZoneId = "Europe/Moscow",
-        ),
+        location = location(),
         generatedAt = generatedAt,
         hourly = (1L..horizonHours).map { hour ->
             FusedHourlyForecast(
-                weather = HourlyWeatherPoint(
-                    time = generatedAt.plus(Duration.ofHours(hour)),
-                    temperatureC = temperatureC,
-                    feelsLikeC = null,
-                    dewPointC = null,
-                    humidityPercent = null,
-                    pressureSeaLevelHpa = null,
-                    windSpeedMps = null,
-                    windGustMps = null,
-                    windDirectionDegrees = null,
-                    precipitationMm = null,
-                    precipitationProbabilityPercent = null,
-                    cloudCoverPercent = null,
-                    visibilityMeters = null,
-                ),
+                weather = hourly(generatedAt.plus(Duration.ofHours(hour)), temperatureC),
                 providerCount = 1,
                 independentEvidenceCount = 1,
                 agreement = ModelAgreement.INSUFFICIENT,
             )
         },
+    )
+
+    private fun sourceForecast(
+        provider: ForecastProvider,
+        modelFamily: ModelFamily,
+        temperatureC: Double,
+    ): SourceForecast = SourceForecast(
+        origin = ForecastOrigin(
+            provider = provider,
+            modelFamily = modelFamily,
+            modelRun = generatedAt.minus(Duration.ofHours(6)),
+            generatedAt = generatedAt,
+        ),
+        location = location(),
+        hourly = listOf(hourly(generatedAt.plus(Duration.ofHours(1)), temperatureC)),
+    )
+
+    private fun location() = ForecastLocation(
+        latitude = coordinate.latitude,
+        longitude = coordinate.longitude,
+        elevationMeters = 12,
+        timeZoneId = "Europe/Moscow",
+    )
+
+    private fun hourly(time: Instant, temperatureC: Double) = HourlyWeatherPoint(
+        time = time,
+        temperatureC = temperatureC,
+        feelsLikeC = null,
+        dewPointC = null,
+        humidityPercent = null,
+        pressureSeaLevelHpa = null,
+        windSpeedMps = null,
+        windGustMps = null,
+        windDirectionDegrees = null,
+        precipitationMm = null,
+        precipitationProbabilityPercent = null,
+        cloudCoverPercent = null,
+        visibilityMeters = null,
     )
 }
 
@@ -397,28 +458,41 @@ private class MutableClock(
 
 private class FakeStore(
     initial: FusedForecast? = null,
+    initialSources: List<SourceForecast> = emptyList(),
+    initialFailed: List<StoredForecastSourceIdentity> = emptyList(),
     private val failReplace: Boolean = false,
     private val publishReplacement: Boolean = true,
 ) : ForecastSnapshotStore {
-    private val state = MutableStateFlow(initial)
+    private val state = MutableStateFlow(
+        initial?.let { StoredForecastSnapshot(it, initialSources, initialFailed) },
+    )
 
     var replaceCount: Int = 0
         private set
-
     var lastReplacement: FusedForecast? = null
         private set
+    var lastSourceForecasts: List<SourceForecast> = emptyList()
+        private set
+    var lastFailedSources: List<StoredForecastSourceIdentity> = emptyList()
+        private set
 
-    override fun observe(coordinate: ForecastCoordinate): Flow<FusedForecast?> = state
+    override fun observe(coordinate: ForecastCoordinate): Flow<StoredForecastSnapshot?> = state
 
-    override suspend fun read(coordinate: ForecastCoordinate): FusedForecast? = state.value
+    override suspend fun read(coordinate: ForecastCoordinate): StoredForecastSnapshot? = state.value
 
     override suspend fun replace(
         coordinate: ForecastCoordinate,
         forecast: FusedForecast,
+        sourceForecasts: List<SourceForecast>,
+        failedSources: List<StoredForecastSourceIdentity>,
     ) {
         replaceCount += 1
         lastReplacement = forecast
+        lastSourceForecasts = sourceForecasts
+        lastFailedSources = failedSources
         if (failReplace) error("persistence failed")
-        if (publishReplacement) state.value = forecast
+        if (publishReplacement) {
+            state.value = StoredForecastSnapshot(forecast, sourceForecasts, failedSources)
+        }
     }
 }
