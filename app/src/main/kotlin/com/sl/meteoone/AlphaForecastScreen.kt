@@ -367,6 +367,12 @@ private fun ForecastSnapshot(
             )
         }
         item {
+            DailyForecastSummarySection(
+                items = forecast.hourly,
+                timeZoneId = timeZoneId,
+            )
+        }
+        item {
             Spacer(Modifier.height(4.dp))
             Text(
                 text = stringResource(R.string.hourly_forecast_title),

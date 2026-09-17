@@ -23,6 +23,13 @@
     <string name="forecast_hours_count">%1$d hourly forecast points</string>
     <string name="current_conditions_title">Current conditions</string>
     <string name="current_conditions_time">Forecast for %1$s</string>
+    <string name="daily_forecast_title">Next three days</string>
+    <string name="daily_forecast_explanation">High/low use available hourly temperatures; condition is the forecast nearest local noon.</string>
+    <string name="daily_condition_midday_hint">Condition near local noon</string>
+    <string name="daily_high_temperature">High %1$.1f °C</string>
+    <string name="daily_low_temperature">Low %1$.1f °C</string>
+    <string name="daily_high_unavailable">High —</string>
+    <string name="daily_low_unavailable">Low —</string>
     <string name="hourly_forecast_title">Hourly forecast</string>
     <string name="hourly_day_count">%1$d hours</string>
 

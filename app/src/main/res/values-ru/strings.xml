@@ -23,6 +23,13 @@
     <string name="forecast_hours_count">Почасовых точек прогноза: %1$d</string>
     <string name="current_conditions_title">Текущие условия</string>
     <string name="current_conditions_time">Прогноз на %1$s</string>
+    <string name="daily_forecast_title">Ближайшие три дня</string>
+    <string name="daily_forecast_explanation">Мин./макс. рассчитаны по доступным почасовым температурам; состояние — прогноз, ближайший к местному полудню.</string>
+    <string name="daily_condition_midday_hint">Состояние около местного полудня</string>
+    <string name="daily_high_temperature">Макс. %1$.1f °C</string>
+    <string name="daily_low_temperature">Мин. %1$.1f °C</string>
+    <string name="daily_high_unavailable">Макс. —</string>
+    <string name="daily_low_unavailable">Мин. —</string>
     <string name="hourly_forecast_title">Почасовой прогноз</string>
     <string name="hourly_day_count">%1$d ч.</string>
 
