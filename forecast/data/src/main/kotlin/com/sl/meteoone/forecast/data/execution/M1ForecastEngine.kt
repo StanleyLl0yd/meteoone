@@ -338,8 +338,12 @@ class M1ForecastEngine internal constructor(
         require(combined.forecast.hourly.map { it.weather.time } == horizonTimes) {
             "M1 fused forecast must preserve the exact 72-hour baseline horizon"
         }
+        val successfulForecasts = horizonResults
+            .filterIsInstance<ForecastSourceResult.Success>()
+            .map { it.forecast }
         return M1ForecastEngineResult.Available(
             forecast = combined.forecast,
+            sourceForecasts = successfulForecasts,
             successfulSources = combined.successfulSources.map { it.toM1Identity() },
             failedSources = combined.failedSources.map { it.toM1Identity() },
         )
