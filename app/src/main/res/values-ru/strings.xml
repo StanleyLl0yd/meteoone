@@ -24,6 +24,7 @@
     <string name="current_conditions_title">Текущие условия</string>
     <string name="current_conditions_time">Прогноз на %1$s</string>
     <string name="hourly_forecast_title">Почасовой прогноз</string>
+    <string name="hourly_day_count">%1$d ч.</string>
 
     <string name="action_use_approximate_location">Использовать приблизительное текущее место</string>
     <string name="action_update_location">Обновить место</string>
@@ -53,6 +54,12 @@
     <string name="value_wind_mps">Ветер %1$.1f м/с</string>
     <string name="value_wind_unavailable">Ветер —</string>
     <string name="value_evidence">Свидетельств %1$d</string>
+    <string name="value_evidence_compact">Независимых: %1$d</string>
+
+    <string name="agreement_high">Согласие моделей: высокое</string>
+    <string name="agreement_medium">Согласие моделей: среднее</string>
+    <string name="agreement_low">Согласие моделей: низкое</string>
+    <string name="agreement_insufficient">Согласие моделей: мало данных</string>
 
     <string name="condition_unknown">Неизвестно</string>
     <string name="condition_clear">Ясно</string>
