@@ -24,6 +24,7 @@
     <string name="current_conditions_title">Current conditions</string>
     <string name="current_conditions_time">Forecast for %1$s</string>
     <string name="hourly_forecast_title">Hourly forecast</string>
+    <string name="hourly_day_count">%1$d hours</string>
 
     <string name="action_use_approximate_location">Use approximate current location</string>
     <string name="action_update_location">Update location</string>
@@ -53,6 +54,12 @@
     <string name="value_wind_mps">Wind %1$.1f m/s</string>
     <string name="value_wind_unavailable">Wind —</string>
     <string name="value_evidence">Evidence %1$d</string>
+    <string name="value_evidence_compact">%1$d independent</string>
+
+    <string name="agreement_high">Agreement: high</string>
+    <string name="agreement_medium">Agreement: medium</string>
+    <string name="agreement_low">Agreement: low</string>
+    <string name="agreement_insufficient">Agreement: limited data</string>
 
     <string name="condition_unknown">Unknown</string>
     <string name="condition_clear">Clear</string>
