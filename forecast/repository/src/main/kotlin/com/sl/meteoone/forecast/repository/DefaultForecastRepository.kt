@@ -3,8 +3,10 @@ package com.sl.meteoone.forecast.repository
 import android.content.Context
 import com.sl.meteoone.core.database.ForecastSnapshotDatabase
 import com.sl.meteoone.core.database.ForecastSnapshotStore
+import com.sl.meteoone.core.database.StoredForecastSourceIdentity
 import com.sl.meteoone.core.model.ForecastCoordinate
 import com.sl.meteoone.core.model.FusedForecast
+import com.sl.meteoone.core.model.SourceForecast
 import com.sl.meteoone.forecast.data.execution.M1ForecastEngine
 import com.sl.meteoone.forecast.data.execution.M1ForecastEngineResult
 import java.time.Clock
@@ -35,6 +37,8 @@ internal fun createAndroidForecastRepository(context: Context): ForecastReposito
 internal sealed interface ForecastRefreshSourceResult {
     data class Available(
         val forecast: FusedForecast,
+        val sourceForecasts: List<SourceForecast>,
+        val failedSources: List<ForecastSourceIdentity>,
         val degraded: Boolean,
     ) : ForecastRefreshSourceResult
 
@@ -68,6 +72,10 @@ internal class M1ForecastRefreshSource(
     ) {
         is M1ForecastEngineResult.Available -> ForecastRefreshSourceResult.Available(
             forecast = result.forecast,
+            sourceForecasts = result.sourceForecasts,
+            failedSources = result.failedSources.map { identity ->
+                ForecastSourceIdentity(identity.provider, identity.modelFamily)
+            },
             degraded = result.failedSources.isNotEmpty(),
         )
 
@@ -118,11 +126,15 @@ internal class DefaultForecastRepository(
         combine(
             store.observe(coordinate),
             freshnessRevision,
-        ) { forecast, _ ->
-            forecast?.let {
+        ) { stored, _ ->
+            stored?.let {
                 ForecastCacheState(
-                    forecast = it,
-                    freshness = freshnessPolicy.classify(it, clock.instant()),
+                    forecast = it.forecast,
+                    freshness = freshnessPolicy.classify(it.forecast, clock.instant()),
+                    sourceForecasts = it.sourceForecasts,
+                    failedSources = it.failedSources.map { identity ->
+                        ForecastSourceIdentity(identity.provider, identity.modelFamily)
+                    },
                 )
             }
         }.distinctUntilChanged()
@@ -143,7 +155,17 @@ internal class DefaultForecastRepository(
                     )
                 ) {
                     is ForecastRefreshSourceResult.Available -> {
-                        store.replace(coordinate, result.forecast)
+                        store.replace(
+                            coordinate = coordinate,
+                            forecast = result.forecast,
+                            sourceForecasts = result.sourceForecasts,
+                            failedSources = result.failedSources.map { identity ->
+                                StoredForecastSourceIdentity(
+                                    provider = identity.provider,
+                                    modelFamily = identity.modelFamily,
+                                )
+                            },
+                        )
                         if (result.degraded) {
                             ForecastRefreshResult.UpdatedWithDegradation
                         } else {
