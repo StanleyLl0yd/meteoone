@@ -19,10 +19,12 @@ class SignedReleaseRequestWorkflowPolicyTest(unittest.TestCase):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, self.text)
 
-    def test_is_fixed_to_owner_release_issue_and_exact_command(self) -> None:
-        self.assertIn("github.event.issue.number == 153", self.text)
+    def test_is_owner_only_exact_generic_release_command(self) -> None:
+        self.assertIn("!github.event.issue.pull_request", self.text)
         self.assertIn("github.event.comment.user.login == github.repository_owner", self.text)
-        self.assertIn("github.event.comment.body == '/build-signed-alpha'", self.text)
+        self.assertIn("github.event.comment.body == '/build-release'", self.text)
+        self.assertNotIn("github.event.issue.number == 153", self.text)
+        self.assertNotIn("/build-signed-alpha", self.text)
 
     def test_has_only_actions_write_job_permission(self) -> None:
         self.assertIn("permissions: {}", self.text)
@@ -36,7 +38,7 @@ class SignedReleaseRequestWorkflowPolicyTest(unittest.TestCase):
         self.assertNotIn("ANDROID_UPLOAD_CERT", self.text)
         self.assertNotIn("RUSTORE", self.text.upper())
 
-    def test_dispatches_only_existing_manual_workflow_on_main(self) -> None:
+    def test_dispatches_only_existing_release_workflow_on_main(self) -> None:
         self.assertIn("gh workflow run signed-release-build.yml", self.text)
         self.assertIn('--repo "$GITHUB_REPOSITORY"', self.text)
         self.assertIn("--ref main", self.text)
