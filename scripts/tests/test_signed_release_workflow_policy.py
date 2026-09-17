@@ -28,18 +28,13 @@ class SignedReleaseWorkflowPolicyTest(unittest.TestCase):
         self.assertIn("workflow_dispatch:", self.text)
         self.assertIsNone(re.search(r"(?m)^\s{2}(?:push|pull_request|pull_request_target):", self.text))
 
-    def test_does_not_publish_or_mutate_repository(self) -> None:
-        forbidden = (
-            "contents: write",
-            "gh release",
-            "git push",
-            "refs/tags/",
-            "secrets: inherit",
-            "RUSTORE_API",
-        )
-        for value in forbidden:
-            with self.subTest(value=value):
-                self.assertNotIn(value, self.text)
+    def test_publishes_only_to_github_release(self) -> None:
+        self.assertIn("contents: write", self.text)
+        self.assertIn("gh release create", self.text)
+        self.assertNotIn("actions/upload-artifact", self.text)
+        self.assertNotIn("actions/attest", self.text)
+        self.assertNotIn("RUSTORE_API", self.text)
+        self.assertNotIn("git push", self.text)
 
     def test_uses_repository_secrets_without_release_environment(self) -> None:
         self.assertNotIn("environment: release", self.text)
@@ -60,40 +55,42 @@ class SignedReleaseWorkflowPolicyTest(unittest.TestCase):
         self.assertIn('source_apk="app/build/outputs/apk/release/app-release.apk"', self.text)
         self.assertIn('source_aab="app/build/outputs/bundle/release/app-release.aab"', self.text)
 
-    def test_exports_verified_apk_and_aab_together(self) -> None:
+    def test_release_assets_are_only_apk_and_aab(self) -> None:
         self.assertIn('apk_name="meteoone-$VERSION_NAME.apk"', self.text)
         self.assertIn('aab_name="meteoone-$VERSION_NAME.aab"', self.text)
         self.assertIn('echo "apk_path=release/$apk_name"', self.text)
         self.assertIn('echo "aab_path=release/$aab_name"', self.text)
-        self.assertIn("steps.package.outputs.apk_path", self.text)
-        self.assertIn("steps.package.outputs.aab_path", self.text)
-        self.assertIn("Upload signed APK and AAB release bundle", self.text)
-        self.assertIn("retention-days: 30", self.text)
+        self.assertIn('"$APK_PATH"', self.text)
+        self.assertIn('"$AAB_PATH"', self.text)
+        for forbidden in (
+            "SHA256SUMS",
+            "provenance_name=",
+            "mapping_path=",
+            "checksums_path=",
+            "upload-certificate",
+            "uploadcert.pem",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, self.text)
 
-    def test_checksums_cover_both_binary_artifacts(self) -> None:
-        self.assertIn('"release/$apk_name"', self.text)
-        self.assertIn('"release/$aab_name"', self.text)
-        self.assertIn("sha256sum --check SHA256SUMS", self.text)
+    def test_manual_apk_testing_is_not_a_release_gate(self) -> None:
+        for forbidden in (
+            "manual-device-smoke-test",
+            "manual-test APK",
+            "after-apk-pass",
+            "APK PASS",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, self.text)
 
-    def test_records_artifact_roles_and_public_build_provenance(self) -> None:
-        self.assertIn('provenance_name="meteoone-$VERSION_NAME-build.txt"', self.text)
-        self.assertIn('echo "source_sha=$GITHUB_SHA"', self.text)
-        self.assertIn(
-            'echo "workflow_run=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"',
-            self.text,
-        )
-        self.assertIn('echo "signing_certificate_sha256=$expected"', self.text)
-        self.assertIn('echo "upload_certificate_sha256=$expected"', self.text)
-        self.assertIn('echo "apk_role=manual-device-smoke-test"', self.text)
-        self.assertIn('echo "aab_role=manual-rustore-upload-after-apk-pass"', self.text)
-        self.assertIn('echo "not_rustore_delivered_apk=true"', self.text)
-        self.assertIn('"release/$provenance_name"', self.text)
+    def test_prerelease_versions_are_marked_prerelease(self) -> None:
+        self.assertIn('if [[ "$VERSION_NAME" == *-* ]]; then', self.text)
+        self.assertIn("args+=(--prerelease)", self.text)
 
-    def test_attests_both_binary_artifacts(self) -> None:
-        self.assertIn("Attest manual-test APK", self.text)
-        self.assertIn("Attest RuStore upload AAB", self.text)
-        self.assertIn("subject-path: ${{ steps.package.outputs.apk_path }}", self.text)
-        self.assertIn("subject-path: ${{ steps.package.outputs.aab_path }}", self.text)
+    def test_rejects_existing_release_identity(self) -> None:
+        self.assertIn('tag="v$VERSION_NAME"', self.text)
+        self.assertIn('gh release view "$tag"', self.text)
+        self.assertIn('git ls-remote --exit-code --tags origin "refs/tags/$tag"', self.text)
 
     def test_has_single_release_chain(self) -> None:
         for path in LEGACY_PARALLEL_WORKFLOWS:
