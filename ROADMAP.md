@@ -2,6 +2,8 @@
 
 The roadmap is milestone-driven. `main` should remain releasable after the Android project is bootstrapped.
 
+Release policy across milestones: every version selected for release produces a signed APK and signed AAB from one reviewed source SHA and publishes both as the only binary assets of a GitHub Release. Manual APK testing is optional. Alpha and beta versions are GitHub-only; RuStore publication starts only when a stable release is intentionally selected for the store.
+
 ## M0 — Foundation and research
 
 - repository governance and security baseline;
@@ -85,17 +87,20 @@ Exit: public clients no longer depend on embedding provider secrets.
 - release R8 testing;
 - 16 KB page-size verification where native code is present;
 - device/API compatibility matrix;
-- store metadata and privacy declarations.
+- final store metadata and privacy declarations for the later stable store release.
 
-Exit: release candidate quality.
+Exit: release candidate quality. Beta binaries remain GitHub-only.
 
-## M7 — RuStore 1.0
+## M7 — Stable release and RuStore 1.0
 
-- signed AAB as primary store artifact;
-- signed APK as supplementary artifact;
-- reproducible release workflow;
-- checksum and mapping artifacts;
-- release notes and final store review.
+- publish signed APK + signed AAB in the GitHub Release;
+- perform optional manual APK acceptance testing when desired;
+- complete release notes and final store review;
+- configure the stable RuStore signing/store record;
+- manually upload the unchanged stable AAB from the GitHub Release to RuStore;
+- no repository automation publishes to RuStore.
+
+Exit: stable GitHub release and accepted RuStore 1.0 publication.
 
 ## M8 — Post-1.0
 
