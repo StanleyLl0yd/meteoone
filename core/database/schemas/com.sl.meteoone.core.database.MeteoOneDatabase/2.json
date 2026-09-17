@@ -1,0 +1,532 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "e986ad86807b8d986bc88b28126fdace",
+    "entities": [
+      {
+        "tableName": "forecast_snapshots",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`coordinate_key` TEXT NOT NULL, `latitude_tenths` INTEGER NOT NULL, `longitude_tenths` INTEGER NOT NULL, `generated_at_epoch_second` INTEGER NOT NULL, `generated_at_nano` INTEGER NOT NULL, `elevation_meters` INTEGER, `time_zone_id` TEXT NOT NULL, PRIMARY KEY(`coordinate_key`))",
+        "fields": [
+          {
+            "fieldPath": "coordinateKey",
+            "columnName": "coordinate_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "latitudeTenths",
+            "columnName": "latitude_tenths",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "longitudeTenths",
+            "columnName": "longitude_tenths",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generatedAtEpochSecond",
+            "columnName": "generated_at_epoch_second",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generatedAtNano",
+            "columnName": "generated_at_nano",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "elevationMeters",
+            "columnName": "elevation_meters",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "timeZoneId",
+            "columnName": "time_zone_id",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "coordinate_key"
+          ]
+        }
+      },
+      {
+        "tableName": "forecast_hourly",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`coordinate_key` TEXT NOT NULL, `position` INTEGER NOT NULL, `time_epoch_second` INTEGER NOT NULL, `time_nano` INTEGER NOT NULL, `temperature_c` REAL, `feels_like_c` REAL, `dew_point_c` REAL, `humidity_percent` REAL, `pressure_sea_level_hpa` REAL, `wind_speed_mps` REAL, `wind_gust_mps` REAL, `wind_direction_degrees` REAL, `precipitation_mm` REAL, `precipitation_probability_percent` REAL, `cloud_cover_percent` REAL, `visibility_meters` REAL, `condition` TEXT NOT NULL, `wind_gust_interval_start_epoch_second` INTEGER, `wind_gust_interval_start_nano` INTEGER, `precipitation_interval_start_epoch_second` INTEGER, `precipitation_interval_start_nano` INTEGER, `provider_count` INTEGER NOT NULL, `independent_evidence_count` INTEGER NOT NULL, `agreement` TEXT NOT NULL, PRIMARY KEY(`coordinate_key`, `position`), FOREIGN KEY(`coordinate_key`) REFERENCES `forecast_snapshots`(`coordinate_key`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "coordinateKey",
+            "columnName": "coordinate_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timeEpochSecond",
+            "columnName": "time_epoch_second",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timeNano",
+            "columnName": "time_nano",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "temperatureC",
+            "columnName": "temperature_c",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "feelsLikeC",
+            "columnName": "feels_like_c",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "dewPointC",
+            "columnName": "dew_point_c",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "humidityPercent",
+            "columnName": "humidity_percent",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "pressureSeaLevelHpa",
+            "columnName": "pressure_sea_level_hpa",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "windSpeedMps",
+            "columnName": "wind_speed_mps",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "windGustMps",
+            "columnName": "wind_gust_mps",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "windDirectionDegrees",
+            "columnName": "wind_direction_degrees",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "precipitationMm",
+            "columnName": "precipitation_mm",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "precipitationProbabilityPercent",
+            "columnName": "precipitation_probability_percent",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "cloudCoverPercent",
+            "columnName": "cloud_cover_percent",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "visibilityMeters",
+            "columnName": "visibility_meters",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "condition",
+            "columnName": "condition",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "windGustIntervalStartEpochSecond",
+            "columnName": "wind_gust_interval_start_epoch_second",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "windGustIntervalStartNano",
+            "columnName": "wind_gust_interval_start_nano",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "precipitationIntervalStartEpochSecond",
+            "columnName": "precipitation_interval_start_epoch_second",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "precipitationIntervalStartNano",
+            "columnName": "precipitation_interval_start_nano",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "providerCount",
+            "columnName": "provider_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "independentEvidenceCount",
+            "columnName": "independent_evidence_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "agreement",
+            "columnName": "agreement",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "coordinate_key",
+            "position"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_forecast_hourly_coordinate_key",
+            "unique": false,
+            "columnNames": [
+              "coordinate_key"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_forecast_hourly_coordinate_key` ON `${TABLE_NAME}` (`coordinate_key`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "forecast_snapshots",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "coordinate_key"
+            ],
+            "referencedColumns": [
+              "coordinate_key"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "forecast_sources",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`coordinate_key` TEXT NOT NULL, `provider` TEXT NOT NULL, `model_family` TEXT NOT NULL, `model_run_epoch_second` INTEGER, `model_run_nano` INTEGER, `generated_at_epoch_second` INTEGER NOT NULL, `generated_at_nano` INTEGER NOT NULL, PRIMARY KEY(`coordinate_key`, `provider`, `model_family`), FOREIGN KEY(`coordinate_key`) REFERENCES `forecast_snapshots`(`coordinate_key`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "coordinateKey",
+            "columnName": "coordinate_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "provider",
+            "columnName": "provider",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modelFamily",
+            "columnName": "model_family",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modelRunEpochSecond",
+            "columnName": "model_run_epoch_second",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "modelRunNano",
+            "columnName": "model_run_nano",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "generatedAtEpochSecond",
+            "columnName": "generated_at_epoch_second",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generatedAtNano",
+            "columnName": "generated_at_nano",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "coordinate_key",
+            "provider",
+            "model_family"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_forecast_sources_coordinate_key",
+            "unique": false,
+            "columnNames": [
+              "coordinate_key"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_forecast_sources_coordinate_key` ON `${TABLE_NAME}` (`coordinate_key`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "forecast_snapshots",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "coordinate_key"
+            ],
+            "referencedColumns": [
+              "coordinate_key"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "forecast_source_hourly",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`coordinate_key` TEXT NOT NULL, `provider` TEXT NOT NULL, `model_family` TEXT NOT NULL, `position` INTEGER NOT NULL, `time_epoch_second` INTEGER NOT NULL, `time_nano` INTEGER NOT NULL, `temperature_c` REAL, `feels_like_c` REAL, `dew_point_c` REAL, `humidity_percent` REAL, `pressure_sea_level_hpa` REAL, `wind_speed_mps` REAL, `wind_gust_mps` REAL, `wind_direction_degrees` REAL, `precipitation_mm` REAL, `precipitation_probability_percent` REAL, `cloud_cover_percent` REAL, `visibility_meters` REAL, `condition` TEXT NOT NULL, `wind_gust_interval_start_epoch_second` INTEGER, `wind_gust_interval_start_nano` INTEGER, `precipitation_interval_start_epoch_second` INTEGER, `precipitation_interval_start_nano` INTEGER, PRIMARY KEY(`coordinate_key`, `provider`, `model_family`, `position`), FOREIGN KEY(`coordinate_key`, `provider`, `model_family`) REFERENCES `forecast_sources`(`coordinate_key`, `provider`, `model_family`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "coordinateKey",
+            "columnName": "coordinate_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "provider",
+            "columnName": "provider",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modelFamily",
+            "columnName": "model_family",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timeEpochSecond",
+            "columnName": "time_epoch_second",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timeNano",
+            "columnName": "time_nano",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "temperatureC",
+            "columnName": "temperature_c",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "feelsLikeC",
+            "columnName": "feels_like_c",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "dewPointC",
+            "columnName": "dew_point_c",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "humidityPercent",
+            "columnName": "humidity_percent",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "pressureSeaLevelHpa",
+            "columnName": "pressure_sea_level_hpa",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "windSpeedMps",
+            "columnName": "wind_speed_mps",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "windGustMps",
+            "columnName": "wind_gust_mps",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "windDirectionDegrees",
+            "columnName": "wind_direction_degrees",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "precipitationMm",
+            "columnName": "precipitation_mm",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "precipitationProbabilityPercent",
+            "columnName": "precipitation_probability_percent",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "cloudCoverPercent",
+            "columnName": "cloud_cover_percent",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "visibilityMeters",
+            "columnName": "visibility_meters",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "condition",
+            "columnName": "condition",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "windGustIntervalStartEpochSecond",
+            "columnName": "wind_gust_interval_start_epoch_second",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "windGustIntervalStartNano",
+            "columnName": "wind_gust_interval_start_nano",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "precipitationIntervalStartEpochSecond",
+            "columnName": "precipitation_interval_start_epoch_second",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "precipitationIntervalStartNano",
+            "columnName": "precipitation_interval_start_nano",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "coordinate_key",
+            "provider",
+            "model_family",
+            "position"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_forecast_source_hourly_coordinate_key_provider_model_family",
+            "unique": false,
+            "columnNames": [
+              "coordinate_key",
+              "provider",
+              "model_family"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_forecast_source_hourly_coordinate_key_provider_model_family` ON `${TABLE_NAME}` (`coordinate_key`, `provider`, `model_family`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "forecast_sources",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "coordinate_key",
+              "provider",
+              "model_family"
+            ],
+            "referencedColumns": [
+              "coordinate_key",
+              "provider",
+              "model_family"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "forecast_failed_sources",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`coordinate_key` TEXT NOT NULL, `provider` TEXT NOT NULL, `model_family` TEXT NOT NULL, PRIMARY KEY(`coordinate_key`, `provider`, `model_family`), FOREIGN KEY(`coordinate_key`) REFERENCES `forecast_snapshots`(`coordinate_key`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "coordinateKey",
+            "columnName": "coordinate_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "provider",
+            "columnName": "provider",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modelFamily",
+            "columnName": "model_family",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "coordinate_key",
+            "provider",
+            "model_family"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_forecast_failed_sources_coordinate_key",
+            "unique": false,
+            "columnNames": [
+              "coordinate_key"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_forecast_failed_sources_coordinate_key` ON `${TABLE_NAME}` (`coordinate_key`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "forecast_snapshots",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "coordinate_key"
+            ],
+            "referencedColumns": [
+              "coordinate_key"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e986ad86807b8d986bc88b28126fdace')"
+    ]
+  }
+}
