@@ -119,8 +119,27 @@ jobs:
       - name: Verify Room schema is committed
         run: |
           set -euo pipefail
-          git diff --exit-code -- core/database/schemas
-          test -z "$(git status --porcelain --untracked-files=all -- core/database/schemas)"
+          dirty=0
+          if ! git diff --exit-code -- core/database/schemas; then
+            dirty=1
+          fi
+          mapfile -t untracked < <(
+            git ls-files --others --exclude-standard -- core/database/schemas
+          )
+          if ((${#untracked[@]})); then
+            printf 'Untracked Room schema files:\n'
+            printf '  %s\n' "${untracked[@]}"
+            for file in "${untracked[@]}"; do
+              echo "::group::$file"
+              cat "$file"
+              echo "::endgroup::"
+            done
+            dirty=1
+          fi
+          if ((dirty)); then
+            echo "Room schema output differs from the committed schema set." >&2
+            exit 1
+          fi
 
       - name: Verify forecast data native AAR
         run: >-
