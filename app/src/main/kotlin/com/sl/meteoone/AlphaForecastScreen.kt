@@ -14,12 +14,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -33,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sl.meteoone.core.location.AndroidCurrentLocationClient
 import com.sl.meteoone.core.location.CurrentLocationResult
@@ -156,7 +163,10 @@ internal fun AlphaForecastScreen(
         }
     }
 
-    Scaffold(modifier = Modifier.fillMaxSize()) { contentPadding ->
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        bottomBar = { ProductNavigationBar() },
+    ) { contentPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -166,13 +176,14 @@ internal fun AlphaForecastScreen(
             Text(
                 text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = stringResource(R.string.alpha_label),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
+                text = stringResource(R.string.forecast_screen_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(16.dp))
 
             when (val load = targetLoad) {
                 TargetLoadState.Loading -> CenteredProgress()
@@ -204,6 +215,32 @@ internal fun AlphaForecastScreen(
 }
 
 @Composable
+private fun ProductNavigationBar() {
+    NavigationBar {
+        NavigationBarItem(
+            selected = true,
+            onClick = {},
+            icon = {},
+            label = { Text(stringResource(R.string.nav_forecast)) },
+        )
+        NavigationBarItem(
+            selected = false,
+            onClick = {},
+            enabled = false,
+            icon = {},
+            label = { Text(stringResource(R.string.nav_models)) },
+        )
+        NavigationBarItem(
+            selected = false,
+            onClick = {},
+            enabled = false,
+            icon = {},
+            label = { Text(stringResource(R.string.nav_settings)) },
+        )
+    }
+}
+
+@Composable
 private fun TargetForecastContent(
     modifier: Modifier,
     target: ForecastTarget,
@@ -230,16 +267,18 @@ private fun TargetForecastContent(
 
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
+            text = stringResource(R.string.forecast_location_approximate),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
             text = stringResource(
                 R.string.forecast_target_coordinate,
                 target.coordinate.latitude,
                 target.coordinate.longitude,
             ),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Text(
-            text = stringResource(R.string.forecast_privacy_note),
             style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(8.dp))
 
@@ -261,7 +300,7 @@ private fun TargetForecastContent(
             }
         }
         OperationMessage(operation)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
 
         when (val load = cacheLoad) {
             CacheLoadState.Loading -> CenteredProgress()
@@ -272,10 +311,18 @@ private fun TargetForecastContent(
             is CacheLoadState.Loaded -> {
                 val cache = load.cache
                 if (cache == null) {
-                    Text(
-                        text = stringResource(R.string.forecast_no_cache),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        ),
+                    ) {
+                        Text(
+                            modifier = Modifier.padding(16.dp),
+                            text = stringResource(R.string.forecast_no_cache),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
                 } else {
                     ForecastSnapshot(
                         modifier = Modifier.weight(1f),
@@ -295,44 +342,157 @@ private fun ForecastSnapshot(
     timeZoneId: String,
 ) {
     val forecast = cache.forecast
+    val current = forecast.hourly.firstOrNull()
+
+    LazyColumn(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item {
+            CurrentConditionsCard(
+                item = current,
+                timeZoneId = timeZoneId,
+            )
+        }
+        item {
+            ForecastFreshnessCard(
+                cache = cache,
+                timeZoneId = timeZoneId,
+            )
+        }
+        item {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.hourly_forecast_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(R.string.forecast_hours_count, forecast.hourly.size),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        items(
+            items = forecast.hourly,
+            key = { item -> item.weather.time.toEpochMilli() },
+        ) { item ->
+            HourlyForecastRow(item = item, timeZoneId = timeZoneId)
+            HorizontalDivider()
+        }
+    }
+}
+
+@Composable
+private fun CurrentConditionsCard(
+    item: FusedHourlyForecast?,
+    timeZoneId: String,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = stringResource(R.string.current_conditions_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            if (item == null) {
+                Text(
+                    modifier = Modifier.padding(top = 12.dp),
+                    text = stringResource(R.string.value_unavailable),
+                    style = MaterialTheme.typography.displayMedium,
+                )
+                return@Column
+            }
+
+            val weather = item.weather
+            Text(
+                modifier = Modifier.padding(top = 8.dp),
+                text = weather.temperatureC?.let { value ->
+                    stringResource(R.string.value_temperature_c, value)
+                } ?: stringResource(R.string.value_unavailable),
+                style = MaterialTheme.typography.displayMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = conditionLabel(weather.condition),
+                style = MaterialTheme.typography.titleLarge,
+            )
+            Text(
+                modifier = Modifier.padding(top = 4.dp),
+                text = stringResource(
+                    R.string.current_conditions_time,
+                    formatInstant(weather.time, timeZoneId, HOUR_FORMATTER),
+                ),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Row(
+                modifier = Modifier.padding(top = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = weather.precipitationMm?.let { value ->
+                        stringResource(R.string.value_precipitation_mm, value)
+                    } ?: stringResource(R.string.value_precipitation_unavailable),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    text = weather.windSpeedMps?.let { value ->
+                        stringResource(R.string.value_wind_mps, value)
+                    } ?: stringResource(R.string.value_wind_unavailable),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ForecastFreshnessCard(
+    cache: ForecastCacheState,
+    timeZoneId: String,
+) {
     val freshnessText = when (cache.freshness) {
         ForecastFreshness.FRESH -> stringResource(R.string.freshness_fresh)
         ForecastFreshness.STALE -> stringResource(R.string.freshness_stale)
         ForecastFreshness.EXPIRED -> stringResource(R.string.freshness_expired)
     }
-    val freshnessColor = when (cache.freshness) {
-        ForecastFreshness.FRESH -> MaterialTheme.colorScheme.primary
-        ForecastFreshness.STALE -> MaterialTheme.colorScheme.tertiary
-        ForecastFreshness.EXPIRED -> MaterialTheme.colorScheme.error
+    val containerColor = when (cache.freshness) {
+        ForecastFreshness.FRESH -> MaterialTheme.colorScheme.secondaryContainer
+        ForecastFreshness.STALE -> MaterialTheme.colorScheme.tertiaryContainer
+        ForecastFreshness.EXPIRED -> MaterialTheme.colorScheme.errorContainer
+    }
+    val contentColor = when (cache.freshness) {
+        ForecastFreshness.FRESH -> MaterialTheme.colorScheme.onSecondaryContainer
+        ForecastFreshness.STALE -> MaterialTheme.colorScheme.onTertiaryContainer
+        ForecastFreshness.EXPIRED -> MaterialTheme.colorScheme.onErrorContainer
     }
 
-    Column(modifier = modifier.fillMaxWidth()) {
-        Text(
-            text = freshnessText,
-            style = MaterialTheme.typography.titleMedium,
-            color = freshnessColor,
-        )
-        Text(
-            text = stringResource(
-                R.string.forecast_generated,
-                formatInstant(forecast.generatedAt, timeZoneId, DATE_TIME_FORMATTER),
-            ),
-            style = MaterialTheme.typography.bodySmall,
-        )
-        Text(
-            text = stringResource(R.string.forecast_hours_count, forecast.hourly.size),
-            style = MaterialTheme.typography.bodySmall,
-        )
-        Spacer(Modifier.height(8.dp))
-
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(
-                items = forecast.hourly,
-                key = { item -> item.weather.time.toEpochMilli() },
-            ) { item ->
-                HourlyForecastRow(item = item, timeZoneId = timeZoneId)
-                HorizontalDivider()
-            }
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = containerColor,
+        contentColor = contentColor,
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = freshnessText,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                modifier = Modifier.padding(top = 2.dp),
+                text = stringResource(
+                    R.string.forecast_generated,
+                    formatInstant(cache.forecast.generatedAt, timeZoneId, DATE_TIME_FORMATTER),
+                ),
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
     }
 }
@@ -361,6 +521,7 @@ private fun HourlyForecastRow(
                 Text(
                     text = conditionLabel(weather.condition),
                     style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Text(
@@ -368,6 +529,7 @@ private fun HourlyForecastRow(
                     stringResource(R.string.value_temperature_c, value)
                 } ?: stringResource(R.string.value_unavailable),
                 style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
             )
         }
 
@@ -403,27 +565,44 @@ private fun NoTargetContent(
     operation: AlphaOperation,
     onUseLocation: () -> Unit,
 ) {
-    Column(
+    Card(
         modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.Start,
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ),
     ) {
-        Text(
-            text = stringResource(R.string.forecast_no_target),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Text(
-            modifier = Modifier.padding(top = 8.dp),
-            text = stringResource(R.string.forecast_location_explanation),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Button(
-            modifier = Modifier.padding(top = 16.dp),
-            onClick = onUseLocation,
-            enabled = !operation.isBusy,
-        ) {
-            Text(stringResource(R.string.action_use_approximate_location))
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = stringResource(R.string.onboarding_title),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                modifier = Modifier.padding(top = 8.dp),
+                text = stringResource(R.string.onboarding_body),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Text(
+                modifier = Modifier.padding(top = 12.dp),
+                text = stringResource(R.string.forecast_location_explanation),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                modifier = Modifier.padding(top = 8.dp),
+                text = stringResource(R.string.forecast_privacy_note),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Button(
+                modifier = Modifier.padding(top = 20.dp),
+                onClick = onUseLocation,
+                enabled = !operation.isBusy,
+            ) {
+                Text(stringResource(R.string.action_use_approximate_location))
+            }
+            OperationMessage(operation)
         }
-        OperationMessage(operation)
     }
 }
 
