@@ -153,9 +153,9 @@ data class SurfaceObservation(
         }
         require(
             windDirectionDegrees == null ||
-                (windDirectionDegrees >= 0.0 && windDirectionDegrees < 360.0),
+                (windDirectionDegrees >= 0.0 && windDirectionDegrees <= 360.0),
         ) {
-            "Observation wind direction must be within [0, 360)"
+            "Observation wind direction must be within [0, 360]"
         }
     }
 }
@@ -219,6 +219,21 @@ data class WindVerificationSample(
         ),
     ) {
         "Wind verification sample requires direction for non-calm wind"
+    }
+
+    init {
+        require(predictedSpeedMps.isFinite() && predictedSpeedMps >= 0.0) {
+            "Predicted wind speed must be finite and non-negative"
+        }
+        require(observedSpeedMps.isFinite() && observedSpeedMps >= 0.0) {
+            "Observed wind speed must be finite and non-negative"
+        }
+        require(predictedDirectionDegrees == null || predictedDirectionDegrees.isFinite()) {
+            "Predicted wind direction must be finite when present"
+        }
+        require(observedDirectionDegrees == null || observedDirectionDegrees.isFinite()) {
+            "Observed wind direction must be finite when present"
+        }
     }
 }
 
