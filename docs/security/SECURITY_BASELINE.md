@@ -28,7 +28,7 @@ The currently verified live required `main` gates are:
 
 Dependency Review is operational on the public repository. It passed real PR #17 with exact context `dependency-review` and is eligible to become required once that owner-side ruleset update is applied and verified.
 
-CodeQL uses a real compiled `java-kotlin` Android build. The earlier Kotlin `2.4.20` extractor incompatibility is historical; the post-M3 audit restored automatic CodeQL with the current pinned action/toolchain. It is not yet a live required `Protect main` context; promotion remains owner-side work after real PR/main stability is proven.
+CodeQL is configured for a real compiled `java-kotlin` Android build, but stable CodeQL CLI `2.27.0` still rejects Kotlin `2.4.20`. PR #184 re-confirmed the incompatibility in run `35347242806` with action `4.38.0`. Automatic CodeQL runs remain compatibility-gated; MeteoOne does not downgrade Kotlin or accept Java-only/no-build analysis as Kotlin coverage.
 
 Qodana is scheduled/manual whole-repository defense in depth and is intentionally not required.
 
