@@ -210,10 +210,12 @@ private fun SourceForecast.toVerificationRows(
         require(!lead.isNegative && lead <= MAX_VERIFICATION_LEAD) {
             "Verification forecast point lead must be within 0..72 hours"
         }
-        require(point.windSpeedMps == null || point.windSpeedMps >= 0.0) {
+        val windSpeedMps = point.windSpeedMps
+        val precipitationMm = point.precipitationMm
+        require(windSpeedMps == null || windSpeedMps >= 0.0) {
             "Verification forecast wind speed must not be negative"
         }
-        require(point.precipitationMm == null || point.precipitationMm >= 0.0) {
+        require(precipitationMm == null || precipitationMm >= 0.0) {
             "Verification forecast precipitation must not be negative"
         }
 
