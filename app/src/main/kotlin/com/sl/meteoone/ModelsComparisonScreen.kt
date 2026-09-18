@@ -26,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -341,7 +342,11 @@ private fun ModelFamilyCard(
             )
             Text(
                 modifier = Modifier.padding(top = 2.dp),
-                text = stringResource(R.string.models_provider_paths_count, family.providerPaths.size),
+                text = pluralStringResource(
+                    R.plurals.models_provider_paths_count,
+                    family.providerPaths.size,
+                    family.providerPaths.size,
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -390,28 +395,23 @@ private fun ProviderPathBlock(
         color = MaterialTheme.colorScheme.surfaceVariant,
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = providerLabel(path.provider),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        modifier = Modifier.padding(top = 2.dp),
-                        text = stringResource(
-                            R.string.models_model_family_path,
-                            modelFamilyLabel(family),
-                        ),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+            Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
+                    text = providerLabel(path.provider),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    modifier = Modifier.padding(top = 2.dp),
+                    text = stringResource(
+                        R.string.models_model_family_path,
+                        modelFamilyLabel(family),
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    modifier = Modifier.padding(top = 6.dp),
                     text = when {
                         path.failed -> stringResource(R.string.models_source_failed)
                         source == null -> stringResource(R.string.models_source_unavailable)
