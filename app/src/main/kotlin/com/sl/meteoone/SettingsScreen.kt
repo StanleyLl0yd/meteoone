@@ -1,5 +1,7 @@
 package com.sl.meteoone
 
+import android.content.Context
+import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,7 +14,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -24,7 +28,9 @@ import androidx.compose.ui.unit.dp
 internal fun SettingsContent(
     modifier: Modifier,
 ) {
+    val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
+    val appVersion = remember(context) { readAppVersion(context) }
 
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
@@ -35,8 +41,8 @@ internal fun SettingsContent(
                 title = stringResource(R.string.settings_about_title),
                 body = stringResource(
                     R.string.settings_version,
-                    BuildConfig.VERSION_NAME,
-                    BuildConfig.VERSION_CODE,
+                    appVersion.name,
+                    appVersion.code,
                 ),
             )
         }
@@ -197,6 +203,25 @@ private fun SettingsLink(
     ) {
         Text(label)
     }
+}
+
+private data class AppVersionInfo(
+    val name: String,
+    val code: Long,
+)
+
+@Suppress("DEPRECATION")
+private fun readAppVersion(context: Context): AppVersionInfo {
+    val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+    val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        packageInfo.longVersionCode
+    } else {
+        packageInfo.versionCode.toLong()
+    }
+    return AppVersionInfo(
+        name = packageInfo.versionName ?: "—",
+        code = versionCode,
+    )
 }
 
 private const val PROJECT_URL = "https://github.com/StanleyLl0yd/meteoone"
