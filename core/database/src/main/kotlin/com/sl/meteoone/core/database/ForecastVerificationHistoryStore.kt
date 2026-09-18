@@ -143,9 +143,10 @@ internal class RoomForecastVerificationHistoryStore(
         )
         val hourlyByRun = hourly.groupBy(VerificationForecastHourlyEntity::runIdentity)
         return runs.map { run ->
+            val modelRun = storedInstant(run.modelRunEpochSecond, run.modelRunNano)
             val points = hourlyByRun[run.runIdentity()]
                 .orEmpty()
-                .map(VerificationForecastHourlyEntity::toStoredPoint)
+                .map { row -> row.toStoredPoint(modelRun) }
             check(points.isNotEmpty()) {
                 "Verification forecast run contains no hourly evidence"
             }
@@ -264,23 +265,59 @@ private fun VerificationForecastRunEntity.toStoredRun(
     check(coordinate.toPersistedKey().encoded == coordinateKey) {
         "Verification forecast coordinate key is inconsistent"
     }
+    val storedProvider = storedEnumValue<ForecastProvider>(
+        provider,
+        "verification forecast provider",
+    )
+    val storedModelFamily = storedEnumValue<ModelFamily>(
+        modelFamily,
+        "verification model family",
+    )
+    check(storedProvider != ForecastProvider.UNKNOWN) {
+        "Stored verification forecast provider must be known"
+    }
+    check(storedModelFamily != ModelFamily.UNKNOWN) {
+        "Stored verification model family must be known"
+    }
+    val modelRun = storedInstant(modelRunEpochSecond, modelRunNano)
+    val firstCapturedAt = storedInstant(
+        firstCapturedAtEpochSecond,
+        firstCapturedAtNano,
+    )
+    check(!firstCapturedAt.isBefore(modelRun)) {
+        "Stored verification capture time precedes model run"
+    }
+    com.sl.meteoone.core.model.ForecastLocation(
+        latitude = coordinate.latitude,
+        longitude = coordinate.longitude,
+        elevationMeters = elevationMeters,
+        timeZoneId = timeZoneId,
+    )
     return StoredVerificationForecastRun(
         coordinate = coordinate,
-        provider = enumValue(provider, "verification forecast provider"),
-        modelFamily = enumValue(modelFamily, "verification model family"),
-        modelRun = instant(modelRunEpochSecond, modelRunNano),
-        firstCapturedAt = instant(firstCapturedAtEpochSecond, firstCapturedAtNano),
+        provider = storedProvider,
+        modelFamily = storedModelFamily,
+        modelRun = modelRun,
+        firstCapturedAt = firstCapturedAt,
         elevationMeters = elevationMeters,
         timeZoneId = timeZoneId,
         hourly = points,
     )
 }
 
-private fun VerificationForecastHourlyEntity.toStoredPoint(): StoredVerificationForecastPoint {
-    val validTime = instant(validTimeEpochSecond, validTimeNano)
+private fun VerificationForecastHourlyEntity.toStoredPoint(
+    modelRun: Instant,
+): StoredVerificationForecastPoint {
+    val validTime = storedInstant(validTimeEpochSecond, validTimeNano)
+    check(leadNano in 0..999_999_999) {
+        "Stored verification lead nanoseconds are out of range"
+    }
     val lead = Duration.ofSeconds(leadSeconds, leadNano.toLong())
     check(!lead.isNegative && lead <= MAX_VERIFICATION_LEAD) {
         "Stored verification forecast lead is outside 0..72 hours"
+    }
+    check(lead == Duration.between(modelRun, validTime)) {
+        "Stored verification forecast lead does not match model-run provenance"
     }
     val interval = when {
         precipitationIntervalStartEpochSecond == null &&
@@ -288,7 +325,7 @@ private fun VerificationForecastHourlyEntity.toStoredPoint(): StoredVerification
 
         precipitationIntervalStartEpochSecond != null &&
             precipitationIntervalStartNano != null -> ForecastInterval(
-                start = instant(
+                start = storedInstant(
                     precipitationIntervalStartEpochSecond,
                     precipitationIntervalStartNano,
                 ),
@@ -311,3 +348,17 @@ private fun VerificationForecastHourlyEntity.toStoredPoint(): StoredVerification
 
 private fun Int.toDegrees(): Double =
     java.math.BigDecimal.valueOf(toLong()).movePointLeft(1).toDouble()
+
+
+private fun storedInstant(epochSecond: Long, nano: Int): Instant {
+    check(nano in 0..999_999_999) {
+        "Stored verification timestamp nanoseconds are out of range"
+    }
+    return Instant.ofEpochSecond(epochSecond, nano.toLong())
+}
+
+private inline fun <reified T : Enum<T>> storedEnumValue(
+    name: String,
+    label: String,
+): T = enumValues<T>().firstOrNull { value -> value.name == name }
+    ?: throw IllegalStateException("Stored $label is unknown: $name")
