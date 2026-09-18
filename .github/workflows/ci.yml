@@ -115,6 +115,7 @@ jobs:
           :forecast:repository:testDebugUnitTest
           :forecast:repository:lintDebug
           :forecast:repository:assembleDebug
+          :verification:domain:test
           :app:testDebugUnitTest
           :app:lintDebug
           :app:assembleDebug

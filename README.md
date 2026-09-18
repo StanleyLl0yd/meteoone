@@ -41,7 +41,7 @@ MeteoOne 1.0 targets:
 
 ## Status
 
-M1 Forecast Core, M2 Offline-first Data Layer, and the M3 Product UI are complete. `v0.2.0-alpha.1` is published as the feature-complete M3 GitHub prerelease with its signed APK+AAB pair. M4 Verification Engine implementation has not started.
+M1 Forecast Core, M2 Offline-first Data Layer, and the M3 Product UI are complete. `v0.2.0-alpha.1` is published as the feature-complete M3 GitHub prerelease with its signed APK+AAB pair. M4 Verification Engine is now in progress, beginning with a pure JVM verification domain and measured-error contracts; production fusion remains on the equal-weight baseline until sufficient verified evidence exists.
 
 See:
 
