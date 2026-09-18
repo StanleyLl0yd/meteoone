@@ -17,6 +17,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    sourceSets {
+        getByName("test").assets.srcDir("$projectDir/schemas")
+    }
+
     testOptions {
         unitTests.isIncludeAndroidResources = true
     }
@@ -40,5 +44,6 @@ dependencies {
 
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.room.testing)
     testImplementation(libs.robolectric)
 }

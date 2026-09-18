@@ -6,10 +6,14 @@ import androidx.test.core.app.ApplicationProvider
 import com.sl.meteoone.core.model.ForecastCoordinate
 import com.sl.meteoone.core.model.ForecastInterval
 import com.sl.meteoone.core.model.ForecastLocation
+import com.sl.meteoone.core.model.ForecastOrigin
+import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.FusedForecast
 import com.sl.meteoone.core.model.FusedHourlyForecast
 import com.sl.meteoone.core.model.HourlyWeatherPoint
 import com.sl.meteoone.core.model.ModelAgreement
+import com.sl.meteoone.core.model.ModelFamily
+import com.sl.meteoone.core.model.SourceForecast
 import com.sl.meteoone.core.model.WeatherCondition
 import java.time.Instant
 import kotlin.test.AfterTest
@@ -54,8 +58,79 @@ class ForecastSnapshotStoreTest {
 
         store.replace(coordinate, expected)
 
-        assertEquals(expected, store.read(coordinate))
-        assertEquals(expected, store.observe(coordinate).first())
+        assertEquals(expected, store.read(coordinate)?.forecast)
+        assertEquals(expected, store.observe(coordinate).first()?.forecast)
+    }
+
+    @Test
+    fun sourceForecastsAndFailedIdentitiesRoundTripExactly() = runBlocking {
+        val fused = forecast(coordinate)
+        val ecmwf = sourceForecast(
+            target = coordinate,
+            provider = ForecastProvider.ECMWF_OPEN_DATA,
+            modelFamily = ModelFamily.ECMWF_IFS,
+            temperatureOffset = 1.5,
+        )
+        val openMeteo = sourceForecast(
+            target = coordinate,
+            provider = ForecastProvider.OPEN_METEO,
+            modelFamily = ModelFamily.NOAA_GFS,
+            temperatureOffset = -2.0,
+            modelRun = null,
+        )
+        val failed = listOf(
+            StoredForecastSourceIdentity(ForecastProvider.DWD_OPEN_DATA, ModelFamily.DWD_ICON),
+        )
+
+        store.replace(
+            coordinate = coordinate,
+            forecast = fused,
+            sourceForecasts = listOf(ecmwf, openMeteo),
+            failedSources = failed,
+        )
+
+        val restored = requireNotNull(store.read(coordinate))
+        assertEquals(fused, restored.forecast)
+        assertEquals(listOf(ecmwf, openMeteo), restored.sourceForecasts)
+        assertEquals(failed, restored.failedSources)
+        assertEquals(restored, store.observe(coordinate).first())
+    }
+
+    @Test
+    fun replacementRemovesStaleComparisonEvidenceAtomically() = runBlocking {
+        val firstSource = sourceForecast(
+            coordinate,
+            ForecastProvider.OPEN_METEO,
+            ModelFamily.ECMWF_IFS,
+            temperatureOffset = 1.0,
+        )
+        val secondSource = sourceForecast(
+            coordinate,
+            ForecastProvider.NOAA_NOMADS,
+            ModelFamily.NOAA_GFS,
+            temperatureOffset = 2.0,
+        )
+        store.replace(
+            coordinate,
+            forecast(coordinate),
+            sourceForecasts = listOf(firstSource),
+            failedSources = listOf(
+                StoredForecastSourceIdentity(ForecastProvider.DWD_OPEN_DATA, ModelFamily.DWD_ICON),
+            ),
+        )
+
+        val replacement = forecast(coordinate, temperatureOffset = 20.0)
+        store.replace(
+            coordinate,
+            replacement,
+            sourceForecasts = listOf(secondSource),
+            failedSources = emptyList(),
+        )
+
+        val restored = requireNotNull(store.read(coordinate))
+        assertEquals(replacement, restored.forecast)
+        assertEquals(listOf(secondSource), restored.sourceForecasts)
+        assertEquals(emptyList(), restored.failedSources)
     }
 
     @Test
@@ -70,9 +145,9 @@ class ForecastSnapshotStoreTest {
         )
         store.replace(coordinate, replacement)
 
-        assertEquals(replacement, store.observe(coordinate).first())
-        assertEquals(1, store.read(coordinate)?.hourly?.size)
-        assertEquals(other, store.read(otherCoordinate))
+        assertEquals(replacement, store.observe(coordinate).first()?.forecast)
+        assertEquals(1, store.read(coordinate)?.forecast?.hourly?.size)
+        assertEquals(other, store.read(otherCoordinate)?.forecast)
     }
 
     @Test
@@ -105,6 +180,23 @@ class ForecastSnapshotStoreTest {
     }
 
     @Test
+    fun sourceForecastLocationMustMatchFusedPrivacyReducedLocation() = runBlocking {
+        val source = sourceForecast(
+            coordinate,
+            ForecastProvider.OPEN_METEO,
+            ModelFamily.ECMWF_IFS,
+            temperatureOffset = 0.0,
+        ).copy(
+            location = ForecastLocation(59.8, 30.3, 12, "Europe/Moscow"),
+        )
+
+        assertFailsWith<IllegalArgumentException> {
+            store.replace(coordinate, forecast(coordinate), sourceForecasts = listOf(source))
+        }
+        assertEquals(null, store.read(coordinate))
+    }
+
+    @Test
     fun productionDatabaseIsProcessSingleton() {
         val first = ForecastSnapshotDatabase.database(context)
         val second = ForecastSnapshotDatabase.database(context)
@@ -113,28 +205,41 @@ class ForecastSnapshotStoreTest {
     }
 
     @Test
-    fun diskDatabaseReopensTheSameSnapshot() = runBlocking {
+    fun diskDatabaseReopensTheSameSnapshotAndEvidence() = runBlocking {
         val name = "forecast-snapshot-reopen-test.db"
         context.deleteDatabase(name)
         val expected = forecast(coordinate)
+        val source = sourceForecast(
+            coordinate,
+            ForecastProvider.OPEN_METEO,
+            ModelFamily.DWD_ICON,
+            temperatureOffset = 3.0,
+        )
 
         val first = Room.databaseBuilder(context, MeteoOneDatabase::class.java, name)
+            .addMigrations(MIGRATION_1_2)
             .allowMainThreadQueries()
             .build()
         try {
-            RoomForecastSnapshotStore(first.forecastSnapshotDao()).replace(coordinate, expected)
+            RoomForecastSnapshotStore(first.forecastSnapshotDao()).replace(
+                coordinate,
+                expected,
+                sourceForecasts = listOf(source),
+            )
         } finally {
             first.close()
         }
 
         val second = Room.databaseBuilder(context, MeteoOneDatabase::class.java, name)
+            .addMigrations(MIGRATION_1_2)
             .allowMainThreadQueries()
             .build()
         try {
-            assertEquals(
-                expected,
+            val restored = requireNotNull(
                 RoomForecastSnapshotStore(second.forecastSnapshotDao()).read(coordinate),
             )
+            assertEquals(expected, restored.forecast)
+            assertEquals(listOf(source), restored.sourceForecasts)
         } finally {
             second.close()
             context.deleteDatabase(name)
@@ -147,41 +252,13 @@ class ForecastSnapshotStoreTest {
     ): FusedForecast {
         val firstTime = Instant.parse("2026-09-15T20:00:00Z")
         val secondTime = firstTime.plusSeconds(3600)
-        val location = ForecastLocation(
-            latitude = target.latitude,
-            longitude = target.longitude,
-            elevationMeters = 12,
-            timeZoneId = "Europe/Moscow",
-        )
+        val location = location(target)
         return FusedForecast(
             location = location,
             generatedAt = Instant.parse("2026-09-15T19:30:00.123456789Z"),
             hourly = listOf(
                 FusedHourlyForecast(
-                    weather = HourlyWeatherPoint(
-                        time = firstTime,
-                        temperatureC = 10.0 + temperatureOffset,
-                        feelsLikeC = 9.0 + temperatureOffset,
-                        dewPointC = 5.0,
-                        humidityPercent = 70.0,
-                        pressureSeaLevelHpa = 1012.3,
-                        windSpeedMps = 4.5,
-                        windGustMps = 8.0,
-                        windDirectionDegrees = 270.0,
-                        precipitationMm = 1.2,
-                        precipitationProbabilityPercent = 60.0,
-                        cloudCoverPercent = 80.0,
-                        visibilityMeters = 12_000.0,
-                        condition = WeatherCondition.RAIN,
-                        windGustInterval = ForecastInterval(
-                            start = firstTime.minusSeconds(3600),
-                            end = firstTime,
-                        ),
-                        precipitationInterval = ForecastInterval(
-                            start = firstTime.minusSeconds(3600),
-                            end = firstTime,
-                        ),
-                    ),
+                    weather = detailedWeather(firstTime, 10.0 + temperatureOffset),
                     providerCount = 3,
                     independentEvidenceCount = 3,
                     agreement = ModelAgreement.HIGH,
@@ -214,4 +291,53 @@ class ForecastSnapshotStoreTest {
             ),
         )
     }
+
+    private fun sourceForecast(
+        target: ForecastCoordinate,
+        provider: ForecastProvider,
+        modelFamily: ModelFamily,
+        temperatureOffset: Double,
+        modelRun: Instant? = Instant.parse("2026-09-15T12:00:00Z"),
+    ): SourceForecast {
+        val firstTime = Instant.parse("2026-09-15T20:00:00Z")
+        return SourceForecast(
+            origin = ForecastOrigin(
+                provider = provider,
+                modelFamily = modelFamily,
+                modelRun = modelRun,
+                generatedAt = Instant.parse("2026-09-15T19:30:00.123456789Z"),
+            ),
+            location = location(target),
+            hourly = listOf(
+                detailedWeather(firstTime, 9.0 + temperatureOffset),
+                detailedWeather(firstTime.plusSeconds(3600), 10.0 + temperatureOffset),
+            ),
+        )
+    }
+
+    private fun location(target: ForecastCoordinate) = ForecastLocation(
+        latitude = target.latitude,
+        longitude = target.longitude,
+        elevationMeters = 12,
+        timeZoneId = "Europe/Moscow",
+    )
+
+    private fun detailedWeather(time: Instant, temperatureC: Double) = HourlyWeatherPoint(
+        time = time,
+        temperatureC = temperatureC,
+        feelsLikeC = temperatureC - 1.0,
+        dewPointC = 5.0,
+        humidityPercent = 70.0,
+        pressureSeaLevelHpa = 1012.3,
+        windSpeedMps = 4.5,
+        windGustMps = 8.0,
+        windDirectionDegrees = 270.0,
+        precipitationMm = 1.2,
+        precipitationProbabilityPercent = 60.0,
+        cloudCoverPercent = 80.0,
+        visibilityMeters = 12_000.0,
+        condition = WeatherCondition.RAIN,
+        windGustInterval = ForecastInterval(time.minusSeconds(3600), time),
+        precipitationInterval = ForecastInterval(time.minusSeconds(3600), time),
+    )
 }

@@ -3,10 +3,14 @@ package com.sl.meteoone.core.database
 import com.sl.meteoone.core.model.ForecastCoordinate
 import com.sl.meteoone.core.model.ForecastInterval
 import com.sl.meteoone.core.model.ForecastLocation
+import com.sl.meteoone.core.model.ForecastOrigin
+import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.FusedForecast
 import com.sl.meteoone.core.model.FusedHourlyForecast
 import com.sl.meteoone.core.model.HourlyWeatherPoint
 import com.sl.meteoone.core.model.ModelAgreement
+import com.sl.meteoone.core.model.ModelFamily
+import com.sl.meteoone.core.model.SourceForecast
 import com.sl.meteoone.core.model.WeatherCondition
 import java.math.BigDecimal
 import java.time.Instant
@@ -22,6 +26,9 @@ internal data class PersistedCoordinateKey(
 internal data class PersistedForecastRows(
     val snapshot: ForecastSnapshotEntity,
     val hourly: List<ForecastHourlyEntity>,
+    val sources: List<ForecastSourceEntity>,
+    val sourceHourly: List<ForecastSourceHourlyEntity>,
+    val failedSources: List<ForecastFailedSourceEntity>,
 )
 
 internal fun ForecastCoordinate.toPersistedKey(): PersistedCoordinateKey {
@@ -34,9 +41,34 @@ internal fun ForecastCoordinate.toPersistedKey(): PersistedCoordinateKey {
     )
 }
 
-internal fun FusedForecast.toPersistedRows(coordinate: ForecastCoordinate): PersistedForecastRows {
+internal fun FusedForecast.toPersistedRows(
+    coordinate: ForecastCoordinate,
+    sourceForecasts: List<SourceForecast>,
+    failedSources: List<StoredForecastSourceIdentity>,
+): PersistedForecastRows {
     require(location.latitude == coordinate.latitude && location.longitude == coordinate.longitude) {
         "Persisted forecast location must match the privacy-reduced coordinate"
+    }
+
+    val successfulIdentities = sourceForecasts.map { source ->
+        StoredForecastSourceIdentity(
+            provider = source.origin.provider,
+            modelFamily = source.origin.modelFamily,
+        )
+    }
+    require(successfulIdentities.size == successfulIdentities.toSet().size) {
+        "Persisted successful forecast source identities must be unique"
+    }
+    require(failedSources.size == failedSources.toSet().size) {
+        "Persisted failed forecast source identities must be unique"
+    }
+    require(successfulIdentities.toSet().intersect(failedSources.toSet()).isEmpty()) {
+        "Persisted forecast source identity cannot be both successful and failed"
+    }
+    sourceForecasts.forEach { source ->
+        require(source.location == location) {
+            "Persisted source forecast location must match the fused forecast location"
+        }
     }
 
     val key = coordinate.toPersistedKey()
@@ -78,17 +110,77 @@ internal fun FusedForecast.toPersistedRows(coordinate: ForecastCoordinate): Pers
             agreement = fused.agreement.name,
         )
     }
-    return PersistedForecastRows(snapshot = snapshot, hourly = hourly)
+
+    val sourceRows = sourceForecasts.map { source ->
+        ForecastSourceEntity(
+            coordinateKey = key.encoded,
+            provider = source.origin.provider.name,
+            modelFamily = source.origin.modelFamily.name,
+            modelRunEpochSecond = source.origin.modelRun?.epochSecond,
+            modelRunNano = source.origin.modelRun?.nano,
+            generatedAtEpochSecond = source.origin.generatedAt.epochSecond,
+            generatedAtNano = source.origin.generatedAt.nano,
+        )
+    }
+    val sourceHourlyRows = sourceForecasts.flatMap { source ->
+        source.hourly.mapIndexed { position, weather ->
+            ForecastSourceHourlyEntity(
+                coordinateKey = key.encoded,
+                provider = source.origin.provider.name,
+                modelFamily = source.origin.modelFamily.name,
+                position = position,
+                timeEpochSecond = weather.time.epochSecond,
+                timeNano = weather.time.nano,
+                temperatureC = weather.temperatureC,
+                feelsLikeC = weather.feelsLikeC,
+                dewPointC = weather.dewPointC,
+                humidityPercent = weather.humidityPercent,
+                pressureSeaLevelHpa = weather.pressureSeaLevelHpa,
+                windSpeedMps = weather.windSpeedMps,
+                windGustMps = weather.windGustMps,
+                windDirectionDegrees = weather.windDirectionDegrees,
+                precipitationMm = weather.precipitationMm,
+                precipitationProbabilityPercent = weather.precipitationProbabilityPercent,
+                cloudCoverPercent = weather.cloudCoverPercent,
+                visibilityMeters = weather.visibilityMeters,
+                condition = weather.condition.name,
+                windGustIntervalStartEpochSecond = weather.windGustInterval?.start?.epochSecond,
+                windGustIntervalStartNano = weather.windGustInterval?.start?.nano,
+                precipitationIntervalStartEpochSecond = weather.precipitationInterval?.start?.epochSecond,
+                precipitationIntervalStartNano = weather.precipitationInterval?.start?.nano,
+            )
+        }
+    }
+    val failedRows = failedSources.map { identity ->
+        ForecastFailedSourceEntity(
+            coordinateKey = key.encoded,
+            provider = identity.provider.name,
+            modelFamily = identity.modelFamily.name,
+        )
+    }
+    return PersistedForecastRows(
+        snapshot = snapshot,
+        hourly = hourly,
+        sources = sourceRows,
+        sourceHourly = sourceHourlyRows,
+        failedSources = failedRows,
+    )
 }
 
-internal fun Flow<ForecastSnapshotWithHourly?>.mapSnapshotRows(): Flow<FusedForecast?> =
+internal fun Flow<ForecastSnapshotWithEvidence?>.mapSnapshotRows(): Flow<StoredForecastSnapshot?> =
     map { rows -> rows?.toModel() }
 
-internal fun ForecastSnapshotWithHourly.toModel(): FusedForecast {
+internal fun ForecastSnapshotWithEvidence.toModel(): StoredForecastSnapshot {
     val key = persistedCoordinateKey(snapshot)
     val coordinate = ForecastCoordinate(
         latitude = tenthsToDegrees(key.latitudeTenths),
         longitude = tenthsToDegrees(key.longitudeTenths),
+    )
+    val location = ForecastLocation(
+        latitude = coordinate.latitude,
+        longitude = coordinate.longitude,
+        elevationMeters = snapshot.elevationMeters,
+        timeZoneId = snapshot.timeZoneId,
     )
     val ordered = hourly.sortedBy { it.position }
     check(ordered.isNotEmpty()) { "Cached forecast snapshot contains no hourly rows" }
@@ -99,54 +191,75 @@ internal fun ForecastSnapshotWithHourly.toModel(): FusedForecast {
         "Cached forecast rows do not match the snapshot coordinate key"
     }
 
-    return try {
+    val fused = try {
         FusedForecast(
-            location = ForecastLocation(
-                latitude = coordinate.latitude,
-                longitude = coordinate.longitude,
-                elevationMeters = snapshot.elevationMeters,
-                timeZoneId = snapshot.timeZoneId,
-            ),
+            location = location,
             generatedAt = instant(snapshot.generatedAtEpochSecond, snapshot.generatedAtNano),
-            hourly = ordered.map { it.toModel() },
+            hourly = ordered.map { it.toFusedModel() },
         )
     } catch (error: IllegalArgumentException) {
         throw IllegalStateException("Cached forecast violates canonical model invariants", error)
     }
+
+    val sourceIdentities = sources.map { it.provider to it.modelFamily }
+    check(sourceIdentities.size == sourceIdentities.toSet().size) {
+        "Cached successful forecast source identities are duplicated"
+    }
+    val sourceHourlyByIdentity = sourceHourly.groupBy { it.provider to it.modelFamily }
+    check(sourceHourlyByIdentity.keys == sourceIdentities.toSet()) {
+        "Cached source hourly rows do not match source metadata exactly"
+    }
+    check(sources.all { it.coordinateKey == key.encoded }) {
+        "Cached source metadata does not match the snapshot coordinate key"
+    }
+    check(sourceHourly.all { it.coordinateKey == key.encoded }) {
+        "Cached source hourly rows do not match the snapshot coordinate key"
+    }
+
+    val sourceForecasts = sources.map { source ->
+        val identity = source.provider to source.modelFamily
+        val rows = requireNotNull(sourceHourlyByIdentity[identity])
+            .sortedBy { it.position }
+        check(rows.map { it.position } == rows.indices.toList()) {
+            "Cached source hourly positions are not contiguous"
+        }
+        check(rows.all { it.provider == source.provider && it.modelFamily == source.modelFamily }) {
+            "Cached source hourly provenance does not match source metadata"
+        }
+        source.toModel(location, rows)
+    }
+
+    val failed = failedSources.map { row ->
+        check(row.coordinateKey == key.encoded) {
+            "Cached failed source identity does not match the snapshot coordinate key"
+        }
+        StoredForecastSourceIdentity(
+            provider = enumValue(row.provider, "forecast provider"),
+            modelFamily = enumValue(row.modelFamily, "model family"),
+        )
+    }
+    check(failed.size == failed.toSet().size) {
+        "Cached failed forecast source identities are duplicated"
+    }
+    val successful = sourceForecasts.map { source ->
+        StoredForecastSourceIdentity(source.origin.provider, source.origin.modelFamily)
+    }
+    check(successful.toSet().intersect(failed.toSet()).isEmpty()) {
+        "Cached source identity cannot be both successful and failed"
+    }
+
+    return StoredForecastSnapshot(
+        forecast = fused,
+        sourceForecasts = sourceForecasts,
+        failedSources = failed,
+    )
 }
 
-private fun ForecastHourlyEntity.toModel(): FusedHourlyForecast {
+private fun ForecastHourlyEntity.toFusedModel(): FusedHourlyForecast {
     val time = instant(timeEpochSecond, timeNano)
     return try {
         FusedHourlyForecast(
-            weather = HourlyWeatherPoint(
-                time = time,
-                temperatureC = temperatureC,
-                feelsLikeC = feelsLikeC,
-                dewPointC = dewPointC,
-                humidityPercent = humidityPercent,
-                pressureSeaLevelHpa = pressureSeaLevelHpa,
-                windSpeedMps = windSpeedMps,
-                windGustMps = windGustMps,
-                windDirectionDegrees = windDirectionDegrees,
-                precipitationMm = precipitationMm,
-                precipitationProbabilityPercent = precipitationProbabilityPercent,
-                cloudCoverPercent = cloudCoverPercent,
-                visibilityMeters = visibilityMeters,
-                condition = enumValue<WeatherCondition>(condition, "weather condition"),
-                windGustInterval = interval(
-                    startEpochSecond = windGustIntervalStartEpochSecond,
-                    startNano = windGustIntervalStartNano,
-                    end = time,
-                    label = "wind-gust",
-                ),
-                precipitationInterval = interval(
-                    startEpochSecond = precipitationIntervalStartEpochSecond,
-                    startNano = precipitationIntervalStartNano,
-                    end = time,
-                    label = "precipitation",
-                ),
-            ),
+            weather = toWeatherPoint(time),
             providerCount = providerCount,
             independentEvidenceCount = independentEvidenceCount,
             agreement = enumValue<ModelAgreement>(agreement, "model agreement"),
@@ -154,6 +267,96 @@ private fun ForecastHourlyEntity.toModel(): FusedHourlyForecast {
     } catch (error: IllegalArgumentException) {
         throw IllegalStateException("Cached hourly forecast violates canonical model invariants", error)
     }
+}
+
+private fun ForecastHourlyEntity.toWeatherPoint(time: Instant): HourlyWeatherPoint =
+    HourlyWeatherPoint(
+        time = time,
+        temperatureC = temperatureC,
+        feelsLikeC = feelsLikeC,
+        dewPointC = dewPointC,
+        humidityPercent = humidityPercent,
+        pressureSeaLevelHpa = pressureSeaLevelHpa,
+        windSpeedMps = windSpeedMps,
+        windGustMps = windGustMps,
+        windDirectionDegrees = windDirectionDegrees,
+        precipitationMm = precipitationMm,
+        precipitationProbabilityPercent = precipitationProbabilityPercent,
+        cloudCoverPercent = cloudCoverPercent,
+        visibilityMeters = visibilityMeters,
+        condition = enumValue(condition, "weather condition"),
+        windGustInterval = interval(
+            startEpochSecond = windGustIntervalStartEpochSecond,
+            startNano = windGustIntervalStartNano,
+            end = time,
+            label = "wind-gust",
+        ),
+        precipitationInterval = interval(
+            startEpochSecond = precipitationIntervalStartEpochSecond,
+            startNano = precipitationIntervalStartNano,
+            end = time,
+            label = "precipitation",
+        ),
+    )
+
+private fun ForecastSourceEntity.toModel(
+    location: ForecastLocation,
+    rows: List<ForecastSourceHourlyEntity>,
+): SourceForecast {
+    check((modelRunEpochSecond == null) == (modelRunNano == null)) {
+        "Cached source model-run timestamp is incomplete"
+    }
+    val modelRun = if (modelRunEpochSecond == null || modelRunNano == null) {
+        null
+    } else {
+        instant(modelRunEpochSecond, modelRunNano)
+    }
+    return try {
+        SourceForecast(
+            origin = ForecastOrigin(
+                provider = enumValue(provider, "forecast provider"),
+                modelFamily = enumValue(modelFamily, "model family"),
+                modelRun = modelRun,
+                generatedAt = instant(generatedAtEpochSecond, generatedAtNano),
+            ),
+            location = location,
+            hourly = rows.map { it.toWeatherPoint() },
+        )
+    } catch (error: IllegalArgumentException) {
+        throw IllegalStateException("Cached source forecast violates canonical model invariants", error)
+    }
+}
+
+private fun ForecastSourceHourlyEntity.toWeatherPoint(): HourlyWeatherPoint {
+    val time = instant(timeEpochSecond, timeNano)
+    return HourlyWeatherPoint(
+        time = time,
+        temperatureC = temperatureC,
+        feelsLikeC = feelsLikeC,
+        dewPointC = dewPointC,
+        humidityPercent = humidityPercent,
+        pressureSeaLevelHpa = pressureSeaLevelHpa,
+        windSpeedMps = windSpeedMps,
+        windGustMps = windGustMps,
+        windDirectionDegrees = windDirectionDegrees,
+        precipitationMm = precipitationMm,
+        precipitationProbabilityPercent = precipitationProbabilityPercent,
+        cloudCoverPercent = cloudCoverPercent,
+        visibilityMeters = visibilityMeters,
+        condition = enumValue(condition, "weather condition"),
+        windGustInterval = interval(
+            startEpochSecond = windGustIntervalStartEpochSecond,
+            startNano = windGustIntervalStartNano,
+            end = time,
+            label = "wind-gust",
+        ),
+        precipitationInterval = interval(
+            startEpochSecond = precipitationIntervalStartEpochSecond,
+            startNano = precipitationIntervalStartNano,
+            end = time,
+            label = "precipitation",
+        ),
+    )
 }
 
 private fun persistedCoordinateKey(snapshot: ForecastSnapshotEntity): PersistedCoordinateKey {

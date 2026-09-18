@@ -3,6 +3,7 @@ package com.sl.meteoone.forecast.data.execution
 import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.FusedForecast
 import com.sl.meteoone.core.model.ModelFamily
+import com.sl.meteoone.core.model.SourceForecast
 import kotlin.ConsistentCopyVisibility
 
 @ConsistentCopyVisibility
@@ -15,6 +16,7 @@ sealed interface M1ForecastEngineResult {
     @ConsistentCopyVisibility
     data class Available internal constructor(
         val forecast: FusedForecast,
+        val sourceForecasts: List<SourceForecast>,
         val successfulSources: List<M1ForecastSourceIdentity>,
         val failedSources: List<M1ForecastSourceIdentity>,
     ) : M1ForecastEngineResult {
@@ -27,6 +29,15 @@ sealed interface M1ForecastEngineResult {
             }
             require(successfulSources.toSet().intersect(failedSources.toSet()).isEmpty()) {
                 "Forecast source identities cannot be both successful and failed"
+            }
+            val forecastIdentities = sourceForecasts.map { source ->
+                M1ForecastSourceIdentity(
+                    provider = source.origin.provider,
+                    modelFamily = source.origin.modelFamily,
+                )
+            }
+            require(forecastIdentities == successfulSources) {
+                "Successful source forecasts must match successful source identities in order"
             }
         }
     }
