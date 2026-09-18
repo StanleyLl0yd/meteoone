@@ -34,9 +34,18 @@ This context is eligible to be added to `Protect main`. The connected GitHub aut
 
 ## CodeQL
 
-CodeQL analyzes the Kotlin application through a real compiled `java-kotlin` build. A Java-only `build-mode: none` database is not accepted as Kotlin coverage.
+CodeQL must analyze the Kotlin application through a real compiled `java-kotlin` build. A Java-only `build-mode: none` database is not accepted as Kotlin coverage.
 
-The earlier compatibility failure on public PR #17 is historical. The post-M3 audit restored automatic CodeQL execution with the current Kotlin `2.4.20` toolchain and current pinned CodeQL action. CodeQL remains outside the live `Protect main` required contexts until a real audit PR and post-merge main run prove the restored context stable and the owner updates the ruleset.
+PR #184 re-probed the current pinned action `4.38.0` with a clean compiled build. Run `35347242806` still used stable CodeQL CLI `2.27.0` and rejected Kotlin `2.4.20` as too recent. Automatic CodeQL execution therefore remains gated by repository variable `CODEQL_KOTLIN_SUPPORTED=true`; `workflow_dispatch` is the explicit compatibility probe.
+
+When a manual probe succeeds against the then-current application toolchain:
+
+1. set `CODEQL_KOTLIN_SUPPORTED=true`;
+2. verify CodeQL on a real pull request and on main;
+3. record the exact successful check context;
+4. add that context to `Protect main` only after it is proven stable.
+
+Until then, CodeQL is an explicitly documented upstream compatibility gap, not a merge or release gate.
 
 ## Security analysis settings
 
