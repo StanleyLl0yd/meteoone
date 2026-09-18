@@ -1,6 +1,6 @@
 # M3 Product UI exit review
 
-Status: release-readiness candidate. Final completion requires the post-merge exact-`main` checks recorded on issue #178.
+Status: **COMPLETE**. The final post-merge exact-`main` checks are recorded on issue #178, and `v0.2.0-alpha.1` was published from that verified source.
 
 ## Scope reviewed
 
@@ -90,18 +90,19 @@ Security gates remain:
 - Security and Quality;
 - Dependency Review on pull requests;
 - Secret Scan;
-- CodeQL according to the repository's current configured/skipped policy.
+- CodeQL Java/Kotlin analysis with the current supported toolchain.
 
-The exit issue is not complete until the final M3 merge has successful exact-`main` CI, Security and Quality, and Secret Scan evidence.
+The final M3 merge has successful exact-`main` CI, Security and Quality, and Secret Scan evidence; #178 and parent #166 are closed completed.
 
 ## Pre-beta release readiness
 
 The previous published technical release is `v0.1.0-alpha.1` / `versionCode=1`. It predates the completed M3 product UI and must not be reused.
 
-The M3 pre-beta candidate is:
+The published M3 pre-beta release is:
 
 - `versionName=0.2.0-alpha.1`;
-- `versionCode=2`.
+- `versionCode=2`;
+- GitHub tag `v0.2.0-alpha.1` targets final M3 `main` SHA `2d2d3aa164242734b264aea839b329e7517d9731`.
 
 The canonical signed-release workflow:
 
@@ -127,4 +128,4 @@ These are intentionally not M3 findings:
 - M7: stable RuStore signing/store configuration and manual publication after APK acceptance;
 - later: calibrated numeric confidence, saved locations, alerts/nowcast, widgets/radar, additional models.
 
-No unresolved product-scope finding is known after #177; final closure depends on this exit-review PR and exact-main verification.
+No unresolved M3 product-scope finding remained after the exit review; #182 merged, exact-main verification passed, and #178/#166 are closed completed.
