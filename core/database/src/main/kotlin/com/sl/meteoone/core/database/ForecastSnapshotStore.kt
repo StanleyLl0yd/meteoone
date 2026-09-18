@@ -49,13 +49,16 @@ object ForecastSnapshotDatabase {
     fun open(context: Context): ForecastSnapshotStore =
         RoomForecastSnapshotStore(database(context).forecastSnapshotDao())
 
+    fun openVerificationHistory(context: Context): ForecastVerificationHistoryStore =
+        RoomForecastVerificationHistoryStore(database(context).forecastVerificationHistoryDao())
+
     internal fun database(context: Context): MeteoOneDatabase =
         instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 MeteoOneDatabase::class.java,
                 DATABASE_NAME,
-            ).addMigrations(MIGRATION_1_2)
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
                 .also { database ->
                     instance = database
