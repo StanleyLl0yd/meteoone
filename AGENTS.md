@@ -37,7 +37,7 @@ Android application ID:
 
 Current repository phase:
 
-`Pre-alpha / foundation`
+`Post-M3 product UI complete / pre-M4 audit boundary`
 
 Current product sequence is defined by `ROADMAP.md`.
 
@@ -59,7 +59,7 @@ Preserve these unless the owner explicitly changes them:
 - A failure of one provider must not make the app unusable when another valid forecast or usable cache exists.
 - Provider transport DTOs must not leak into domain or presentation code.
 - Russian and English localization are part of the initial product scope.
-- RuStore is the first distribution target; Google Play follows later.
+- Alpha/beta distribution is GitHub Releases only. Stable distribution targets RuStore first; Google Play follows later.
 
 ## Architecture invariants
 
@@ -348,13 +348,12 @@ See `SECURITY.md`, `docs/security/SECURITY_BASELINE.md`, and `docs/release/SIGNI
 
 Preserve one stable application identity and signing lineage across RuStore and Google Play.
 
-Production release output should include, when applicable:
+Each selected GitHub Release publishes exactly:
 
-- signed AAB;
 - signed APK;
-- SHA-256 checksums;
-- R8 mapping file;
-- release notes.
+- signed AAB.
+
+Checksums, R8 mapping, signing/certificate evidence, and other build provenance may be generated or verified internally by CI when useful, but they are not GitHub Release assets under the current release policy. Release notes are the GitHub Release body/source document rather than an extra binary asset.
 
 Do not expose the application signing key merely to simplify CI.
 
