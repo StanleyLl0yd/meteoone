@@ -112,6 +112,7 @@ jobs:
           :forecast:repository:testDebugUnitTest
           :forecast:repository:lintDebug
           :forecast:repository:assembleDebug
+          :app:testDebugUnitTest
           :app:lintDebug
           :app:assembleDebug
           :app:bundleRelease
