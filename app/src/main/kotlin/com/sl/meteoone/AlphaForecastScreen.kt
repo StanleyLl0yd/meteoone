@@ -68,22 +68,20 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 @Composable
-internal fun AlphaForecastScreen(
+internal fun MeteoOneApp(
     repository: ForecastRepository,
     targetStore: ForecastTargetStore,
     locationClient: AndroidCurrentLocationClient,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var operation by remember { mutableStateOf<AlphaOperation>(AlphaOperation.Idle) }
+    var operation by remember { mutableStateOf<ForecastOperation>(ForecastOperation.Idle) }
     var locationRequest by remember { mutableStateOf<LocationRequestHandle?>(null) }
-    var targetReloadRevision by remember { mutableStateOf(0L) }
     var destination by remember { mutableStateOf(ProductDestination.FORECAST) }
 
     val targetLoad by produceState<TargetLoadState>(
         initialValue = TargetLoadState.Loading,
         key1 = targetStore,
-        key2 = targetReloadRevision,
     ) {
         try {
             targetStore.target.collect { target ->
@@ -98,9 +96,9 @@ internal fun AlphaForecastScreen(
 
     fun refresh(target: ForecastTarget) {
         if (operation.isBusy) return
-        operation = AlphaOperation.Refreshing
+        operation = ForecastOperation.Refreshing
         scope.launch {
-            operation = AlphaOperation.RefreshFinished(
+            operation = ForecastOperation.RefreshFinished(
                 repository.refresh(
                     coordinate = target.coordinate,
                     elevationMeters = target.elevationMeters,
@@ -112,7 +110,7 @@ internal fun AlphaForecastScreen(
 
     fun requestCurrentApproximateLocation() {
         if (operation.isBusy) return
-        operation = AlphaOperation.Locating
+        operation = ForecastOperation.Locating
         locationRequest?.cancel()
         locationRequest = locationClient.requestCurrentLocation { result ->
             locationRequest = null
@@ -128,16 +126,15 @@ internal fun AlphaForecastScreen(
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (_: Exception) {
-                        operation = AlphaOperation.TargetPersistenceFailed
+                        operation = ForecastOperation.TargetPersistenceFailed
                         return@launch
                     }
-                    targetReloadRevision += 1L
-                    operation = AlphaOperation.Idle
+                    operation = ForecastOperation.Idle
                     refresh(target)
                 }
 
                 is CurrentLocationResult.Unavailable -> {
-                    operation = AlphaOperation.LocationUnavailable(result.reason)
+                    operation = ForecastOperation.LocationUnavailable(result.reason)
                 }
             }
         }
@@ -149,7 +146,7 @@ internal fun AlphaForecastScreen(
         if (granted) {
             requestCurrentApproximateLocation()
         } else {
-            operation = AlphaOperation.LocationUnavailable(
+            operation = ForecastOperation.LocationUnavailable(
                 CurrentLocationResult.Reason.PERMISSION_REQUIRED,
             )
         }
@@ -293,7 +290,7 @@ private fun TargetForecastContent(
     modifier: Modifier,
     target: ForecastTarget,
     repository: ForecastRepository,
-    operation: AlphaOperation,
+    operation: ForecastOperation,
     onRefresh: () -> Unit,
     onUseLocation: () -> Unit,
 ) {
@@ -677,7 +674,7 @@ private fun HourlyForecastCard(
 @Composable
 private fun NoTargetContent(
     modifier: Modifier,
-    operation: AlphaOperation,
+    operation: ForecastOperation,
     onUseLocation: () -> Unit,
 ) {
     LazyColumn(
@@ -733,7 +730,7 @@ private fun NoTargetContent(
 
 @Composable
 private fun TargetStoreFailure(
-    operation: AlphaOperation,
+    operation: ForecastOperation,
     onUseLocation: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -763,13 +760,13 @@ private fun CenteredProgress() {
 }
 
 @Composable
-private fun OperationMessage(operation: AlphaOperation) {
+private fun OperationMessage(operation: ForecastOperation) {
     val text = when (operation) {
-        AlphaOperation.Idle -> null
-        AlphaOperation.Locating -> stringResource(R.string.status_locating)
-        AlphaOperation.Refreshing -> stringResource(R.string.status_refreshing)
-        AlphaOperation.TargetPersistenceFailed -> stringResource(R.string.status_target_save_failed)
-        is AlphaOperation.LocationUnavailable -> when (operation.reason) {
+        ForecastOperation.Idle -> null
+        ForecastOperation.Locating -> stringResource(R.string.status_locating)
+        ForecastOperation.Refreshing -> stringResource(R.string.status_refreshing)
+        ForecastOperation.TargetPersistenceFailed -> stringResource(R.string.status_target_save_failed)
+        is ForecastOperation.LocationUnavailable -> when (operation.reason) {
             CurrentLocationResult.Reason.PERMISSION_REQUIRED ->
                 stringResource(R.string.status_location_permission_required)
             CurrentLocationResult.Reason.PROVIDER_UNAVAILABLE ->
@@ -781,7 +778,7 @@ private fun OperationMessage(operation: AlphaOperation) {
             CurrentLocationResult.Reason.PLATFORM_FAILURE ->
                 stringResource(R.string.status_location_failed)
         }
-        is AlphaOperation.RefreshFinished -> when (operation.result) {
+        is ForecastOperation.RefreshFinished -> when (operation.result) {
             ForecastRefreshResult.Updated -> stringResource(R.string.status_forecast_updated)
             ForecastRefreshResult.UpdatedWithDegradation ->
                 stringResource(R.string.status_forecast_updated_degraded)
@@ -824,8 +821,7 @@ private fun groupHourlyByLocalDay(
     items: List<FusedHourlyForecast>,
     timeZoneId: String,
 ): List<HourlyDayGroup> {
-    val zone = runCatching { ZoneId.of(timeZoneId) }
-        .getOrElse { ZoneId.systemDefault() }
+    val zone = ZoneId.of(timeZoneId)
     return items
         .groupBy { item -> item.weather.time.atZone(zone).toLocalDate() }
         .map { (date, groupedItems) ->
@@ -838,8 +834,7 @@ private fun formatInstant(
     timeZoneId: String,
     formatter: DateTimeFormatter,
 ): String {
-    val zone = runCatching { ZoneId.of(timeZoneId) }
-        .getOrElse { ZoneId.systemDefault() }
+    val zone = ZoneId.of(timeZoneId)
     return formatter.withZone(zone).format(instant)
 }
 
@@ -866,16 +861,16 @@ private sealed interface CacheLoadState {
     data object Failed : CacheLoadState
 }
 
-private sealed interface AlphaOperation {
+private sealed interface ForecastOperation {
     val isBusy: Boolean
         get() = this === Locating || this === Refreshing
 
-    data object Idle : AlphaOperation
-    data object Locating : AlphaOperation
-    data object Refreshing : AlphaOperation
-    data object TargetPersistenceFailed : AlphaOperation
-    data class LocationUnavailable(val reason: CurrentLocationResult.Reason) : AlphaOperation
-    data class RefreshFinished(val result: ForecastRefreshResult) : AlphaOperation
+    data object Idle : ForecastOperation
+    data object Locating : ForecastOperation
+    data object Refreshing : ForecastOperation
+    data object TargetPersistenceFailed : ForecastOperation
+    data class LocationUnavailable(val reason: CurrentLocationResult.Reason) : ForecastOperation
+    data class RefreshFinished(val result: ForecastRefreshResult) : ForecastOperation
 }
 
 private val MAX_CONTENT_WIDTH = 840.dp
