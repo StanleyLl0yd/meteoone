@@ -54,7 +54,7 @@ Public observing-station coordinates are not user-location data, but station sel
 
 The M0 Roshydromet adapter is a research exception that uses a measured HTTP-only endpoint. Production Android M4 must not reuse that transport.
 
-Production observation ingestion is a later M4 slice and must use authenticated HTTPS. WMO WIS2 core observations are the preferred direction because WIS2 Global Caches provide unrestricted core data over HTTP(S), while transport/parsing remains outside the verification domain.
+Production observation ingestion uses authenticated HTTPS and real station measurements only. NOAA/NCEI GHCNh is the primary historical/on-demand source because it is the current hourly/synoptic station dataset replacing ISD and exposes station/year archives suitable for catch-up after the app has been offline. WMO WIS2 core observations remain a possible supplementary fresh path, but Global Cache retention is too short to be the only verification archive for an intermittently used Android app. Transport/parsing stays outside the verification domain.
 
 ## Metric semantics
 
