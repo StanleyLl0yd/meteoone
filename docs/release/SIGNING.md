@@ -15,7 +15,7 @@ The workflow and required repository secrets are documented in [GITHUB_SIGNED_BU
 
 ## Release artifact policy
 
-APK and AAB are always produced together. The APK is always available for direct installation, but manual device testing is optional and is not a release gate.
+APK and AAB are always produced together. Manual device testing is optional for creating the GitHub Release itself. Before any RuStore AAB upload, the APK from that same GitHub Release must pass manual device acceptance testing; if the APK fails, do not upload its AAB.
 
 Only APK and AAB are attached to GitHub Releases. Certificates, PEM files, checksum manifests, R8 mappings, provenance files and complete build directories are not published as release assets.
 
@@ -77,8 +77,10 @@ Version codes must also increase monotonically across released Android builds, i
 When M7 selects a stable version for RuStore:
 
 1. create the normal GitHub Release first;
-2. take the AAB directly from that release without modifying or re-signing it;
-3. complete the then-current RuStore signing/metadata process manually;
-4. upload the AAB manually.
+2. install the APK from that exact release and complete the manual acceptance test;
+3. if the APK test fails, do not upload the AAB; fix the release and create a new monotonic version pair;
+4. after the APK passes, take the AAB directly from that same release without modifying or re-signing it;
+5. complete the then-current RuStore signing/metadata process manually;
+6. upload the unchanged AAB manually.
 
 Alpha and beta releases never enter this store handoff.
