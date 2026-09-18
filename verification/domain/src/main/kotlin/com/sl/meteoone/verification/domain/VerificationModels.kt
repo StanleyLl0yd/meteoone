@@ -95,7 +95,11 @@ data class VerificationContext(
         requireNotNull(LeadTimeBucket.from(Duration.between(modelRun, validTime))) {
             "Verification lead time must be within 0..72 hours"
         }
-        ZoneId.of(timeZoneId)
+        try {
+            ZoneId.of(timeZoneId)
+        } catch (error: RuntimeException) {
+            throw IllegalArgumentException("Verification time zone must be a valid ZoneId: $timeZoneId", error)
+        }
     }
 
     val leadTime: Duration
@@ -179,8 +183,9 @@ data class ScalarVerificationSample(
     override val parameter: VerificationParameter,
     val predicted: Double,
     val observed: Double,
-    val error: ScalarError,
 ) : VerificationSample {
+    val error: ScalarError = VerificationMetrics.scalarError(predicted, observed)
+
     init {
         require(
             parameter == VerificationParameter.TEMPERATURE ||
@@ -201,9 +206,19 @@ data class WindVerificationSample(
     val predictedDirectionDegrees: Double?,
     val observedSpeedMps: Double,
     val observedDirectionDegrees: Double?,
-    val error: WindVectorError,
 ) : VerificationSample {
     override val parameter: VerificationParameter = VerificationParameter.WIND
+
+    val error: WindVectorError = requireNotNull(
+        VerificationMetrics.windVectorError(
+            predictedSpeedMps = predictedSpeedMps,
+            predictedDirectionDegrees = predictedDirectionDegrees,
+            observedSpeedMps = observedSpeedMps,
+            observedDirectionDegrees = observedDirectionDegrees,
+        ),
+    ) {
+        "Wind verification sample requires direction for non-calm wind"
+    }
 }
 
 data class PrecipitationVerificationSample(
@@ -212,9 +227,10 @@ data class PrecipitationVerificationSample(
     val interval: ForecastInterval,
     val predictedMm: Double,
     val observedMm: Double,
-    val error: ScalarError,
 ) : VerificationSample {
     override val parameter: VerificationParameter = VerificationParameter.PRECIPITATION
+
+    val error: ScalarError = VerificationMetrics.scalarError(predictedMm, observedMm)
 
     init {
         require(predictedMm.isFinite() && predictedMm >= 0.0) {
@@ -222,6 +238,9 @@ data class PrecipitationVerificationSample(
         }
         require(observedMm.isFinite() && observedMm >= 0.0) {
             "Observed precipitation must be finite and non-negative"
+        }
+        require(interval.end == context.validTime) {
+            "Precipitation verification interval must end at the forecast valid time"
         }
     }
 }
