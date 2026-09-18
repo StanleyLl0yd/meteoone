@@ -49,6 +49,27 @@ class WindVectorErrorTest(unittest.TestCase):
         assert value is not None
         self.assertAlmostEqual(value, 0.0)
 
+    def test_calm_wind_does_not_require_a_direction(self) -> None:
+        value = wind_vector_error_mps(
+            [0.0, 5.0],
+            [None, 90.0],
+            [0.0, 5.0],
+            [None, 90.0],
+        )
+        self.assertIsNotNone(value)
+        assert value is not None
+        self.assertAlmostEqual(value, 0.0)
+
+    def test_non_calm_wind_still_requires_direction(self) -> None:
+        self.assertIsNone(
+            wind_vector_error_mps(
+                [5.0],
+                [None],
+                [5.0],
+                [90.0],
+            )
+        )
+
     def test_opposite_wind_is_large_error(self) -> None:
         value = wind_vector_error_mps(
             [5.0],
