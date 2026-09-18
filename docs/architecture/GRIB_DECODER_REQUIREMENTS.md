@@ -131,7 +131,7 @@ The canonical production-JNI regression on the post-#110 `main` commit proves th
 - ECMWF precipitation: 1 message / 1,038,240 values;
 - total decoded values: `7,974,723`.
 
-The same regression fails closed for message-count bounds, decoded-value bounds, truncated payloads, trailing bytes, non-GRIB payloads, zero message limits and zero value limits. The post-merge commit also has successful CI (`34838775701`), Security and Quality (`34838775699`) and Secret Scan (`34838775645`) runs; CodeQL (`34838775670`) was skipped by the repository's then-existing availability gate; the post-M3 audit restores compiled Kotlin CodeQL with the current toolchain.
+The same regression fails closed for message-count bounds, decoded-value bounds, truncated payloads, trailing bytes, non-GRIB payloads, zero message limits and zero value limits. The post-merge commit also has successful CI (`34838775701`), Security and Quality (`34838775699`) and Secret Scan (`34838775645`) runs; CodeQL (`34838775670`) was skipped by the repository's compatibility gate. The post-M3 audit re-probed compiled Kotlin CodeQL and confirmed that stable CLI 2.27.0 still rejects Kotlin 2.4.20, so that gate remains required.
 
 These production results supplement rather than replace the accepted Android API 26/16 KiB runtime evidence above. Together with `GribPointSelectionTest`, `GribSemanticBindingTest`, `OfficialGribForecastMapperInvariantTest`, `EcCodesGribFieldDecoderTest` and `RunScopedDwdIconGridGeometryProviderTest`, they satisfy the #89 decoder/selection boundary acceptance envelope.
 
