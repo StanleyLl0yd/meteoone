@@ -18,6 +18,7 @@ import java.time.ZoneOffset
 
 private const val MAX_EXACT_RUNS_PER_ACQUISITION = 2
 private val EXACT_RUN_PUBLICATION_GUARD: Duration = Duration.ofHours(7)
+private val EXACT_RUN_MAX_AGE: Duration = Duration.ofDays(180)
 
 data class ExactRunSourceIdentity(
     val provider: ForecastProvider,
@@ -75,10 +76,14 @@ class ExactRunForecastAcquirer internal constructor(
         require(sortedRuns == modelRuns) {
             "Exact-run acquisition model runs must be chronological"
         }
+        val oldestAllowedRun = capturedAt.minus(EXACT_RUN_MAX_AGE)
         sortedRuns.forEach { run ->
             requireCommonDailyRun(run)
             require(!capturedAt.isBefore(run.plus(EXACT_RUN_PUBLICATION_GUARD))) {
                 "Exact-run acquisition must wait for the common publication guard"
+            }
+            require(!run.isBefore(oldestAllowedRun)) {
+                "Exact-run acquisition must remain inside the 180-day verification retention window"
             }
         }
 
