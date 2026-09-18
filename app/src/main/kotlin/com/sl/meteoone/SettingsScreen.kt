@@ -41,7 +41,7 @@ internal fun SettingsContent(
                 title = stringResource(R.string.settings_about_title),
                 body = stringResource(
                     R.string.settings_version,
-                    appVersion.name,
+                    appVersion.name ?: stringResource(R.string.value_unavailable),
                     appVersion.code,
                 ),
             )
@@ -206,7 +206,7 @@ private fun SettingsLink(
 }
 
 private data class AppVersionInfo(
-    val name: String,
+    val name: String?,
     val code: Long,
 )
 
@@ -219,7 +219,7 @@ private fun readAppVersion(context: Context): AppVersionInfo {
         packageInfo.versionCode.toLong()
     }
     return AppVersionInfo(
-        name = packageInfo.versionName ?: "—",
+        name = packageInfo.versionName,
         code = versionCode,
     )
 }
