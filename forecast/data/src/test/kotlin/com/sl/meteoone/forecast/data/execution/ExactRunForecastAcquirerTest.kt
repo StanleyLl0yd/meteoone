@@ -162,6 +162,22 @@ class ExactRunForecastAcquirerTest {
     }
 
     @Test
+    fun acquisitionDoesNotFetchOutsideHistoryRetentionWindow() {
+        val source = RecordingSource()
+
+        assertFailsWith<IllegalArgumentException> {
+            ExactRunForecastAcquirer(source).acquire(
+                coordinate = coordinate,
+                elevationMeters = null,
+                timeZoneId = "UTC",
+                modelRuns = listOf(Instant.parse("2026-03-20T00:00:00Z")),
+                capturedAt = capturedAt,
+            )
+        }
+        assertEquals(emptyList(), source.calls)
+    }
+
+    @Test
     fun provenanceMismatchBecomesIsolatedFailure() {
         val source = RecordingSource(
             mutate = { forecast ->
