@@ -10,7 +10,7 @@ MeteoOne is an Android weather application that combines forecasts from multiple
 - Model and provider are separate concepts.
 - Forecast fusion is robust and explainable before any ML is introduced.
 - Exact user location is not persisted.
-- Offline-first: cached forecast is shown immediately and refreshed explicitly in the current alpha slice.
+- Offline-first: cached forecast is shown immediately and explicit refresh never hides usable cached data.
 - Partial provider failure must degrade gracefully.
 - Confidence is not shown as a calibrated percentage until it is backed by verification data.
 - No API provider is allowed to leak transport DTOs into the domain layer.
@@ -32,21 +32,22 @@ MeteoOne 1.0 targets:
 
 ## Distribution
 
-- Primary: RuStore
-- Later: Google Play
-- Android package: `com.sl.meteoone`
-- First closed-alpha version: `0.1.0-alpha.1` (`versionCode = 1`)
-- Release artifacts: signed AAB and APK
+- Alpha/beta: GitHub Releases.
+- Stable: RuStore first, Google Play later.
+- Android package: `com.sl.meteoone`.
+- Published technical alpha: `0.1.0-alpha.1` (`versionCode = 1`).
+- M3 pre-beta candidate: `0.2.0-alpha.1` (`versionCode = 2`).
+- Every selected release publishes a signed APK and signed AAB from the same reviewed source SHA.
 
 ## Status
 
-M2 offline-first data layer is complete. The project is preparing `0.1.0-alpha.1` for private RuStore alpha testing; M3 product-UI work has not started.
+M1 Forecast Core, M2 Offline-first Data Layer, and the M3 Product UI are complete. The repository is preparing the `0.2.0-alpha.1` feature-complete pre-beta GitHub release boundary; M4 verification-engine implementation has not started.
 
 See:
 
 - [ROADMAP.md](ROADMAP.md) for milestone sequencing;
 - [PRIVACY.md](PRIVACY.md) for the current alpha privacy policy;
-- [docs/release/RUSTORE_ALPHA.md](docs/release/RUSTORE_ALPHA.md) for the first RuStore alpha gate;
+- [docs/release/RUSTORE_ALPHA.md](docs/release/RUSTORE_ALPHA.md) for the retired alpha-store path and current stable-store policy;
 - [docs/release/SIGNING.md](docs/release/SIGNING.md) for signing and integrity controls;
 - [docs/architecture/README.md](docs/architecture/README.md) for architecture;
 - [docs/branding/BRAND_GUIDE.md](docs/branding/BRAND_GUIDE.md) for brand identity and voice;
