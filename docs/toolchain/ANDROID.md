@@ -1,16 +1,16 @@
 # Android toolchain baseline
 
-Verified against official upstream documentation on 2026-09-09.
+Repository-pinned Android toolchain baseline as of 2026-09-18.
 
 ## Baseline
 
 | Component | Version / level |
 | --- | --- |
 | Android Gradle Plugin | 9.4.0 |
-| Gradle | 9.6.0 |
+| Gradle | 9.7.1 |
 | JDK | 17 |
 | Kotlin | 2.4.20 |
-| Compose BOM | 2026.08.00 |
+| Compose BOM | 2026.09.00 |
 | Compose UI | 1.12.0 through the BOM |
 | Material 3 | 1.4.0 through the BOM |
 | Activity Compose | 1.13.0 |
@@ -21,7 +21,7 @@ Verified against official upstream documentation on 2026-09-09.
 
 ## Rationale
 
-AGP 9.4.0 supports API 37 and requires Gradle 9.6.0 and JDK 17.
+MeteoOne pins AGP 9.4.0, Gradle 9.7.1 and JDK 17 while compiling against API 37.
 
 AGP 9 uses built-in Kotlin for Android modules, so MeteoOne does not apply the legacy `org.jetbrains.kotlin.android` plugin to `:app`.
 
@@ -32,7 +32,7 @@ The Compose compiler Gradle plugin uses the same Kotlin release line.
 ## Sources
 
 - https://developer.android.com/build/releases/agp-9-4-0-release-notes
-- https://docs.gradle.org/9.6.0/release-notes.html
+- https://docs.gradle.org/9.7.1/release-notes.html
 - https://kotlinlang.org/docs/releases.html
 - https://developer.android.com/build/migrate-to-built-in-kotlin
 - https://developer.android.com/develop/ui/compose/setup-compose-dependencies-and-compiler
