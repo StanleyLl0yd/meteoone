@@ -18,7 +18,7 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class MeteoOneDatabaseMigrationTest {
-    private val databaseName = "meteoone-v1-v2-migration-test.db"
+    private val databaseName = "meteoone-v1-v3-migration-test.db"
 
     @get:Rule
     val migrationHelper = MigrationTestHelper(
@@ -27,7 +27,7 @@ class MeteoOneDatabaseMigrationTest {
     )
 
     @Test
-    fun v1FusedSnapshotSurvivesWithEmptyComparisonEvidence() = runBlocking {
+    fun v1FusedSnapshotSurvivesThroughV3WithEmptyNewEvidence() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         context.deleteDatabase(databaseName)
 
@@ -63,7 +63,7 @@ class MeteoOneDatabaseMigrationTest {
         }
 
         val latest = Room.databaseBuilder(context, MeteoOneDatabase::class.java, databaseName)
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .allowMainThreadQueries()
             .build()
         try {
@@ -82,6 +82,8 @@ class MeteoOneDatabaseMigrationTest {
             assertEquals(0L, sqlite.count("forecast_sources"))
             assertEquals(0L, sqlite.count("forecast_source_hourly"))
             assertEquals(0L, sqlite.count("forecast_failed_sources"))
+            assertEquals(0L, sqlite.count("verification_forecast_runs"))
+            assertEquals(0L, sqlite.count("verification_forecast_hourly"))
         } finally {
             latest.close()
             context.deleteDatabase(databaseName)
