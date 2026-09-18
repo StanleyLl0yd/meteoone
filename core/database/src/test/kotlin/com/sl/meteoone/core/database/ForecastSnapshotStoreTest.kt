@@ -217,7 +217,7 @@ class ForecastSnapshotStoreTest {
         )
 
         val first = Room.databaseBuilder(context, MeteoOneDatabase::class.java, name)
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .allowMainThreadQueries()
             .build()
         try {
@@ -231,7 +231,7 @@ class ForecastSnapshotStoreTest {
         }
 
         val second = Room.databaseBuilder(context, MeteoOneDatabase::class.java, name)
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .allowMainThreadQueries()
             .build()
         try {
