@@ -5,10 +5,14 @@ import com.sl.meteoone.core.network.BoundedHttpsFailureReason
 import com.sl.meteoone.core.network.BoundedHttpsRequest
 import com.sl.meteoone.core.network.BoundedHttpsResponse
 import com.sl.meteoone.core.network.BoundedHttpsResult
+import com.sl.meteoone.core.model.ForecastCoordinate
 import com.sl.meteoone.core.network.BoundedHttpsTransport
+import com.sl.meteoone.forecast.data.openmeteo.OpenMeteoModel
+import com.sl.meteoone.forecast.data.openmeteo.OpenMeteoSingleRunRequestPlanner
 import com.sl.meteoone.forecast.data.source.OfficialSourceRequest
 import java.net.URI
 import java.time.Duration
+import java.time.Instant
 import java.util.ArrayDeque
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
@@ -38,6 +42,30 @@ class ForecastHttpAdapterPolicyTest {
 
         assertIs<BoundedHttpsResult.Success>(adapter.newOrdinaryCall(request).execute())
         assertEquals(listOf(Duration.ofSeconds(10)), observedSpacing)
+    }
+
+    @Test
+    fun exactRunRequestUsesOneSecondHostSpacing() {
+        val observedSpacing = mutableListOf<Duration>()
+        val policy = ForecastRequestExecutionPolicy(
+            startPacer = ForecastRequestStartPacer { _, spacing, cancellation ->
+                observedSpacing += spacing
+                cancellation.count != 0L
+            },
+            retryDelay = Duration.ZERO,
+        )
+        val adapter = ForecastHttpAdapter(
+            transport = ScriptedTransport(listOf(success(200))),
+            executionPolicy = policy,
+        )
+        val request = OpenMeteoSingleRunRequestPlanner.plan(
+            model = OpenMeteoModel.ECMWF_IFS,
+            coordinate = ForecastCoordinate(59.9, 30.3),
+            modelRun = Instant.parse("2026-09-15T00:00:00Z"),
+        )
+
+        assertIs<BoundedHttpsResult.Success>(adapter.newOrdinaryCall(request).execute())
+        assertEquals(listOf(Duration.ofSeconds(1)), observedSpacing)
     }
 
     @Test
