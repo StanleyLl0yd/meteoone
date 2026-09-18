@@ -134,14 +134,16 @@ class ForecastTargetStoreTest {
 
     @Test
     fun invalidTimeZoneMetadataFailsClosedToNoTarget() = runBlocking {
-        withStore { dataStore, store ->
-            dataStore.edit { preferences ->
-                preferences[intPreferencesKey("latitude_tenths")] = 599
-                preferences[intPreferencesKey("longitude_tenths")] = 303
-                preferences[stringPreferencesKey("time_zone_id")] = "   "
-            }
+        for (invalid in listOf("   ", "Mars/Phobos")) {
+            withStore { dataStore, store ->
+                dataStore.edit { preferences ->
+                    preferences[intPreferencesKey("latitude_tenths")] = 599
+                    preferences[intPreferencesKey("longitude_tenths")] = 303
+                    preferences[stringPreferencesKey("time_zone_id")] = invalid
+                }
 
-            assertNull(store.target.first())
+                assertNull(store.target.first())
+            }
         }
     }
 

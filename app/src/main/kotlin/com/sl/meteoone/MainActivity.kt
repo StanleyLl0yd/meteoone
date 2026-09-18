@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MeteoOneTheme {
-                AlphaForecastScreen(
+                MeteoOneApp(
                     repository = repository,
                     targetStore = targetStore,
                     locationClient = locationClient,

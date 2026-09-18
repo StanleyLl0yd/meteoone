@@ -1,6 +1,6 @@
 # Security Policy
 
-MeteoOne is currently public and pre-release. There is no supported public release yet.
+MeteoOne is public and pre-release. Signed GitHub prereleases are available for testing; no stable/store-supported release exists yet.
 
 ## Reporting a vulnerability
 
@@ -42,7 +42,7 @@ Never commit:
 - production environment files;
 - authentication tokens or private certificates.
 
-Normal pull-request workflows must not receive production signing material. Release signing material must remain outside Git and be supplied only to an explicitly trusted release environment.
+Normal pull-request workflows must not receive production signing material. Release signing material must remain outside Git and be supplied only to the explicitly trusted manual signed-release workflow. The current workflow uses repository secrets and does not require a GitHub Environment.
 
 ## Location privacy
 
@@ -65,6 +65,6 @@ The M0 research harness contains one documented exception: the public Roshydrome
 - Semgrep provides blocking SAST on pull requests and main;
 - Qodana provides scheduled/manual whole-repository defense-in-depth analysis;
 - Dependabot covers Gradle and GitHub Actions;
-- CodeQL and Dependency Review are configured and activate when GitHub Advanced Security / GitHub Code Security is available.
+- CodeQL is configured for real compiled Java/Kotlin analysis, but automatic runs remain compatibility-gated while stable CodeQL rejects Kotlin 2.4.20; manual dispatch is the explicit compatibility probe. Dependency Review runs on pull requests.
 
 See `docs/security/SECURITY_BASELINE.md`, `docs/security/CI_SECURITY.md`, and `docs/release/SIGNING.md`.

@@ -60,16 +60,7 @@ Purpose: upload identity used to sign AAB files submitted to RuStore. It is not 
 
 The historical pre-unified Actions run restored the repository-secret JKS, validated this fingerprint before Gradle signing, verified its signed APK/AAB output, and removed the temporary keystore. It is retained as bootstrap signing evidence, not as the artifact record for the later published `v0.1.0-alpha.1` unified release documented above.
 
-A public PEM upload certificate can be exported directly from this signed AAB with `scripts/export_aab_upload_certificate.py`; doing so does not expose the private key. RuStore still requires separate application-signing setup for AAB delivery according to its current signing flow.
-
-Example:
-
-```text
-python3 scripts/export_aab_upload_certificate.py \
-  meteoone-0.1.0-alpha.1.aab \
-  meteoone-0.1.0-alpha.1-uploadcert.pem \
-  --expected-sha256 F0:25:71:C4:07:41:E2:CB:07:15:64:F5:B6:3F:D3:DC:38:A8:75:D0:ED:A1:1A:8C:42:26:9E:D6:35:BC:2A:58
-```
+Store-specific certificate export/configuration is intentionally deferred to the M7 stable-store setup. No certificate or PEM export helper is part of the active GitHub release path.
 
 ## Recording procedure
 

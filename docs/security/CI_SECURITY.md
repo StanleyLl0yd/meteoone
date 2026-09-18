@@ -31,11 +31,11 @@ Dependency Review was verified successfully on real public PR #17, including run
 
 ## CodeQL compatibility boundary
 
-Kotlin is not considered covered by a Java-only/no-build database. MeteoOne therefore keeps CodeQL advanced setup configured for `java-kotlin` with a real compiled Android build rather than using `build-mode: none`.
+MeteoOne keeps CodeQL advanced setup configured for `java-kotlin` with a real compiled Android build; a Java-only/no-build database is not accepted as Kotlin coverage.
 
-A clean uncached validation on public PR #17 proved that the current scanner cannot analyze the application toolchain. CodeQL action `4.37.9` / CLI `2.27.0` rejected Kotlin `2.4.20` during `:core:model:compileKotlin` with `KotlinVersionTooRecentError` and the explicit message that CodeQL supports versions below `2.4.20` (run `34456327378`).
+The post-M3 audit re-probed this boundary on PR #184 with pinned CodeQL action `4.38.0`. Run `35347242806` used stable CodeQL CLI `2.27.0` and again failed during real Kotlin compilation because Kotlin `2.4.20` is too recent for that extractor. This confirms the upstream compatibility blocker remains current rather than historical.
 
-The application Kotlin version must not be downgraded merely to satisfy scanner compatibility. Automatic CodeQL jobs are therefore gated by repository variable `CODEQL_KOTLIN_SUPPORTED=true`; while it is unset/false, pull-request, push, and scheduled CodeQL jobs skip. `workflow_dispatch` remains available as an explicit compatibility probe. After a manual probe succeeds with the current application toolchain, set the variable, verify a real PR, and only then consider the exact CodeQL context for `main` protection.
+The application Kotlin version is not downgraded merely to satisfy scanner compatibility. Automatic CodeQL jobs therefore remain gated by repository variable `CODEQL_KOTLIN_SUPPORTED=true`; while it is unset/false, pull-request, push, and scheduled CodeQL jobs skip. `workflow_dispatch` remains the explicit compatibility probe. After a manual probe succeeds with the then-current application toolchain, enable the variable, verify a real PR and main run, and only then consider CodeQL for `Protect main` or as a release prerequisite.
 
 ## Dependency policy
 
@@ -58,4 +58,4 @@ The M0 research-only Roshydromet WIS2 adapter uses the provider's published HTTP
 
 ## Signing boundary
 
-Ordinary CI cannot produce production-signed artifacts. Signing is introduced only through an explicitly trusted release environment and must satisfy `docs/release/SIGNING.md`.
+Ordinary CI cannot produce production-signed artifacts. Signing is introduced only through the explicitly trusted manual signed-release workflow using repository secrets; no GitHub Environment is required. The workflow must satisfy `docs/release/SIGNING.md`.

@@ -8,8 +8,6 @@ Stable-store policy:
 
 - GitHub Release is created first and always contains signed APK + signed AAB;
 - Before any RuStore AAB upload, the APK from that same GitHub Release must pass manual device acceptance testing; if the APK fails, do not upload its AAB.
-- the APK from the exact stable GitHub Release must pass manual acceptance testing before its AAB is eligible for RuStore upload;
-- if APK acceptance fails, do not upload the AAB; fix the issue and create a new monotonic release pair;
 - after APK acceptance passes, the unchanged stable AAB from that same GitHub Release is the candidate for manual RuStore submission;
 - repository automation must never upload or publish to RuStore;
 - no certificates, PEM files, checksum manifests, mappings or provenance files are user-facing GitHub Release assets.

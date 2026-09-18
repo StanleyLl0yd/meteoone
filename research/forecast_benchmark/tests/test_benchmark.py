@@ -103,6 +103,41 @@ class BenchmarkScoreTest(unittest.TestCase):
         first = next(score for score in scores if score.lead_bucket == "0-6h")
         self.assertAlmostEqual(first.precipitation_brier or -1.0, 0.04)
 
+    def test_counts_calm_wind_without_fabricated_direction(self) -> None:
+        forecast = Forecast(
+            origin=Origin(
+                provider="OPEN_METEO",
+                model_family="ECMWF_IFS",
+                model_id="ecmwf_ifs",
+                model_run="2026-09-01T00:00:00Z",
+            ),
+            location=LOCATION,
+            hourly=(
+                HourlyPoint(
+                    time="2026-09-01T06:00:00Z",
+                    wind_speed_mps=0.0,
+                    wind_direction_degrees=None,
+                ),
+            ),
+        )
+        observations = ObservationSeries(
+            source="NOAA_NCEI_ISD",
+            station=STATION,
+            points=(
+                ObservedPoint(
+                    time="2026-09-01T06:00:00Z",
+                    wind_speed_mps=0.0,
+                    wind_direction_degrees=None,
+                ),
+            ),
+        )
+
+        scores = score_forecasts([forecast], observations)
+
+        self.assertEqual(len(scores), 1)
+        self.assertEqual(scores[0].wind_count, 1)
+        self.assertEqual(scores[0].wind_vector_error_mps, 0.0)
+
     def test_scores_exact_open_meteo_precipitation_intervals(self) -> None:
         forecast = Forecast(
             origin=Origin(

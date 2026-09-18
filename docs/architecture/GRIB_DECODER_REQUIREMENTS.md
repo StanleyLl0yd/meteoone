@@ -131,7 +131,7 @@ The canonical production-JNI regression on the post-#110 `main` commit proves th
 - ECMWF precipitation: 1 message / 1,038,240 values;
 - total decoded values: `7,974,723`.
 
-The same regression fails closed for message-count bounds, decoded-value bounds, truncated payloads, trailing bytes, non-GRIB payloads, zero message limits and zero value limits. The post-merge commit also has successful CI (`34838775701`), Security and Quality (`34838775699`) and Secret Scan (`34838775645`) runs; CodeQL (`34838775670`) is skipped by the repository's existing availability gate.
+The same regression fails closed for message-count bounds, decoded-value bounds, truncated payloads, trailing bytes, non-GRIB payloads, zero message limits and zero value limits. The post-merge commit also has successful CI (`34838775701`), Security and Quality (`34838775699`) and Secret Scan (`34838775645`) runs; CodeQL (`34838775670`) was skipped by the repository's compatibility gate. The post-M3 audit re-probed compiled Kotlin CodeQL and confirmed that stable CLI 2.27.0 still rejects Kotlin 2.4.20, so that gate remains required.
 
 These production results supplement rather than replace the accepted Android API 26/16 KiB runtime evidence above. Together with `GribPointSelectionTest`, `GribSemanticBindingTest`, `OfficialGribForecastMapperInvariantTest`, `EcCodesGribFieldDecoderTest` and `RunScopedDwdIconGridGeometryProviderTest`, they satisfy the #89 decoder/selection boundary acceptance envelope.
 
@@ -152,7 +152,7 @@ Longer fuzz campaigns may remain outside normal PR CI when their duration/resour
 
 Issue #82 candidate selection, the selected ecCodes production integration, #89 coordinate-aware selection and native/grid containment, run-scoped DWD geometry, the production-JNI corpus regression, and the top-level M1 forecast execution/orchestration are all present in the completed M1 codebase.
 
-This document remains the decoder acceptance contract for future native/toolchain changes. M2 is a separate roadmap milestone for persistence, cache/repository flows, retry/rate-limit policy and related offline-first concerns; none of those responsibilities are introduced by this decoder boundary.
+This document remains the decoder acceptance contract for future native/toolchain changes. M2 persistence/cache/repository and M3 product-UI work are now completed layers above this M1 decoder boundary; those later responsibilities do not alter the decoder ownership or acceptance contract.
 
 ## Upstream references
 

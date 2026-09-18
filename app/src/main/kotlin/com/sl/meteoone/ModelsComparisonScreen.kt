@@ -553,8 +553,7 @@ private fun formatModelInstant(
     .withZone(safeZoneId(timeZoneId))
     .format(instant)
 
-private fun safeZoneId(timeZoneId: String): ZoneId =
-    runCatching { ZoneId.of(timeZoneId) }.getOrElse { ZoneId.systemDefault() }
+private fun safeZoneId(timeZoneId: String): ZoneId = ZoneId.of(timeZoneId)
 
 private sealed interface ModelsCacheLoadState {
     data object Loading : ModelsCacheLoadState

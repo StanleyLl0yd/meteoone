@@ -15,10 +15,14 @@ import java.time.Instant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -110,6 +114,23 @@ internal class ForecastFreshnessPolicy(
             ForecastFreshness.STALE
         }
     }
+
+    fun nextTransitionDelay(
+        forecast: FusedForecast,
+        now: Instant,
+    ): Duration? {
+        val expiryAt = forecast.hourly.last().weather.time.plusNanos(1)
+        val transitionAt = when (classify(forecast, now)) {
+            ForecastFreshness.FRESH -> minOf(
+                forecast.generatedAt.plus(freshFor),
+                expiryAt,
+            )
+            ForecastFreshness.STALE -> expiryAt
+            ForecastFreshness.EXPIRED -> return null
+        }
+        return Duration.between(now, transitionAt).takeIf { !it.isNegative && !it.isZero }
+            ?: Duration.ofNanos(1)
+    }
 }
 
 internal class DefaultForecastRepository(
@@ -118,6 +139,9 @@ internal class DefaultForecastRepository(
     private val clock: Clock = Clock.systemUTC(),
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val freshnessPolicy: ForecastFreshnessPolicy = ForecastFreshnessPolicy(),
+    private val waitForFreshnessTransition: suspend (Duration) -> Unit = { duration ->
+        delay(duration.toMillis().coerceAtLeast(1L))
+    },
     private val refreshMutex: Mutex = Mutex(),
 ) : ForecastRepository {
     private val freshnessRevision = MutableStateFlow(0L)
@@ -126,18 +150,32 @@ internal class DefaultForecastRepository(
         combine(
             store.observe(coordinate),
             freshnessRevision,
-        ) { stored, _ ->
-            stored?.let {
-                ForecastCacheState(
-                    forecast = it.forecast,
-                    freshness = freshnessPolicy.classify(it.forecast, clock.instant()),
-                    sourceForecasts = it.sourceForecasts,
-                    failedSources = it.failedSources.map { identity ->
-                        ForecastSourceIdentity(identity.provider, identity.modelFamily)
-                    },
-                )
+        ) { stored, _ -> stored }
+            .flatMapLatest { stored ->
+                if (stored == null) {
+                    flowOf<ForecastCacheState?>(null)
+                } else {
+                    flow {
+                        while (true) {
+                            val now = clock.instant()
+                            emit(
+                                ForecastCacheState(
+                                    forecast = stored.forecast,
+                                    freshness = freshnessPolicy.classify(stored.forecast, now),
+                                    sourceForecasts = stored.sourceForecasts,
+                                    failedSources = stored.failedSources.map { identity ->
+                                        ForecastSourceIdentity(identity.provider, identity.modelFamily)
+                                    },
+                                ),
+                            )
+                            val delayUntilTransition =
+                                freshnessPolicy.nextTransitionDelay(stored.forecast, now) ?: break
+                            waitForFreshnessTransition(delayUntilTransition)
+                        }
+                    }
+                }
             }
-        }.distinctUntilChanged()
+            .distinctUntilChanged()
 
     override suspend fun refresh(
         coordinate: ForecastCoordinate,

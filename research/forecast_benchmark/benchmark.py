@@ -9,6 +9,7 @@ from .metrics import (
     brier_score,
     error_summary,
     lead_bucket,
+    wind_vector_components,
     wind_vector_error_mps,
 )
 from .model import Forecast, HourlyPoint
@@ -262,8 +263,9 @@ def _finish(
     accumulator: _Accumulator,
 ) -> BucketScore:
     wind_count = sum(
-        None not in values
-        for values in zip(
+        wind_vector_components(ps, pd) is not None
+        and wind_vector_components(os, od) is not None
+        for ps, pd, os, od in zip(
             accumulator.wind_speed_predicted,
             accumulator.wind_direction_predicted,
             accumulator.wind_speed_observed,

@@ -82,13 +82,29 @@ def wind_vector_error_mps(
         observed_direction_deg,
         strict=True,
     ):
-        if None in (ps, pd, os, od):
+        predicted = wind_vector_components(ps, pd)
+        observed = wind_vector_components(os, od)
+        if predicted is None or observed is None:
             continue
-        pu, pv = _wind_uv(float(ps), float(pd))
-        ou, ov = _wind_uv(float(os), float(od))
+        pu, pv = predicted
+        ou, ov = observed
         errors.append(math.hypot(pu - ou, pv - ov))
 
     return fmean(errors) if errors else None
+
+
+def wind_vector_components(
+    speed: float | None,
+    direction_deg: float | None,
+) -> tuple[float, float] | None:
+    if speed is None:
+        return None
+    numeric_speed = float(speed)
+    if numeric_speed == 0.0:
+        return (0.0, 0.0)
+    if direction_deg is None:
+        return None
+    return _wind_uv(numeric_speed, float(direction_deg))
 
 
 def lead_bucket(hours: float) -> str | None:

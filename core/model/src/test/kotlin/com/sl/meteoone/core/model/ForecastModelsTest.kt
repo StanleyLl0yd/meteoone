@@ -52,6 +52,39 @@ class ForecastModelsTest {
     }
 
     @Test
+    fun forecastLocationAndTargetRequireValidTimeZoneIds() {
+        ForecastLocation(
+            latitude = 59.9,
+            longitude = 30.3,
+            elevationMeters = null,
+            timeZoneId = "Europe/Moscow",
+        )
+        ForecastTarget(
+            coordinate = ForecastCoordinate(59.9, 30.3),
+            elevationMeters = null,
+            timeZoneId = "UTC",
+        )
+
+        for (invalid in listOf("", "   ", "Mars/Phobos")) {
+            assertFailsWith<IllegalArgumentException> {
+                ForecastLocation(
+                    latitude = 59.9,
+                    longitude = 30.3,
+                    elevationMeters = null,
+                    timeZoneId = invalid,
+                )
+            }
+            assertFailsWith<IllegalArgumentException> {
+                ForecastTarget(
+                    coordinate = ForecastCoordinate(59.9, 30.3),
+                    elevationMeters = null,
+                    timeZoneId = invalid,
+                )
+            }
+        }
+    }
+
+    @Test
     fun forecastIntervalRequiresPositiveDuration() {
         val interval = ForecastInterval(
             start = time.minusSeconds(3600),

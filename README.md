@@ -36,12 +36,12 @@ MeteoOne 1.0 targets:
 - Stable: RuStore first, Google Play later.
 - Android package: `com.sl.meteoone`.
 - Published technical alpha: `0.1.0-alpha.1` (`versionCode = 1`).
-- M3 pre-beta candidate: `0.2.0-alpha.1` (`versionCode = 2`).
+- Published M3 pre-beta: `0.2.0-alpha.1` (`versionCode = 2`).
 - Every selected release publishes a signed APK and signed AAB from the same reviewed source SHA.
 
 ## Status
 
-M1 Forecast Core, M2 Offline-first Data Layer, and the M3 Product UI are complete. The repository is preparing the `0.2.0-alpha.1` feature-complete pre-beta GitHub release boundary; M4 verification-engine implementation has not started.
+M1 Forecast Core, M2 Offline-first Data Layer, and the M3 Product UI are complete. `v0.2.0-alpha.1` is published as the feature-complete M3 GitHub prerelease with its signed APK+AAB pair. M4 Verification Engine implementation has not started.
 
 See:
 
