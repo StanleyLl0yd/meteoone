@@ -7,7 +7,6 @@ import com.sl.meteoone.core.model.ModelFamily
 import java.time.Duration
 import java.time.Instant
 import java.time.Month
-import kotlin.math.sqrt
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -226,14 +225,12 @@ class VerificationDomainTest {
     @Test
     fun verificationSampleKeepsProviderAndModelFamilyProvenance() {
         val context = context()
-        val error = VerificationMetrics.scalarError(3.0, 2.0)
         val sample = ScalarVerificationSample(
             context = context,
             station = station,
             parameter = VerificationParameter.TEMPERATURE,
             predicted = 3.0,
             observed = 2.0,
-            error = error,
         )
 
         assertEquals(ForecastProvider.ECMWF_OPEN_DATA, sample.context.provider)
