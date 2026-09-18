@@ -124,4 +124,26 @@
     <string name="models_provider_ecmwf">ECMWF Open Data</string>
     <string name="models_provider_dwd">DWD Open Data</string>
     <string name="models_provider_unknown">Unknown provider</string>
+
+    <string name="settings_about_title">About MeteoOne</string>
+    <string name="settings_version">Version %1$s · code %2$d</string>
+    <string name="settings_privacy_title">Your location stays yours</string>
+    <string name="settings_privacy_body">MeteoOne requests approximate location only after your action, reduces it to the 0.1° forecast grid before persistence, and never stores the raw device coordinates. Android backup is disabled.</string>
+    <string name="settings_open_privacy_policy">Privacy policy</string>
+    <string name="settings_offline_title">Offline-first</string>
+    <string name="settings_offline_body">The latest fused forecast and its persisted model/provider evidence remain available from the on-device cache. A failed refresh does not replace a valid cached snapshot.</string>
+    <string name="settings_sources_title">Forecast data and attribution</string>
+    <string name="settings_sources_explanation">A provider is a delivery path; a model family is forecast evidence. Multiple provider paths for one model family are not counted as extra independent models.</string>
+    <string name="settings_source_open_meteo_title">Open-Meteo</string>
+    <string name="settings_source_open_meteo_body">MeteoOne uses Open-Meteo as a forecast-data provider. Open-Meteo weather data requires attribution under CC BY 4.0.</string>
+    <string name="settings_source_noaa_title">NOAA / NCEP GFS</string>
+    <string name="settings_source_noaa_body">MeteoOne can retrieve GFS forecast data from NOAA/NCEP NOMADS. U.S. government NOAA/NWS information is generally public domain unless specifically noted otherwise; MeteoOne is not endorsed by or affiliated with NOAA/NWS.</string>
+    <string name="settings_source_ecmwf_title">ECMWF IFS Open Data</string>
+    <string name="settings_source_ecmwf_body">This service is based on data and products of the European Centre for Medium-Range Weather Forecasts (ECMWF). ECMWF Open Data is published under CC BY 4.0 and is combined with other forecast evidence by MeteoOne. ECMWF accepts no liability for errors, omissions, availability, loss, or damage arising from use of its data.</string>
+    <string name="settings_source_dwd_title">DWD ICON Open Data</string>
+    <string name="settings_source_dwd_body">MeteoOne can retrieve ICON forecast data from Deutscher Wetterdienst (DWD) Open Data. DWD Open Data terms apply CC BY 4.0.</string>
+    <string name="settings_source_details">Source details</string>
+    <string name="settings_project_title">Project</string>
+    <string name="settings_project_body">MeteoOne is developed in a public GitHub repository. Project architecture, privacy documentation, security policy, and release controls are maintained there.</string>
+    <string name="settings_open_project">Open project repository</string>
 </resources>

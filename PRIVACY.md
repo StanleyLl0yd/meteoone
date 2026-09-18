@@ -1,6 +1,6 @@
 # MeteoOne Privacy Policy
 
-Effective date: 2026-09-16
+Effective date: 2026-09-18
 
 This policy describes the behavior of the MeteoOne Android application, package `com.sl.meteoone`, for the `0.1.0-alpha.1` release line.
 
@@ -18,7 +18,7 @@ MeteoOne stores the minimum state needed for its offline-first forecast behavior
 
 - the active privacy-reduced 0.1-degree forecast-grid coordinate;
 - the active time-zone identifier;
-- cached fused forecast snapshots and their forecast provenance/freshness information.
+- cached fused forecast snapshots, per-source/model comparison evidence, failed-source identities, and forecast provenance/freshness information.
 
 The current alpha location flow does not persist device elevation for the active target.
 
@@ -63,7 +63,7 @@ If MeteoOne's data behavior changes, this policy must be updated before a releas
 
 # Политика конфиденциальности MeteoOne
 
-Дата вступления в силу: 16 сентября 2026 года
+Дата вступления в силу: 18 сентября 2026 года
 
 Эта политика описывает поведение Android-приложения MeteoOne с пакетом `com.sl.meteoone` для линейки релизов `0.1.0-alpha.1`.
 
@@ -81,7 +81,7 @@ MeteoOne хранит минимальный набор данных, необх
 
 - активную координату сетки прогноза с пониженной точностью 0,1°;
 - идентификатор часового пояса активной цели;
-- кэшированные объединённые прогнозы, а также сведения об их происхождении и актуальности.
+- кэшированные объединённые прогнозы, данные отдельных источников/моделей для сравнения, идентификаторы недоступных источников, а также сведения о происхождении и актуальности прогноза.
 
 Текущий alpha-сценарий определения местоположения не сохраняет высоту устройства для активной цели.
 
