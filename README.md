@@ -49,6 +49,7 @@ See:
 - [PRIVACY.md](PRIVACY.md) for the current alpha privacy policy;
 - [docs/release/RUSTORE_ALPHA.md](docs/release/RUSTORE_ALPHA.md) for the retired alpha-store path and current stable-store policy;
 - [docs/release/SIGNING.md](docs/release/SIGNING.md) for signing and integrity controls;
+- [docs/release/M3_EXIT_REVIEW.md](docs/release/M3_EXIT_REVIEW.md) for the Product UI exit and pre-beta readiness review;
 - [docs/architecture/README.md](docs/architecture/README.md) for architecture;
 - [docs/branding/BRAND_GUIDE.md](docs/branding/BRAND_GUIDE.md) for brand identity and voice;
 - [docs/design/DESIGN_SYSTEM.md](docs/design/DESIGN_SYSTEM.md) for UI implementation rules;
