@@ -28,7 +28,7 @@ The currently verified live required `main` gates are:
 
 Dependency Review is operational on the public repository. It passed real PR #17 with exact context `dependency-review` and is eligible to become required once that owner-side ruleset update is applied and verified.
 
-CodeQL is not a merge gate while its Kotlin extractor is incompatible with the application compiler. A clean uncached public-PR validation using CodeQL action `4.37.9` / CLI `2.27.0` rejected Kotlin `2.4.20` as too recent. MeteoOne does not downgrade Kotlin for scanner compatibility and does not accept Java-only/no-build analysis as Kotlin coverage. Automatic CodeQL jobs remain gated until a manual compatibility probe succeeds with the current application toolchain.
+CodeQL uses a real compiled `java-kotlin` Android build. The earlier Kotlin `2.4.20` extractor incompatibility is historical; the post-M3 audit restored automatic CodeQL with the current pinned action/toolchain. It is not yet a live required `Protect main` context; promotion remains owner-side work after real PR/main stability is proven.
 
 Qodana is scheduled/manual whole-repository defense in depth and is intentionally not required.
 
@@ -46,7 +46,7 @@ Qodana is scheduled/manual whole-repository defense in depth and is intentionall
 
 ## Application attack surface
 
-Current M1 application baseline:
+Current post-M3 application baseline:
 
 - no accounts/backend in the repository;
 - no analytics or advertising SDK;
@@ -59,7 +59,7 @@ Current M1 application baseline:
 - production network execution is TLS-only and bounded;
 - `:forecast:data` contains the selected ecCodes 2.48.0 + libaec 1.1.4 native runtime and MeteoOne JNI bridge, with bounded payload/value limits, vendored definitions, licence/provenance records, and native-bundle verification.
 
-M1 keeps native/full-grid representations inside `:forecast:data`; only MeteoOne-owned types cross the module boundary. M2 persistence/cache/retry/rate-limit policy is not implemented yet.
+Native/full-grid representations remain inside `:forecast:data`; only MeteoOne-owned types cross module boundaries. M2 persistence/cache/freshness/retry/rate-limit behavior and the M3 Forecast/Models/Settings product surfaces are implemented, with Room as the offline source of truth.
 
 ## Research exception
 
@@ -67,20 +67,20 @@ The Roshydromet WIS2 benchmark endpoint is currently HTTP-only in the measured M
 
 ## Release integrity
 
-No GitHub Release exists yet, so MeteoOne deliberately does not maintain an unused privileged release workflow.
+GitHub prereleases `v0.1.0-alpha.1` and `v0.2.0-alpha.1` exist. The canonical release workflow:
 
-Before the first public/store release, the repository must implement and verify:
+- runs only from canonical verified `main`;
+- enforces monotonic Android `versionCode`/unique release history;
+- restores signing material only in the dedicated trusted release job;
+- verifies the expected certificate before and after signing;
+- builds APK and AAB together from one exact source SHA;
+- verifies package/version/signature/native-library invariants;
+- publishes exactly the signed APK and AAB as GitHub Release assets;
+- removes temporary signing material.
 
-- protected release environment/signing material;
-- release source tied to an exact verified `main` commit/tag;
-- immutable semver `v*` tags where repository enforcement supports them;
-- signed APK and AAB with expected certificate fingerprint verification;
-- SHA-256 checksums;
-- R8 mapping preservation when applicable;
-- GitHub artifact attestation/provenance when technically available;
-- cleanup of temporary signing material.
+Alpha/beta remain GitHub-only. A future stable RuStore AAB is eligible for manual upload only after the APK from the same GitHub Release passes manual device acceptance.
 
-See `docs/release/SIGNING.md`.
+Release-tag immutability is **not yet enforced by a tag ruleset** and remains an owner/admin finding tracked with repository settings. See `docs/release/SIGNING.md` and `docs/security/GITHUB_SETTINGS.md`.
 
 ## Deliberate non-controls
 
