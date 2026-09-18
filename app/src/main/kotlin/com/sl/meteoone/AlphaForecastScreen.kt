@@ -73,6 +73,7 @@ internal fun AlphaForecastScreen(
     var operation by remember { mutableStateOf<AlphaOperation>(AlphaOperation.Idle) }
     var locationRequest by remember { mutableStateOf<LocationRequestHandle?>(null) }
     var targetReloadRevision by remember { mutableStateOf(0L) }
+    var destination by remember { mutableStateOf(ProductDestination.FORECAST) }
 
     val targetLoad by produceState<TargetLoadState>(
         initialValue = TargetLoadState.Loading,
@@ -168,7 +169,12 @@ internal fun AlphaForecastScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        bottomBar = { ProductNavigationBar() },
+        bottomBar = {
+            ProductNavigationBar(
+                selected = destination,
+                onSelected = { selected -> destination = selected },
+            )
+        },
     ) { contentPadding ->
         Column(
             modifier = Modifier
@@ -182,60 +188,85 @@ internal fun AlphaForecastScreen(
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = stringResource(R.string.forecast_screen_subtitle),
+                text = stringResource(
+                    when (destination) {
+                        ProductDestination.FORECAST -> R.string.forecast_screen_subtitle
+                        ProductDestination.MODELS -> R.string.models_screen_subtitle
+                        ProductDestination.SETTINGS -> R.string.settings_screen_subtitle
+                    },
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(16.dp))
 
-            when (val load = targetLoad) {
-                TargetLoadState.Loading -> CenteredProgress()
-                TargetLoadState.Failed -> TargetStoreFailure(
-                    operation = operation,
-                    onUseLocation = ::chooseCurrentApproximateLocation,
-                )
-                is TargetLoadState.Loaded -> {
-                    val target = load.target
-                    if (target == null) {
-                        NoTargetContent(
-                            operation = operation,
-                            onUseLocation = ::chooseCurrentApproximateLocation,
-                        )
-                    } else {
-                        TargetForecastContent(
-                            modifier = Modifier.weight(1f),
-                            target = target,
-                            repository = repository,
-                            operation = operation,
-                            onRefresh = { refresh(target) },
-                            onUseLocation = ::chooseCurrentApproximateLocation,
-                        )
+            when (destination) {
+                ProductDestination.FORECAST -> when (val load = targetLoad) {
+                    TargetLoadState.Loading -> CenteredProgress()
+                    TargetLoadState.Failed -> TargetStoreFailure(
+                        operation = operation,
+                        onUseLocation = ::chooseCurrentApproximateLocation,
+                    )
+                    is TargetLoadState.Loaded -> {
+                        val target = load.target
+                        if (target == null) {
+                            NoTargetContent(
+                                operation = operation,
+                                onUseLocation = ::chooseCurrentApproximateLocation,
+                            )
+                        } else {
+                            TargetForecastContent(
+                                modifier = Modifier.weight(1f),
+                                target = target,
+                                repository = repository,
+                                operation = operation,
+                                onRefresh = { refresh(target) },
+                                onUseLocation = ::chooseCurrentApproximateLocation,
+                            )
+                        }
                     }
                 }
+
+                ProductDestination.MODELS -> when (val load = targetLoad) {
+                    TargetLoadState.Loading -> CenteredProgress()
+                    TargetLoadState.Failed -> TargetStoreFailure(
+                        operation = operation,
+                        onUseLocation = ::chooseCurrentApproximateLocation,
+                    )
+                    is TargetLoadState.Loaded -> ModelsComparisonContent(
+                        modifier = Modifier.weight(1f),
+                        target = load.target,
+                        repository = repository,
+                    )
+                }
+
+                ProductDestination.SETTINGS -> Text(stringResource(R.string.settings_screen_subtitle))
             }
         }
     }
 }
 
 @Composable
-private fun ProductNavigationBar() {
+private fun ProductNavigationBar(
+    selected: ProductDestination,
+    onSelected: (ProductDestination) -> Unit,
+) {
     NavigationBar {
         NavigationBarItem(
-            selected = true,
-            onClick = {},
+            selected = selected == ProductDestination.FORECAST,
+            onClick = { onSelected(ProductDestination.FORECAST) },
             icon = {},
             label = { Text(stringResource(R.string.nav_forecast)) },
         )
         NavigationBarItem(
-            selected = false,
-            onClick = {},
-            enabled = false,
+            selected = selected == ProductDestination.MODELS,
+            onClick = { onSelected(ProductDestination.MODELS) },
             icon = {},
             label = { Text(stringResource(R.string.nav_models)) },
         )
         NavigationBarItem(
-            selected = false,
-            onClick = {},
+            selected = selected == ProductDestination.SETTINGS,
+            onClick = { onSelected(ProductDestination.SETTINGS) },
             enabled = false,
             icon = {},
             label = { Text(stringResource(R.string.nav_settings)) },
@@ -782,6 +813,12 @@ private data class HourlyDayGroup(
     val date: LocalDate,
     val items: List<FusedHourlyForecast>,
 )
+
+private enum class ProductDestination {
+    FORECAST,
+    MODELS,
+    SETTINGS,
+}
 
 private sealed interface TargetLoadState {
     data object Loading : TargetLoadState
