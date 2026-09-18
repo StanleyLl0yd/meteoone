@@ -240,7 +240,9 @@ internal fun AlphaForecastScreen(
                     )
                 }
 
-                ProductDestination.SETTINGS -> Text(stringResource(R.string.settings_screen_subtitle))
+                ProductDestination.SETTINGS -> SettingsContent(
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
@@ -267,7 +269,6 @@ private fun ProductNavigationBar(
         NavigationBarItem(
             selected = selected == ProductDestination.SETTINGS,
             onClick = { onSelected(ProductDestination.SETTINGS) },
-            enabled = false,
             icon = {},
             label = { Text(stringResource(R.string.nav_settings)) },
         )
