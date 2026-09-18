@@ -153,7 +153,7 @@ internal class DefaultForecastRepository(
         ) { stored, _ -> stored }
             .flatMapLatest { stored ->
                 if (stored == null) {
-                    flowOf(null)
+                    flowOf<ForecastCacheState?>(null)
                 } else {
                     flow {
                         while (true) {
