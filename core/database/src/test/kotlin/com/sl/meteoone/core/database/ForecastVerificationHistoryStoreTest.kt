@@ -50,7 +50,7 @@ class ForecastVerificationHistoryStoreTest {
     }
 
     @Test
-    fun exactRunRoundTripsOnlyVerificationFieldsAndLead() = runBlocking {
+    fun exactRunRoundTripsOnlyVerificationFieldsAndLead() : Unit = runBlocking {
         val run = Instant.parse("2026-09-15T00:00:00Z")
         val source = source(
             modelRun = run,
@@ -85,7 +85,7 @@ class ForecastVerificationHistoryStoreTest {
     }
 
     @Test
-    fun repeatedArchiveIsIdempotent() = runBlocking {
+    fun repeatedArchiveIsIdempotent() : Unit = runBlocking {
         val run = Instant.parse("2026-09-15T00:00:00Z")
         val source = source(run, listOf(weather(run.plusSeconds(6 * 3600), 7.0)))
         val store = store()
@@ -100,7 +100,7 @@ class ForecastVerificationHistoryStoreTest {
     }
 
     @Test
-    fun sameRunIdentityDoesNotConflictOnNonForecastTargetMetadata() = runBlocking {
+    fun sameRunIdentityDoesNotConflictOnNonForecastTargetMetadata() : Unit = runBlocking {
         val run = Instant.parse("2026-09-15T00:00:00Z")
         val point = weather(run.plusSeconds(6 * 3600), 7.0)
         val store = store()
@@ -123,7 +123,7 @@ class ForecastVerificationHistoryStoreTest {
     }
 
     @Test
-    fun sameRunCanGainNewValidTimesIncrementally() = runBlocking {
+    fun sameRunCanGainNewValidTimesIncrementally() : Unit = runBlocking {
         val run = Instant.parse("2026-09-15T00:00:00Z")
         val store = store()
 
@@ -145,7 +145,7 @@ class ForecastVerificationHistoryStoreTest {
     }
 
     @Test
-    fun sameRunAndValidTimeCannotBeSilentlyRewritten() = runBlocking {
+    fun sameRunAndValidTimeCannotBeSilentlyRewritten() : Unit = runBlocking {
         val run = Instant.parse("2026-09-15T00:00:00Z")
         val valid = run.plusSeconds(6 * 3600)
         val store = store()
@@ -165,7 +165,7 @@ class ForecastVerificationHistoryStoreTest {
     }
 
     @Test
-    fun sourceWithoutModelRunIsSkippedWithoutInventingLead() = runBlocking {
+    fun sourceWithoutModelRunIsSkippedWithoutInventingLead() : Unit = runBlocking {
         val source = source(
             modelRun = null,
             points = listOf(weather(Instant.parse("2026-09-15T06:00:00Z"), 7.0)),
@@ -180,7 +180,7 @@ class ForecastVerificationHistoryStoreTest {
     }
 
     @Test
-    fun retentionSkipsExpiredInputAndPrunesPreviouslyStoredRuns() = runBlocking {
+    fun retentionSkipsExpiredInputAndPrunesPreviouslyStoredRuns() : Unit = runBlocking {
         val store = store(retention = Duration.ofDays(10))
         val initiallyFreshRun = Instant.parse("2026-09-09T00:00:00Z")
         store.archive(
@@ -223,7 +223,7 @@ class ForecastVerificationHistoryStoreTest {
     }
 
     @Test
-    fun duplicateRunIdentityInsideOneBatchIsRejected() = runBlocking {
+    fun duplicateRunIdentityInsideOneBatchIsRejected() : Unit = runBlocking {
         val run = Instant.parse("2026-09-15T00:00:00Z")
         val store = store()
 
@@ -239,7 +239,7 @@ class ForecastVerificationHistoryStoreTest {
     }
 
     @Test
-    fun rawPrecisionLocationCannotEnterVerificationHistory() = runBlocking {
+    fun rawPrecisionLocationCannotEnterVerificationHistory() : Unit = runBlocking {
         val run = Instant.parse("2026-09-15T00:00:00Z")
         val raw = source(run, listOf(weather(run.plusSeconds(3600), 7.0))).copy(
             location = ForecastLocation(
@@ -257,7 +257,7 @@ class ForecastVerificationHistoryStoreTest {
     }
 
     @Test
-    fun leadOutsideM4HorizonIsRejected() = runBlocking {
+    fun leadOutsideM4HorizonIsRejected() : Unit = runBlocking {
         val run = Instant.parse("2026-09-15T00:00:00Z")
 
         assertFailsWith<IllegalArgumentException> {
