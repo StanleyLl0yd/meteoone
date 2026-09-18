@@ -170,13 +170,6 @@ internal fun MeteoOneApp(
         }
     }
 
-    DisposableEffect(locationClient) {
-        onDispose {
-            locationRequest?.cancel()
-            locationRequest = null
-        }
-    }
-
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
