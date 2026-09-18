@@ -111,7 +111,13 @@ class ModelComparisonTest {
         val fused = requireNotNull(fusedHourlyAt(cache, hour))
         assertEquals(
             1.0,
-            sourceValueAt(cache.sourceForecasts.first(), fused, ModelComparisonParameter.PRECIPITATION),
+            requireNotNull(
+                sourceValueAt(
+                    cache.sourceForecasts.first(),
+                    fused,
+                    ModelComparisonParameter.PRECIPITATION,
+                ),
+            ),
             0.0,
         )
         assertNull(
