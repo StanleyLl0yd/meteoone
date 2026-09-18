@@ -38,7 +38,9 @@ The fusion engine must keep the existing equal-weight behavior whenever the veri
 - scalar and wind-vector error primitives;
 - exact-interval precipitation comparison.
 
-It does not depend on Android, Room, HTTP, WIS2 formats or provider DTOs.
+It does not depend on Android, Room, HTTP, WIS2/GHCNh formats or provider DTOs.
+
+`:verification:data` is the pure JVM transport/normalization boundary for M4 evidence sources. Its first concrete responsibility is bounded NOAA/NCEI GHCNh station discovery from the privacy-reduced `ForecastCoordinate`; later observation parsing remains outside `:verification:domain` as well.
 
 ## Identity and privacy
 
