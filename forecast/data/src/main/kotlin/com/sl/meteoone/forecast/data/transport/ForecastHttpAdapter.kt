@@ -8,6 +8,8 @@ import com.sl.meteoone.core.network.BoundedHttpsResult
 import com.sl.meteoone.core.network.BoundedHttpsTransport
 import com.sl.meteoone.forecast.data.ecmwf.EcmwfFieldRangePlan
 import com.sl.meteoone.forecast.data.openmeteo.OpenMeteoForecastRequest
+import com.sl.meteoone.forecast.data.openmeteo.OpenMeteoSingleRunRequest
+import com.sl.meteoone.forecast.data.openmeteo.OPEN_METEO_SINGLE_RUN_MINIMUM_REQUEST_SPACING
 import com.sl.meteoone.forecast.data.source.OfficialSourceRequest
 import java.time.Duration
 
@@ -34,6 +36,16 @@ internal class ForecastHttpAdapter(
                 maxResponseBytes = request.maxResponseBytes,
             ),
             minimumRequestSpacing = Duration.ZERO,
+            validator = ::validateOrdinaryResponse,
+        )
+
+    fun newOrdinaryCall(request: OpenMeteoSingleRunRequest): BoundedHttpsCall =
+        validatingCall(
+            request = BoundedHttpsRequest(
+                uri = request.uri,
+                maxResponseBytes = request.maxResponseBytes,
+            ),
+            minimumRequestSpacing = OPEN_METEO_SINGLE_RUN_MINIMUM_REQUEST_SPACING,
             validator = ::validateOrdinaryResponse,
         )
 
