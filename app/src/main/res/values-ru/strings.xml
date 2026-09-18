@@ -4,7 +4,7 @@
     <string name="tagline">Несколько моделей. Один прогноз.</string>
     <string name="foundation_status">Разрабатывается ядро прогноза</string>
 
-    <string name="alpha_label">0.1.0-alpha.1 · offline-first</string>
+    <string name="alpha_label">0.2.0-alpha.1 · pre-beta</string>
     <string name="forecast_screen_subtitle">Ваш объединённый прогноз</string>
     <string name="nav_forecast">Прогноз</string>
     <string name="nav_models">Модели</string>
