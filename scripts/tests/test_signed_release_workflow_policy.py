@@ -100,6 +100,10 @@ class SignedReleaseWorkflowPolicyTest(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertIn(STORE_ACCEPTANCE_SENTENCE, path.read_text(encoding="utf-8"))
 
+    def test_release_version_history_is_verified_before_publication(self) -> None:
+        self.assertIn("python3 scripts/verify_release_version_history.py", self.text)
+        self.assertIn("git fetch --force --tags origin", self.text)
+
     def test_prerelease_versions_are_marked_prerelease(self) -> None:
         self.assertIn('if [[ "$VERSION_NAME" == *-* ]]; then', self.text)
         self.assertIn("args+=(--prerelease)", self.text)
