@@ -2,7 +2,7 @@
 
 Effective date: 2026-09-18
 
-This policy describes the behavior of the MeteoOne Android application, package `com.sl.meteoone`, for the `0.1.0-alpha.1` release line.
+This policy describes the behavior of the MeteoOne Android application, package `com.sl.meteoone`, for the `0.2.0-alpha.1` release line.
 
 ## Location
 
@@ -36,7 +36,7 @@ As with any Internet request, an external service can receive ordinary transport
 
 ## Accounts, advertising, and analytics
 
-The `0.1.0-alpha.1` application has no MeteoOne account system, advertising SDK, analytics SDK, or behavioral-tracking SDK. The release code contains no mechanism for selling user data.
+The `0.2.0-alpha.1` application has no MeteoOne account system, advertising SDK, analytics SDK, or behavioral-tracking SDK. The release code contains no mechanism for selling user data.
 
 ## Permissions
 
@@ -65,7 +65,7 @@ If MeteoOne's data behavior changes, this policy must be updated before a releas
 
 Дата вступления в силу: 18 сентября 2026 года
 
-Эта политика описывает поведение Android-приложения MeteoOne с пакетом `com.sl.meteoone` для линейки релизов `0.1.0-alpha.1`.
+Эта политика описывает поведение Android-приложения MeteoOne с пакетом `com.sl.meteoone` для линейки релизов `0.2.0-alpha.1`.
 
 ## Местоположение
 
@@ -99,7 +99,7 @@ MeteoOne получает прогнозы по HTTPS от погодных се
 
 ## Аккаунты, реклама и аналитика
 
-В приложении `0.1.0-alpha.1` нет системы аккаунтов MeteoOne, рекламного SDK, SDK аналитики или SDK поведенческого трекинга. В коде этой версии нет механизма продажи пользовательских данных.
+В приложении `0.2.0-alpha.1` нет системы аккаунтов MeteoOne, рекламного SDK, SDK аналитики или SDK поведенческого трекинга. В коде этой версии нет механизма продажи пользовательских данных.
 
 ## Разрешения
 

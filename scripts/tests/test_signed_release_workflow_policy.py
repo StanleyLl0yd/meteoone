@@ -17,6 +17,17 @@ REQUIRED_SECRETS = (
     "ANDROID_KEY_PASSWORD",
     "ANDROID_UPLOAD_CERT_SHA256",
 )
+STORE_POLICY_DOCS = (
+    Path("ROADMAP.md"),
+    Path("docs/release/SIGNING.md"),
+    Path("docs/release/GITHUB_SIGNED_BUILD.md"),
+    Path("docs/release/RUSTORE_ALPHA.md"),
+    Path("docs/release/RUSTORE_LISTING.md"),
+)
+STORE_ACCEPTANCE_SENTENCE = (
+    "Before any RuStore AAB upload, the APK from that same GitHub Release must pass "
+    "manual device acceptance testing; if the APK fails, do not upload its AAB."
+)
 
 
 class SignedReleaseWorkflowPolicyTest(unittest.TestCase):
@@ -54,6 +65,7 @@ class SignedReleaseWorkflowPolicyTest(unittest.TestCase):
         self.assertIn(":app:bundleRelease", self.text)
         self.assertIn('source_apk="app/build/outputs/apk/release/app-release.apk"', self.text)
         self.assertIn('source_aab="app/build/outputs/bundle/release/app-release.aab"', self.text)
+        self.assertIn('--target "$GITHUB_SHA"', self.text)
 
     def test_release_assets_are_only_apk_and_aab(self) -> None:
         self.assertIn('apk_name="meteoone-$VERSION_NAME.apk"', self.text)
@@ -73,7 +85,7 @@ class SignedReleaseWorkflowPolicyTest(unittest.TestCase):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, self.text)
 
-    def test_manual_apk_testing_is_not_a_release_gate(self) -> None:
+    def test_manual_apk_testing_is_not_a_github_release_creation_gate(self) -> None:
         for forbidden in (
             "manual-device-smoke-test",
             "manual-test APK",
@@ -82,6 +94,11 @@ class SignedReleaseWorkflowPolicyTest(unittest.TestCase):
         ):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, self.text)
+
+    def test_rustore_handoff_requires_same_release_apk_acceptance(self) -> None:
+        for path in STORE_POLICY_DOCS:
+            with self.subTest(path=path):
+                self.assertIn(STORE_ACCEPTANCE_SENTENCE, path.read_text(encoding="utf-8"))
 
     def test_prerelease_versions_are_marked_prerelease(self) -> None:
         self.assertIn('if [[ "$VERSION_NAME" == *-* ]]; then', self.text)

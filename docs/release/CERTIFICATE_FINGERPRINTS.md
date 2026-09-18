@@ -1,6 +1,6 @@
 # MeteoOne release certificate fingerprints
 
-Status: **SIGNED AAB CERTIFICATE VERIFIED — RuStore role assignment still requires store-side confirmation.**
+Status: **GITHUB RELEASE SIGNING CERTIFICATE VERIFIED — RuStore role assignment is deferred to the M7 stable-store setup.**
 
 This file is a public integrity record only. Never commit a keystore, private key, password, PEPK export, secret or recovery material here or elsewhere in the repository.
 
@@ -18,7 +18,21 @@ The same public certificate fingerprint is already used by neighboring StanleyLl
 - Key algorithm / size: `RSA 2048`
 - Subject observed by `apksigner`: `C=RU, ST=Saint-Petersburg, L=Saint-Petersburg, O=Silver Lightning, OU=SL, CN=Stanley Lloyd`
 - Historical role: release APK signing in neighboring Android projects
-- MeteoOne RuStore role: `PENDING STORE-SIDE CONFIRMATION`
+- MeteoOne RuStore role: `DEFERRED TO M7 STORE-SIDE CONFIRMATION`
+
+## Published unified GitHub release evidence
+
+The current single release pipeline was exercised successfully for the published technical alpha:
+
+- GitHub Release: `v0.1.0-alpha.1`;
+- release workflow run: `35206961835` (`Signed Android Release`, success);
+- exact source SHA: `c0ba216967d6bba219b7cd1edf6c511e77c2d896`;
+- APK SHA-256: `d84e773c81f25f1b431b63264f8abdd4d0fcfc1e3df3d7df5005a5fc27ab3b3d`;
+- AAB SHA-256: `45e77d426147576760d8ef7f23c70762cccdb013a00fa10519a3130138fab644`;
+- APK signer count: `1`;
+- APK signer certificate SHA-256: `F0:25:71:C4:07:41:E2:CB:07:15:64:F5:B6:3F:D3:DC:38:A8:75:D0:ED:A1:1A:8C:42:26:9E:D6:35:BC:2A:58`.
+
+That run built, verified and published APK+AAB together from the same canonical source and is the release-pipeline evidence relevant to future GitHub releases.
 
 ## Application-signing certificate
 
@@ -42,9 +56,9 @@ Purpose: upload identity used to sign AAB files submitted to RuStore. It is not 
 - AAB SHA-256: `b5da2069b7d08d7eec39882aef921702c145d8648fe082ce6c6d0019b7bcd93c`
 - GitHub build-provenance attestation: `47936791`
 - RuStore registration status for this certificate: `PENDING STORE-SIDE CONFIRMATION`
-- First RuStore alpha using this upload key: `PENDING STORE ACCEPTANCE`
+- First RuStore stable release using this upload key: `PENDING M7 STORE ACCEPTANCE`
 
-The real Actions run restored the repository-secret JKS, validated this fingerprint before Gradle signing, verified the signed APK and AAB after build, and removed the temporary keystore. The downloaded AAB was then independently checked again and contains exactly one certificate with the same SHA-256 fingerprint.
+The historical pre-unified Actions run restored the repository-secret JKS, validated this fingerprint before Gradle signing, verified its signed APK/AAB output, and removed the temporary keystore. It is retained as bootstrap signing evidence, not as the artifact record for the later published `v0.1.0-alpha.1` unified release documented above.
 
 A public PEM upload certificate can be exported directly from this signed AAB with `scripts/export_aab_upload_certificate.py`; doing so does not expose the private key. RuStore still requires separate application-signing setup for AAB delivery according to its current signing flow.
 
@@ -59,15 +73,16 @@ python3 scripts/export_aab_upload_certificate.py \
 
 ## Recording procedure
 
-Before the first store upload:
+Before the first stable store upload:
 
-1. decide which key establishes long-lived MeteoOne **application signing**;
-2. confirm in RuStore Console which certificate is registered as the **AAB upload key**;
-3. compare the RuStore upload certificate against the verified AAB fingerprint above;
-4. configure/import the intended application-signing key using the store's current AAB signing flow;
-5. keep the JKS/password/alias values only in the GitHub Actions repository secrets described in [GITHUB_SIGNED_BUILD.md](GITHUB_SIGNED_BUILD.md) when that JKS is intentionally the AAB upload key;
-6. do not attach or commit private signing material, passwords or PEPK output;
-7. after RuStore generates/install-delivers the APK, verify and record the delivered APK application-signing fingerprint;
-8. update the remaining pending public metadata here through a reviewed pull request.
+1. install and acceptance-test the APK from the exact stable GitHub Release; if it fails, stop and create a new monotonic release pair before any store upload;
+2. decide which key establishes long-lived MeteoOne **application signing**;
+3. confirm in RuStore Console which certificate is registered as the **AAB upload key**;
+4. compare the RuStore upload certificate against the verified AAB fingerprint above;
+5. configure/import the intended application-signing key using the store's current AAB signing flow;
+6. keep the JKS/password/alias values only in the GitHub Actions repository secrets described in [GITHUB_SIGNED_BUILD.md](GITHUB_SIGNED_BUILD.md) when that JKS is intentionally the AAB upload key;
+7. do not attach or commit private signing material, passwords or PEPK output;
+8. after RuStore generates/install-delivers the APK, verify and record the delivered APK application-signing fingerprint;
+9. update the remaining pending public metadata here through a reviewed pull request.
 
 Treat terminal history, generated PEPK ZIP files, and temporary keystore copies as sensitive material. Follow [SIGNING.md](SIGNING.md), [GITHUB_SIGNED_BUILD.md](GITHUB_SIGNED_BUILD.md), and [RUSTORE_ALPHA.md](RUSTORE_ALPHA.md).
