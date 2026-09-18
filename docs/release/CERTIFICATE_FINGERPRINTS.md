@@ -20,6 +20,20 @@ The same public certificate fingerprint is already used by neighboring StanleyLl
 - Historical role: release APK signing in neighboring Android projects
 - MeteoOne RuStore role: `DEFERRED TO M7 STORE-SIDE CONFIRMATION`
 
+## Published unified GitHub release evidence
+
+The current single release pipeline was exercised successfully for the published technical alpha:
+
+- GitHub Release: `v0.1.0-alpha.1`;
+- release workflow run: `35206961835` (`Signed Android Release`, success);
+- exact source SHA: `c0ba216967d6bba219b7cd1edf6c511e77c2d896`;
+- APK SHA-256: `d84e773c81f25f1b431b63264f8abdd4d0fcfc1e3df3d7df5005a5fc27ab3b3d`;
+- AAB SHA-256: `45e77d426147576760d8ef7f23c70762cccdb013a00fa10519a3130138fab644`;
+- APK signer count: `1`;
+- APK signer certificate SHA-256: `F0:25:71:C4:07:41:E2:CB:07:15:64:F5:B6:3F:D3:DC:38:A8:75:D0:ED:A1:1A:8C:42:26:9E:D6:35:BC:2A:58`.
+
+That run built, verified and published APK+AAB together from the same canonical source and is the release-pipeline evidence relevant to future GitHub releases.
+
 ## Application-signing certificate
 
 Purpose: long-lived Android application identity used to sign APKs installed by users. For RuStore-managed AAB delivery, RuStore signs the generated APKs with the configured application-signing key.
@@ -44,7 +58,7 @@ Purpose: upload identity used to sign AAB files submitted to RuStore. It is not 
 - RuStore registration status for this certificate: `PENDING STORE-SIDE CONFIRMATION`
 - First RuStore stable release using this upload key: `PENDING M7 STORE ACCEPTANCE`
 
-The real Actions run restored the repository-secret JKS, validated this fingerprint before Gradle signing, verified the signed APK and AAB after build, and removed the temporary keystore. The downloaded AAB was then independently checked again and contains exactly one certificate with the same SHA-256 fingerprint.
+The historical pre-unified Actions run restored the repository-secret JKS, validated this fingerprint before Gradle signing, verified its signed APK/AAB output, and removed the temporary keystore. It is retained as bootstrap signing evidence, not as the artifact record for the later published `v0.1.0-alpha.1` unified release documented above.
 
 A public PEM upload certificate can be exported directly from this signed AAB with `scripts/export_aab_upload_certificate.py`; doing so does not expose the private key. RuStore still requires separate application-signing setup for AAB delivery according to its current signing flow.
 
