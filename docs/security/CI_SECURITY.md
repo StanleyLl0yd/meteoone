@@ -58,4 +58,4 @@ The M0 research-only Roshydromet WIS2 adapter uses the provider's published HTTP
 
 ## Signing boundary
 
-Ordinary CI cannot produce production-signed artifacts. Signing is introduced only through an explicitly trusted release environment and must satisfy `docs/release/SIGNING.md`.
+Ordinary CI cannot produce production-signed artifacts. Signing is introduced only through the explicitly trusted manual signed-release workflow using repository secrets; no GitHub Environment is required. The workflow must satisfy `docs/release/SIGNING.md`.
