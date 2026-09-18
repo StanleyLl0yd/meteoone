@@ -12,8 +12,6 @@ data class ForecastTarget(
     val timeZoneId: String,
 ) {
     init {
-        require(timeZoneId.isNotBlank()) {
-            "Forecast target time zone must not be blank"
-        }
+        requireValidTimeZoneId(timeZoneId)
     }
 }
