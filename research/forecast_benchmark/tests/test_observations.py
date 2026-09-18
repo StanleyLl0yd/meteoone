@@ -90,7 +90,7 @@ class GlobalHourlyParserTest(unittest.TestCase):
         self.assertIsNone(point.temperature_c)
         self.assertIsNone(point.pressure_sea_level_hpa)
         self.assertEqual(point.wind_speed_mps, 0.0)
-        self.assertEqual(point.wind_direction_degrees, 0.0)
+        self.assertIsNone(point.wind_direction_degrees)
         self.assertEqual(point.precipitation_mm, 0.0)
         self.assertTrue(point.precipitation_trace)
 
