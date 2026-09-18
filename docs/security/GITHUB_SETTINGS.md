@@ -72,4 +72,4 @@ Production signing secrets must never be available to ordinary pull-request work
 
 ## Remaining administrative work
 
-Issue #12 tracks owner-side repository security settings. The `main` ruleset, secret scanning, and push protection are verified active. Remaining owner actions are: add the already-proven `dependency-review` context to `Protect main`, add and verify a `refs/tags/v*` immutability ruleset now that GitHub releases exist, and later decide whether stable CodeQL should also become a required context after the restored workflow has proved reliable.
+Issue #12 tracks owner-side repository security settings. The `main` ruleset, secret scanning, and push protection are verified active. Remaining owner actions are: add the already-proven `dependency-review` context to `Protect main`, add and verify a `refs/tags/v*` immutability ruleset now that GitHub releases exist, and later decide whether stable CodeQL should also become a required context after a compatibility probe succeeds and the enabled workflow proves reliable.
