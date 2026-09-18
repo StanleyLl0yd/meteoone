@@ -100,6 +100,29 @@ class ForecastVerificationHistoryStoreTest {
     }
 
     @Test
+    fun sameRunIdentityDoesNotConflictOnNonForecastTargetMetadata() = runBlocking {
+        val run = Instant.parse("2026-09-15T00:00:00Z")
+        val point = weather(run.plusSeconds(6 * 3600), 7.0)
+        val store = store()
+        store.archive(coordinate, listOf(source(run, listOf(point))))
+
+        val repeated = source(run, listOf(point)).copy(
+            location = ForecastLocation(
+                latitude = coordinate.latitude,
+                longitude = coordinate.longitude,
+                elevationMeters = 99,
+                timeZoneId = "UTC",
+            ),
+        )
+        val result = store.archive(coordinate, listOf(repeated))
+
+        assertEquals(1, result.existingPoints)
+        val restored = store.readSince(coordinate, run).single()
+        assertEquals(12, restored.elevationMeters)
+        assertEquals("Europe/Moscow", restored.timeZoneId)
+    }
+
+    @Test
     fun sameRunCanGainNewValidTimesIncrementally() = runBlocking {
         val run = Instant.parse("2026-09-15T00:00:00Z")
         val store = store()
