@@ -124,4 +124,26 @@
     <string name="models_provider_ecmwf">ECMWF Open Data</string>
     <string name="models_provider_dwd">DWD Open Data</string>
     <string name="models_provider_unknown">Неизвестный источник</string>
+
+    <string name="settings_about_title">О MeteoOne</string>
+    <string name="settings_version">Версия %1$s · код %2$d</string>
+    <string name="settings_privacy_title">Ваше местоположение остаётся вашим</string>
+    <string name="settings_privacy_body">MeteoOne запрашивает только приблизительное местоположение и только после вашего действия, снижает точность до сетки прогноза 0,1° до сохранения и никогда не хранит исходные координаты устройства. Резервное копирование Android отключено.</string>
+    <string name="settings_open_privacy_policy">Политика конфиденциальности</string>
+    <string name="settings_offline_title">Offline-first</string>
+    <string name="settings_offline_body">Последний объединённый прогноз и сохранённые данные моделей и источников остаются доступны из локального кэша. Неудачное обновление не заменяет корректный сохранённый прогноз.</string>
+    <string name="settings_sources_title">Данные прогноза и атрибуция</string>
+    <string name="settings_sources_explanation">Источник — это путь получения данных, а семейство модели — прогнозное свидетельство. Несколько путей получения одной модели не считаются дополнительными независимыми моделями.</string>
+    <string name="settings_source_open_meteo_title">Open-Meteo</string>
+    <string name="settings_source_open_meteo_body">MeteoOne использует Open-Meteo как поставщика данных прогноза. Для погодных данных Open-Meteo требуется атрибуция по лицензии CC BY 4.0.</string>
+    <string name="settings_source_noaa_title">NOAA / NCEP GFS</string>
+    <string name="settings_source_noaa_body">MeteoOne может получать данные прогноза GFS через NOAA/NCEP NOMADS. Информация государственных служб NOAA/NWS, как правило, находится в общественном достоянии, если явно не указано иное; NOAA/NWS не поддерживает MeteoOne и не аффилирован с ним.</string>
+    <string name="settings_source_ecmwf_title">ECMWF IFS Open Data</string>
+    <string name="settings_source_ecmwf_body">Сервис основан в том числе на данных и продуктах Европейского центра среднесрочных прогнозов погоды (ECMWF). ECMWF Open Data публикуется по CC BY 4.0 и объединяется MeteoOne с другими прогнозными данными. ECMWF не несёт ответственности за ошибки, пропуски, доступность данных, ущерб или убытки, связанные с их использованием.</string>
+    <string name="settings_source_dwd_title">DWD ICON Open Data</string>
+    <string name="settings_source_dwd_body">MeteoOne может получать данные прогноза ICON из DWD Open Data Немецкой метеорологической службы (Deutscher Wetterdienst). Условия DWD Open Data применяют лицензию CC BY 4.0.</string>
+    <string name="settings_source_details">Подробнее об источнике</string>
+    <string name="settings_project_title">Проект</string>
+    <string name="settings_project_body">MeteoOne разрабатывается в публичном репозитории GitHub. Там поддерживаются архитектурная документация, политика конфиденциальности, политика безопасности и правила релизов.</string>
+    <string name="settings_open_project">Открыть репозиторий проекта</string>
 </resources>
