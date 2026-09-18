@@ -4,6 +4,7 @@ import com.sl.meteoone.core.model.ForecastCoordinate
 import com.sl.meteoone.core.model.ForecastInterval
 import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.ModelFamily
+import java.time.DateTimeException
 import java.time.Duration
 import java.time.Instant
 import java.time.Month
@@ -97,7 +98,7 @@ data class VerificationContext(
         }
         try {
             ZoneId.of(timeZoneId)
-        } catch (error: RuntimeException) {
+        } catch (error: DateTimeException) {
             throw IllegalArgumentException("Verification time zone must be a valid ZoneId: $timeZoneId", error)
         }
     }
