@@ -79,6 +79,14 @@ internal fun MeteoOneApp(
     var locationRequest by remember { mutableStateOf<LocationRequestHandle?>(null) }
     var destination by remember { mutableStateOf(ProductDestination.FORECAST) }
 
+    DisposableEffect(locationClient) {
+        onDispose {
+            val pending = locationRequest
+            locationRequest = null
+            pending?.cancel()
+        }
+    }
+
     val targetLoad by produceState<TargetLoadState>(
         initialValue = TargetLoadState.Loading,
         key1 = targetStore,
