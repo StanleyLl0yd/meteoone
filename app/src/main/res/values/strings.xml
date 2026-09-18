@@ -4,7 +4,7 @@
     <string name="tagline">Many models. One forecast.</string>
     <string name="foundation_status">Forecast foundation in development</string>
 
-    <string name="alpha_label">0.1.0-alpha.1 · offline-first</string>
+    <string name="alpha_label">0.2.0-alpha.1 · pre-beta</string>
     <string name="forecast_screen_subtitle">Your fused forecast</string>
     <string name="nav_forecast">Forecast</string>
     <string name="nav_models">Models</string>
