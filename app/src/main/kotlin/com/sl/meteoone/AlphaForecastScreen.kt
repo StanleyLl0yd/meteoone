@@ -5,14 +5,16 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -39,7 +41,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sl.meteoone.core.location.AndroidCurrentLocationClient
@@ -176,31 +181,37 @@ internal fun AlphaForecastScreen(
             )
         },
     ) { contentPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(contentPadding)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(contentPadding),
+            contentAlignment = Alignment.TopCenter,
         ) {
-            Text(
-                text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = stringResource(
-                    when (destination) {
-                        ProductDestination.FORECAST -> R.string.forecast_screen_subtitle
-                        ProductDestination.MODELS -> R.string.models_screen_subtitle
-                        ProductDestination.SETTINGS -> R.string.settings_screen_subtitle
-                    },
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(16.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .widthIn(max = MAX_CONTENT_WIDTH)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = stringResource(
+                        when (destination) {
+                            ProductDestination.FORECAST -> R.string.forecast_screen_subtitle
+                            ProductDestination.MODELS -> R.string.models_screen_subtitle
+                            ProductDestination.SETTINGS -> R.string.settings_screen_subtitle
+                        },
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(16.dp))
 
-            when (destination) {
+                when (destination) {
                 ProductDestination.FORECAST -> when (val load = targetLoad) {
                     TargetLoadState.Loading -> CenteredProgress()
                     TargetLoadState.Failed -> TargetStoreFailure(
@@ -211,6 +222,7 @@ internal fun AlphaForecastScreen(
                         val target = load.target
                         if (target == null) {
                             NoTargetContent(
+                                modifier = Modifier.weight(1f),
                                 operation = operation,
                                 onUseLocation = ::chooseCurrentApproximateLocation,
                             )
@@ -240,9 +252,10 @@ internal fun AlphaForecastScreen(
                     )
                 }
 
-                ProductDestination.SETTINGS -> SettingsContent(
-                    modifier = Modifier.weight(1f),
-                )
+                    ProductDestination.SETTINGS -> SettingsContent(
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
     }
@@ -317,17 +330,19 @@ private fun TargetForecastContent(
         )
         Spacer(Modifier.height(8.dp))
 
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Button(
+                modifier = Modifier.fillMaxWidth(),
                 onClick = onRefresh,
                 enabled = !operation.isBusy,
             ) {
                 Text(stringResource(R.string.action_refresh))
             }
             OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
                 onClick = onUseLocation,
                 enabled = !operation.isBusy,
             ) {
@@ -407,12 +422,17 @@ private fun ForecastSnapshot(
         item {
             Spacer(Modifier.height(4.dp))
             Text(
+                modifier = Modifier.semantics { heading() },
                 text = stringResource(R.string.hourly_forecast_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = stringResource(R.string.forecast_hours_count, forecast.hourly.size),
+                text = pluralStringResource(
+                    R.plurals.forecast_hours_count,
+                    forecast.hourly.size,
+                    forecast.hourly.size,
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -444,6 +464,7 @@ private fun CurrentConditionsCard(
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
+                modifier = Modifier.semantics { heading() },
                 text = stringResource(R.string.current_conditions_title),
                 style = MaterialTheme.typography.titleMedium,
             )
@@ -477,9 +498,9 @@ private fun CurrentConditionsCard(
                 ),
                 style = MaterialTheme.typography.bodySmall,
             )
-            Row(
+            Column(
                 modifier = Modifier.padding(top = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
                     text = weather.precipitationMm?.let { value ->
@@ -549,18 +570,19 @@ private fun HourlyDayRail(
     timeZoneId: String,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom,
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = DAY_FORMATTER.format(group.date),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = stringResource(R.string.hourly_day_count, group.items.size),
+                modifier = Modifier.padding(top = 2.dp),
+                text = pluralStringResource(
+                    R.plurals.hourly_day_count,
+                    group.items.size,
+                    group.items.size,
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -591,7 +613,7 @@ private fun HourlyForecastCard(
 ) {
     val weather = item.weather
     Card(
-        modifier = Modifier.width(152.dp),
+        modifier = Modifier.widthIn(min = 152.dp, max = 220.dp),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -654,46 +676,57 @@ private fun HourlyForecastCard(
 
 @Composable
 private fun NoTargetContent(
+    modifier: Modifier,
     operation: AlphaOperation,
     onUseLocation: () -> Unit,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        ),
+    LazyColumn(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = stringResource(R.string.onboarding_title),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                modifier = Modifier.padding(top = 8.dp),
-                text = stringResource(R.string.onboarding_body),
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Text(
-                modifier = Modifier.padding(top = 12.dp),
-                text = stringResource(R.string.forecast_location_explanation),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                modifier = Modifier.padding(top = 8.dp),
-                text = stringResource(R.string.forecast_privacy_note),
-                style = MaterialTheme.typography.bodySmall,
-            )
-            Button(
-                modifier = Modifier.padding(top = 20.dp),
-                onClick = onUseLocation,
-                enabled = !operation.isBusy,
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ),
             ) {
-                Text(stringResource(R.string.action_use_approximate_location))
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        modifier = Modifier.semantics { heading() },
+                        text = stringResource(R.string.onboarding_title),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        modifier = Modifier.padding(top = 8.dp),
+                        text = stringResource(R.string.onboarding_body),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        modifier = Modifier.padding(top = 12.dp),
+                        text = stringResource(R.string.forecast_location_explanation),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        modifier = Modifier.padding(top = 8.dp),
+                        text = stringResource(R.string.forecast_privacy_note),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Button(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 20.dp),
+                        onClick = onUseLocation,
+                        enabled = !operation.isBusy,
+                    ) {
+                        Text(stringResource(R.string.action_use_approximate_location))
+                    }
+                    OperationMessage(operation)
+                }
             }
-            OperationMessage(operation)
         }
     }
 }
@@ -844,6 +877,8 @@ private sealed interface AlphaOperation {
     data class LocationUnavailable(val reason: CurrentLocationResult.Reason) : AlphaOperation
     data class RefreshFinished(val result: ForecastRefreshResult) : AlphaOperation
 }
+
+private val MAX_CONTENT_WIDTH = 840.dp
 
 private val DATE_TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 private val HOUR_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE HH:mm")
