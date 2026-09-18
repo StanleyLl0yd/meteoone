@@ -32,8 +32,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
@@ -214,6 +216,55 @@ class ForecastRepositoryTest {
         )
         assertEquals(cached, observed[1]?.forecast)
         assertEquals(0, store.replaceCount)
+    }
+
+    @Test
+    fun observedCacheAdvancesFreshnessAtTimeBoundariesWithoutRefresh() = runBlocking {
+        val cached = forecast(temperatureC = 8.0, horizonHours = 6)
+        val mutableClock = MutableClock(generatedAt)
+        val waits = Channel<Duration>(capacity = Channel.UNLIMITED)
+        val releases = Channel<Unit>(capacity = Channel.UNLIMITED)
+        val repository = DefaultForecastRepository(
+            store = FakeStore(initial = cached),
+            refreshSource = ForecastRefreshSource { _, _, _, _ ->
+                error("refresh source must not run while freshness advances")
+            },
+            clock = mutableClock,
+            ioDispatcher = Dispatchers.Unconfined,
+            waitForFreshnessTransition = { duration ->
+                waits.send(duration)
+                releases.receive()
+            },
+        )
+        val observed = mutableListOf<ForecastFreshness>()
+        val collector = launch {
+            repository.observe(coordinate)
+                .take(3)
+                .collect { state -> observed += requireNotNull(state).freshness }
+        }
+
+        assertEquals(Duration.ofHours(3), waits.receive())
+        assertEquals(listOf(ForecastFreshness.FRESH), observed)
+
+        mutableClock.now = generatedAt.plus(Duration.ofHours(3))
+        releases.send(Unit)
+        assertEquals(Duration.ofHours(3).plusNanos(1), waits.receive())
+        assertEquals(
+            listOf(ForecastFreshness.FRESH, ForecastFreshness.STALE),
+            observed,
+        )
+
+        mutableClock.now = generatedAt.plus(Duration.ofHours(6)).plusNanos(1)
+        releases.send(Unit)
+        collector.join()
+        assertEquals(
+            listOf(
+                ForecastFreshness.FRESH,
+                ForecastFreshness.STALE,
+                ForecastFreshness.EXPIRED,
+            ),
+            observed,
+        )
     }
 
     @Test
