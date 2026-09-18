@@ -130,8 +130,8 @@ internal abstract class ForecastVerificationHistoryDao {
                 ) {
                     "Verification forecast run disappeared during archival"
                 }
-                check(existingRun.sameImmutableIdentityAndLocation(run)) {
-                    "Verification forecast run metadata conflicts with immutable history"
+                check(existingRun.sameRunIdentity(run)) {
+                    "Verification forecast run identity conflicts with immutable history"
                 }
             }
 
@@ -170,7 +170,7 @@ internal abstract class ForecastVerificationHistoryDao {
     }
 }
 
-private fun VerificationForecastRunEntity.sameImmutableIdentityAndLocation(
+private fun VerificationForecastRunEntity.sameRunIdentity(
     other: VerificationForecastRunEntity,
 ): Boolean =
     coordinateKey == other.coordinateKey &&
@@ -179,6 +179,4 @@ private fun VerificationForecastRunEntity.sameImmutableIdentityAndLocation(
         provider == other.provider &&
         modelFamily == other.modelFamily &&
         modelRunEpochSecond == other.modelRunEpochSecond &&
-        modelRunNano == other.modelRunNano &&
-        elevationMeters == other.elevationMeters &&
-        timeZoneId == other.timeZoneId
+        modelRunNano == other.modelRunNano
