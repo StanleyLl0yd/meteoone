@@ -29,13 +29,13 @@ The repository is public, so the previous private-repository GitHub Advanced Sec
 
 Dependency Review was verified successfully on real public PR #17, including run `34456327413`. Its exact job/check context is `dependency-review`. It is therefore eligible to become a required `main` gate; the live ruleset must not be documented as requiring it until that owner-side ruleset update is actually applied and verified.
 
-## CodeQL compatibility boundary
+## CodeQL Kotlin analysis
 
-Kotlin is not considered covered by a Java-only/no-build database. MeteoOne therefore keeps CodeQL advanced setup configured for `java-kotlin` with a real compiled Android build rather than using `build-mode: none`.
+MeteoOne keeps CodeQL advanced setup configured for `java-kotlin` with a real compiled Android build; a Java-only/no-build database is not accepted as Kotlin coverage.
 
-A clean uncached validation on public PR #17 proved that the current scanner cannot analyze the application toolchain. CodeQL action `4.37.9` / CLI `2.27.0` rejected Kotlin `2.4.20` during `:core:model:compileKotlin` with `KotlinVersionTooRecentError` and the explicit message that CodeQL supports versions below `2.4.20` (run `34456327378`).
+The earlier CodeQL CLI used by public PR #17 rejected Kotlin `2.4.20` as too recent. The post-M3 repository audit re-tested the current CodeQL action/toolchain combination and restored automatic pull-request, push, scheduled, and manual Java/Kotlin analysis without downgrading the application Kotlin version. The workflow is no longer gated by `CODEQL_KOTLIN_SUPPORTED`.
 
-The application Kotlin version must not be downgraded merely to satisfy scanner compatibility. Automatic CodeQL jobs are therefore gated by repository variable `CODEQL_KOTLIN_SUPPORTED=true`; while it is unset/false, pull-request, push, and scheduled CodeQL jobs skip. `workflow_dispatch` remains available as an explicit compatibility probe. After a manual probe succeeds with the current application toolchain, set the variable, verify a real PR, and only then consider the exact CodeQL context for `main` protection.
+CodeQL is still **not** listed in the live `Protect main` required status contexts. It should become a required context only after the restored workflow has proved stable on real audit PR/main runs and the owner explicitly updates and re-reads the live ruleset.
 
 ## Dependency policy
 
