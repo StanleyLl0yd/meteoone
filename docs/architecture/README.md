@@ -2,7 +2,7 @@
 
 MeteoOne is built around a provider-independent forecast domain and a robust fusion engine.
 
-## Current M2 flow
+## Current product flow
 
 ```text
 Device location
@@ -77,7 +77,7 @@ Version 1 uses robust statistical fusion. Machine learning is introduced only af
 
 Before sufficient verification data exists, the UI exposes qualitative model agreement rather than an arbitrary numeric confidence percentage.
 
-## Implemented modules through the current M2 slice
+## Implemented modules
 
 ```text
 :app
@@ -89,6 +89,7 @@ Before sufficient verification data exists, the UI exposes qualitative model agr
 :forecast:domain
 :forecast:data
 :forecast:repository
+:verification:domain
 ```
 
 `:core:network` is the concrete JVM-testable bounded HTTPS execution boundary. It exposes only MeteoOne-owned request/result/cancellation types; OkHttp remains an implementation detail. `:forecast:data` owns production source execution, direct NOAA/ECMWF/DWD transport/GRIB decode/normalization, model-specific Open-Meteo delivery, and the UI-independent M1 execution façade. `:core:location` owns foreground coarse-location acquisition and privacy-preserving forecast-coordinate normalization. `:forecast:domain` remains free of Android, HTTP, decoder and provider implementation details.
@@ -98,6 +99,8 @@ Before sufficient verification data exists, the UI exposes qualitative model agr
 `:core:preferences` owns the durable active `ForecastTarget`. It persists only integer-tenths normalized coordinates plus target metadata and exposes no DataStore types publicly. It has no dependency on Room, location acquisition, network, or forecast execution.
 
 `:forecast:repository` owns offline-first composition between M1 execution and Room. Its observable API is backed only by the snapshot store; refresh results report update/degradation/failure state separately and never expose provider, GRIB, Room, or network implementation types. The app depends on this layer rather than `:forecast:data` directly.
+
+M4 adds `:verification:domain` as a pure JVM boundary for observation/verification vocabulary and deterministic metric primitives. It does not own transport or persistence and does not change fusion weights by itself. See [`VERIFICATION_ENGINE.md`](VERIFICATION_ENGINE.md).
 
 ## Planned modules and responsibilities
 
@@ -111,6 +114,6 @@ The remaining roadmap modules are created only when their responsibilities becom
 :feature:about        # later UI milestone
 ```
 
-M2 additionally introduces bounded retry/rate-limit/provider-health behavior and an offline-first forecast presentation path. Those responsibilities are added as focused slices rather than pre-created empty modules.
+M4 adds further modules only when observation transport, historical persistence or evidence aggregation creates a real dependency boundary. Empty verification data/repository modules are not pre-created.
 
 The exact split may be adjusted only when real dependency boundaries justify it.
