@@ -189,6 +189,18 @@ class VerificationDomainTest {
     }
 
     @Test
+    fun observationAllowsWmoNorthDirectionAt360Degrees() {
+        SurfaceObservation(
+            station = station,
+            observedAt = Instant.EPOCH,
+            temperatureC = null,
+            pressureSeaLevelHpa = null,
+            windSpeedMps = 4.0,
+            windDirectionDegrees = 360.0,
+        )
+    }
+
+    @Test
     fun observationModelsRejectNonFiniteOrPhysicallyInvalidValues() {
         assertFailsWith<IllegalArgumentException> {
             SurfaceObservation(
