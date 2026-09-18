@@ -90,7 +90,7 @@ Security gates remain:
 - Security and Quality;
 - Dependency Review on pull requests;
 - Secret Scan;
-- CodeQL Java/Kotlin analysis with the current supported toolchain.
+- CodeQL according to the repository's compatibility-gated compiled Java/Kotlin policy.
 
 The final M3 merge has successful exact-`main` CI, Security and Quality, and Secret Scan evidence; #178 and parent #166 are closed completed.
 
