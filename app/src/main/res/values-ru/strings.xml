@@ -119,7 +119,7 @@
     <string name="models_source_available">Доступно</string>
     <string name="models_source_cached">Сохранено</string>
     <string name="models_source_gap">Нет значения на этот час</string>
-    <string name="models_source_failed">Ошибка при последнем обновлении</string>
+    <string name="models_source_failed">Недоступно в этом сохранённом прогнозе</string>
     <string name="models_source_unavailable">Недоступно</string>
     <string name="models_model_run">Запуск модели: %1$s</string>
     <string name="models_model_run_unavailable">Запуск модели: —</string>
