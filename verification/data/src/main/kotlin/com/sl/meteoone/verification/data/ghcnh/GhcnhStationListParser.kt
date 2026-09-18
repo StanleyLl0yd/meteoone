@@ -1,7 +1,7 @@
 package com.sl.meteoone.verification.data.ghcnh
 
 internal object GhcnhStationListParser {
-    private const val MIN_REQUIRED_COLUMNS = 71
+    private const val MIN_REQUIRED_COLUMNS = 42
     private const val MISSING_ELEVATION = -999.9
 
     fun parse(content: String): List<GhcnhStationMetadata> {
