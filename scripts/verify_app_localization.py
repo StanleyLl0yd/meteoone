@@ -4,13 +4,28 @@
 from __future__ import annotations
 
 import re
-import xml.etree.ElementTree as ET
+from html import unescape
 from dataclasses import dataclass
 from pathlib import Path
 
 BASE_RESOURCES = Path("app/src/main/res/values/strings.xml")
 RU_RESOURCES = Path("app/src/main/res/values-ru/strings.xml")
 SUPPORTED_TYPES = {"string", "plurals"}
+DOCTYPE_OR_ENTITY_RE = re.compile(r"<!\s*(?:DOCTYPE|ENTITY)\b", re.IGNORECASE)
+RESOURCE_RE = re.compile(
+    r"<(?P<kind>string|plurals)\b(?P<attributes>[^>]*)>"
+    r"(?P<body>.*?)</(?P=kind)>",
+    re.DOTALL,
+)
+NAME_RE = re.compile(
+    r"\bname\s*=\s*(?P<quote>['\"])(?P<name>.*?)(?P=quote)",
+    re.DOTALL,
+)
+ITEM_RE = re.compile(
+    r"<item\b(?P<attributes>[^>]*)>(?P<body>.*?)</item>",
+    re.DOTALL,
+)
+TAG_RE = re.compile(r"<[^>]+>")
 FORMAT_RE = re.compile(
     r"%(?:(?P<index>\d+)\$)?"
     r"[-#+ 0,(<]*"
@@ -38,38 +53,48 @@ def _placeholder_signature(text: str) -> tuple[tuple[str, str], ...]:
     return tuple(matches)
 
 
-def _resource_text(element: ET.Element) -> str:
-    return "".join(element.itertext())
+def _plain_text(fragment: str) -> str:
+    return unescape(TAG_RE.sub("", fragment))
 
 
 def _read_resources(path: Path) -> dict[str, ResourceShape]:
     try:
-        root = ET.parse(path).getroot()
-    except (OSError, ET.ParseError) as error:
-        raise ValueError(f"{path}: cannot parse Android resources: {error}") from error
+        text = path.read_text(encoding="utf-8")
+    except OSError as error:
+        raise ValueError(f"{path}: cannot read Android resources: {error}") from error
 
-    if root.tag != "resources":
-        raise ValueError(f"{path}: root element must be <resources>")
+    if DOCTYPE_OR_ENTITY_RE.search(text):
+        raise ValueError(f"{path}: DTD/entity declarations are not allowed")
+    if "<resources" not in text or "</resources>" not in text:
+        raise ValueError(f"{path}: root <resources> element is missing")
+
+    opening_count = len(re.findall(r"<(?:string|plurals)\b", text))
+    matches = list(RESOURCE_RE.finditer(text))
+    if len(matches) != opening_count:
+        raise ValueError(f"{path}: malformed string/plural resource markup")
 
     resources: dict[str, ResourceShape] = {}
-    for element in root:
-        if element.tag not in SUPPORTED_TYPES:
+    for match in matches:
+        kind = match.group("kind")
+        if kind not in SUPPORTED_TYPES:
             continue
 
-        name = element.attrib.get("name", "").strip()
+        name_match = NAME_RE.search(match.group("attributes"))
+        name = unescape(name_match.group("name")).strip() if name_match else ""
         if not name:
-            raise ValueError(f"{path}: <{element.tag}> resource without a name")
+            raise ValueError(f"{path}: <{kind}> resource without a name")
         if name in resources:
             raise ValueError(f"{path}: duplicate string/plural resource name {name!r}")
 
-        if element.tag == "string":
-            placeholders = _placeholder_signature(_resource_text(element))
+        body = match.group("body")
+        if kind == "string":
+            placeholders = _placeholder_signature(_plain_text(body))
         else:
-            items = list(element.findall("item"))
+            items = list(ITEM_RE.finditer(body))
             if not items:
                 raise ValueError(f"{path}: plurals {name!r} has no <item> values")
             signatures = {
-                _placeholder_signature(_resource_text(item))
+                _placeholder_signature(_plain_text(item.group("body")))
                 for item in items
             }
             if len(signatures) != 1:
@@ -79,7 +104,7 @@ def _read_resources(path: Path) -> dict[str, ResourceShape]:
             placeholders = signatures.pop()
 
         resources[name] = ResourceShape(
-            kind=element.tag,
+            kind=kind,
             placeholders=placeholders,
         )
 
