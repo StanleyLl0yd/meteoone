@@ -22,6 +22,7 @@ STORE_POLICY_DOCS = (
     Path("docs/release/SIGNING.md"),
     Path("docs/release/GITHUB_SIGNED_BUILD.md"),
     Path("docs/release/RUSTORE_ALPHA.md"),
+    Path("docs/release/RUSTORE_LISTING.md"),
 )
 STORE_ACCEPTANCE_SENTENCE = (
     "Before any RuStore AAB upload, the APK from that same GitHub Release must pass "
