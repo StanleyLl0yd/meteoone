@@ -353,8 +353,6 @@ def _parse_wind(raw: str | None) -> tuple[float | None, float | None]:
         except ValueError:
             pass
 
-    if speed == 0.0 and direction is None:
-        direction = 0.0
     return speed, direction
 
 
