@@ -24,8 +24,7 @@ internal fun buildDailyForecastSummaries(
     require(limit >= 0) { "Daily summary limit must not be negative" }
     if (limit == 0 || items.isEmpty()) return emptyList()
 
-    val zone = runCatching { ZoneId.of(timeZoneId) }
-        .getOrElse { ZoneId.systemDefault() }
+    val zone = ZoneId.of(timeZoneId)
 
     return items
         .groupBy { item -> item.weather.time.atZone(zone).toLocalDate() }
