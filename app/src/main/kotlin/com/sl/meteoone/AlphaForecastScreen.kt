@@ -43,6 +43,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sl.meteoone.core.location.AndroidCurrentLocationClient
@@ -220,6 +222,7 @@ internal fun AlphaForecastScreen(
                         val target = load.target
                         if (target == null) {
                             NoTargetContent(
+                                modifier = Modifier.weight(1f),
                                 operation = operation,
                                 onUseLocation = ::chooseCurrentApproximateLocation,
                             )
@@ -419,6 +422,7 @@ private fun ForecastSnapshot(
         item {
             Spacer(Modifier.height(4.dp))
             Text(
+                modifier = Modifier.semantics { heading() },
                 text = stringResource(R.string.hourly_forecast_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
@@ -460,6 +464,7 @@ private fun CurrentConditionsCard(
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
+                modifier = Modifier.semantics { heading() },
                 text = stringResource(R.string.current_conditions_title),
                 style = MaterialTheme.typography.titleMedium,
             )
@@ -671,46 +676,57 @@ private fun HourlyForecastCard(
 
 @Composable
 private fun NoTargetContent(
+    modifier: Modifier,
     operation: AlphaOperation,
     onUseLocation: () -> Unit,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        ),
+    LazyColumn(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = stringResource(R.string.onboarding_title),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                modifier = Modifier.padding(top = 8.dp),
-                text = stringResource(R.string.onboarding_body),
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Text(
-                modifier = Modifier.padding(top = 12.dp),
-                text = stringResource(R.string.forecast_location_explanation),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                modifier = Modifier.padding(top = 8.dp),
-                text = stringResource(R.string.forecast_privacy_note),
-                style = MaterialTheme.typography.bodySmall,
-            )
-            Button(
-                modifier = Modifier.padding(top = 20.dp),
-                onClick = onUseLocation,
-                enabled = !operation.isBusy,
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ),
             ) {
-                Text(stringResource(R.string.action_use_approximate_location))
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        modifier = Modifier.semantics { heading() },
+                        text = stringResource(R.string.onboarding_title),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        modifier = Modifier.padding(top = 8.dp),
+                        text = stringResource(R.string.onboarding_body),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        modifier = Modifier.padding(top = 12.dp),
+                        text = stringResource(R.string.forecast_location_explanation),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        modifier = Modifier.padding(top = 8.dp),
+                        text = stringResource(R.string.forecast_privacy_note),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Button(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 20.dp),
+                        onClick = onUseLocation,
+                        enabled = !operation.isBusy,
+                    ) {
+                        Text(stringResource(R.string.action_use_approximate_location))
+                    }
+                    OperationMessage(operation)
+                }
             }
-            OperationMessage(operation)
         }
     }
 }
