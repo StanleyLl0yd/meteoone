@@ -50,7 +50,7 @@ Before signing material is used, the workflow:
 1. requires the current canonical `main` branch and exact current `origin/main` SHA;
 2. validates application identity, version metadata, release notes, CI supply-chain policy and release-secret policy;
 3. rejects an already existing `v<versionName>` tag or GitHub Release;
-4. requires successful `CI`, `Security and Quality`, and `Secret Scan` push runs on that exact source SHA.
+4. requires successful `CI`, `Security and Quality`, `Secret Scan`, and compiled Kotlin `CodeQL` push runs on that exact source SHA.
 
 The signing job then:
 
