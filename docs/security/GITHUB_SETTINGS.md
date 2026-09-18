@@ -34,18 +34,9 @@ This context is eligible to be added to `Protect main`. The connected GitHub aut
 
 ## CodeQL
 
-CodeQL must analyze the Kotlin application through a real compiled build. A Java-only `build-mode: none` database is not accepted as Kotlin coverage.
+CodeQL analyzes the Kotlin application through a real compiled `java-kotlin` build. A Java-only `build-mode: none` database is not accepted as Kotlin coverage.
 
-Public PR #17 tested a clean uncached compiled CodeQL path with action `4.37.9` / CLI `2.27.0`. Run `34456327378` reached real Kotlin compilation and failed because the CodeQL Kotlin interceptor rejected Kotlin `2.4.20` as too recent, explicitly reporting support only for versions below `2.4.20`.
-
-MeteoOne does not downgrade the application Kotlin toolchain merely to make a scanner pass. Automatic CodeQL execution is therefore gated by repository variable `CODEQL_KOTLIN_SUPPORTED=true`. `workflow_dispatch` remains the explicit compatibility probe. When a manual probe succeeds against the then-current application toolchain:
-
-1. set `CODEQL_KOTLIN_SUPPORTED=true`;
-2. verify CodeQL on a real pull request;
-3. record the exact successful check context;
-4. add that context to `Protect main` only after it is proven stable.
-
-Until then, CodeQL is an explicitly documented upstream compatibility gap, not a merge gate.
+The earlier compatibility failure on public PR #17 is historical. The post-M3 audit restored automatic CodeQL execution with the current Kotlin `2.4.20` toolchain and current pinned CodeQL action. CodeQL remains outside the live `Protect main` required contexts until a real audit PR and post-merge main run prove the restored context stable and the owner updates the ruleset.
 
 ## Security analysis settings
 
@@ -60,9 +51,9 @@ Keep every available security feature enabled unless a documented operational re
 
 ## Release tags
 
-There are currently no GitHub Releases and no release-tag lifecycle to protect.
+GitHub prereleases `v0.1.0-alpha.1` and `v0.2.0-alpha.1` now exist. The live repository currently has no tag-target ruleset, so release-tag immutability is an outstanding owner-side control.
 
-Before the first release that uses `vX.Y.Z` tags, add a tag rule targeting `refs/tags/v*` that prevents deletion and non-fast-forward/tag movement. A release tag must become immutable after creation.
+Add a tag ruleset targeting `refs/tags/v*` that prevents deletion and tag movement. Re-read the live rulesets after applying it and only then document release tags as enforced immutable.
 
 ## Actions and secrets
 
@@ -72,4 +63,4 @@ Production signing secrets must never be available to ordinary pull-request work
 
 ## Remaining administrative work
 
-Issue #12 tracks owner-side repository security settings. The `main` ruleset, secret scanning, and push protection are verified active. The immediate remaining owner action is adding the already-proven `dependency-review` context to `Protect main` and verifying the live ruleset. CodeQL compatibility is tracked separately from owner administration because the blocker is the upstream Kotlin extractor. Release signing/tag/attestation controls become applicable before the first production release.
+Issue #12 tracks owner-side repository security settings. The `main` ruleset, secret scanning, and push protection are verified active. Remaining owner actions are: add the already-proven `dependency-review` context to `Protect main`, add and verify a `refs/tags/v*` immutability ruleset now that GitHub releases exist, and later decide whether stable CodeQL should also become a required context after the restored workflow has proved reliable.
