@@ -13,7 +13,7 @@ room = "2.8.5"
 ksp = "2.3.12"
 datastore = "1.2.1"
 androidx-test-core = "1.7.0"
-robolectric = "4.16"
+robolectric = "4.17"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity" }
