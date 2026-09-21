@@ -1,6 +1,6 @@
 # Verification Engine
 
-Status: M4 production-composition exit verification in progress.
+Status: **M4 COMPLETE**. Production refresh composes local verification evidence; unequal model-family weights remain guarded by the evidence, provenance, recency, materiality, and stability gates below, with deterministic equal-weight fallback.
 
 MeteoOne M4 measures forecast skill before it changes production fusion weights. The verification path is deliberately separate from provider transport and from the latest offline forecast cache.
 

@@ -1,6 +1,6 @@
 # M4 Verification Engine exit review
 
-Status: **PRODUCTION-COMPOSITION FOLLOW-UP IN REVIEW**. The #209 exit review exposed one final production wiring gap; M4 closure is now conditional on exact-head checks for #211, squash-merge, and successful exact-`main` CI/security verification.
+Status: **COMPLETE**. The #209 exit review exposed one final production wiring gap, closed by #210/#211. PR #211 exact head `33eb2b949b91f2e91c9cbc1cb569e2dcc3098d1d` passed CI, Security and Quality, Dependency Review, and Secret Scan; CodeQL followed the expected compatibility skip. The resulting production `main` `5951a9bbdb22ecf9aa130ef5dacd142b47b912c7` passed exact-main CI, Security and Quality, and Secret Scan, with the same expected CodeQL compatibility skip.
 
 ## Scope reviewed
 
@@ -99,4 +99,4 @@ Production refresh now reuses ranked persisted GHCNh stations, works from a 30-d
 
 ## Exit gate
 
-M4 is complete only when #211 is merged from an exact green head and the resulting exact `main` SHA has successful CI, Security and Quality, and Secret Scan evidence, with CodeQL following the repository compatibility gate. #210 must close completed from that merge, and parent #185 must remain open until the post-merge exact-`main` evidence is confirmed.
+Satisfied by #211: exact head `33eb2b949b91f2e91c9cbc1cb569e2dcc3098d1d` passed CI `35591196897`, Security and Quality `35591196905`, Dependency Review `35591196907`, and Secret Scan `35591196933`; CodeQL `35591196894` skipped under the repository compatibility gate. The squash merge produced exact `main` `5951a9bbdb22ecf9aa130ef5dacd142b47b912c7`, where CI `35591942154`, Security and Quality `35591942151`, and Secret Scan `35591942180` passed and CodeQL `35591942194` followed the expected compatibility skip. #210 closed as completed. No M5 work is part of this exit.

@@ -41,7 +41,7 @@ MeteoOne 1.0 targets:
 
 ## Status
 
-M1 Forecast Core, M2 Offline-first Data Layer, and the M3 Product UI are complete. `v0.2.0-alpha.1` is published as the feature-complete M3 GitHub prerelease with its signed APK+AAB pair. M4 Verification Engine is now in progress, beginning with a pure JVM verification domain and measured-error contracts; production fusion remains on the equal-weight baseline until sufficient verified evidence exists.
+M1 Forecast Core, M2 Offline-first Data Layer, M3 Product UI, and M4 Verification Engine are complete. `v0.2.0-alpha.1` remains the published feature-complete M3 GitHub prerelease with its signed APK+AAB pair; no M4 release has been selected. Production refresh now composes local verification evidence and may use guarded dynamic model-family weights only when the documented evidence, provenance, recency, materiality, and stability gates pass; otherwise fusion deterministically retains the equal-weight baseline.
 
 See:
 
@@ -50,6 +50,7 @@ See:
 - [docs/release/RUSTORE_ALPHA.md](docs/release/RUSTORE_ALPHA.md) for the retired alpha-store path and current stable-store policy;
 - [docs/release/SIGNING.md](docs/release/SIGNING.md) for signing and integrity controls;
 - [docs/release/M3_EXIT_REVIEW.md](docs/release/M3_EXIT_REVIEW.md) for the Product UI exit and pre-beta readiness review;
+- [docs/release/M4_EXIT_REVIEW.md](docs/release/M4_EXIT_REVIEW.md) for the Verification Engine exit review and production evidence-safety gate;
 - [docs/architecture/README.md](docs/architecture/README.md) for architecture;
 - [docs/branding/BRAND_GUIDE.md](docs/branding/BRAND_GUIDE.md) for brand identity and voice;
 - [docs/design/DESIGN_SYSTEM.md](docs/design/DESIGN_SYSTEM.md) for UI implementation rules;
