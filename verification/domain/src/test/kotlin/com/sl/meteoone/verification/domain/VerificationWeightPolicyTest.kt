@@ -276,11 +276,11 @@ class VerificationWeightPolicyTest {
     private fun campaign(
         family: ModelFamily,
         provider: ForecastProvider = providerFor(family),
-        errorForRun: (Int) -> Double,
         coordinate: ForecastCoordinate = this.coordinate,
         start: Instant = startRun,
         runCount: Int = 14,
         pointsPerRun: Int = 10,
+        errorForRun: (Int) -> Double,
     ): List<VerificationSample> = buildList {
         repeat(runCount) { runIndex ->
             val modelRun = start.plus(Duration.ofDays(runIndex.toLong()))
