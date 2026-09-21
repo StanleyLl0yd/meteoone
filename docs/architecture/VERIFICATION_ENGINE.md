@@ -62,6 +62,16 @@ For every retained weather value the data layer preserves the five GHCNh attribu
 
 Generic `precipitation` remains raw evidence because its accumulation interval is not intrinsically fixed. Canonical precipitation is emitted only from explicit-duration GHCNh fields (5/15 minutes and 3/6/9/12/15/18/21/24 hours). Trace reports are preserved as source evidence but are not fabricated as 0 mm.
 
+## Matching semantics
+
+M4 normalizes observation input order and matches each instantaneous forecast valid time to the nearest surface observation within 30 minutes. The 30-minute bound is a hard production maximum inherited from the M0 scorer; callers may narrow it but cannot broaden it. Equal-distance ties choose the earlier observation deterministically.
+
+Matching is parameter-by-parameter. Missing forecast or observed values produce no sample. Calm wind remains the zero vector and does not require a direction; non-calm wind without direction remains unusable rather than receiving a fabricated bearing.
+
+Precipitation does not use nearest-time matching. A sample is emitted only when one forecast precipitation interval exactly equals one observed interval. M4 does not sum partial forecast intervals, interpolate observations or manufacture hourly precipitation truth.
+
+Every emitted sample retains the privacy-safe forecast coordinate, provider delivery path, model family, exact model run, valid time, lead bucket, local meteorological season, observation station and observation timestamp/interval. Re-running the matcher over identical retained evidence therefore produces the same ordered sample set.
+
 ## Metric semantics
 
 Temperature and sea-level pressure use signed error, absolute error and squared error.

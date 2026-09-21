@@ -241,6 +241,7 @@ class VerificationDomainTest {
             context = context,
             station = station,
             parameter = VerificationParameter.TEMPERATURE,
+            observedAt = Instant.parse("2026-09-01T06:00:00Z"),
             predicted = 3.0,
             observed = 2.0,
         )
