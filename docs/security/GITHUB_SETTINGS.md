@@ -36,7 +36,7 @@ This context is eligible to be added to `Protect main`. The connected GitHub aut
 
 CodeQL must analyze the Kotlin application through a real compiled `java-kotlin` build. A Java-only `build-mode: none` database is not accepted as Kotlin coverage.
 
-PR #184 last re-probed compiled Kotlin extraction with the then-pinned CodeQL action `4.38.0`. Run `35347242806` used stable CodeQL CLI `2.27.0` and rejected Kotlin `2.4.20` as too recent. Current workflows pin action `4.38.1` after #214, but no newer stable extractor has yet been proven against the application toolchain. Automatic CodeQL execution therefore remains gated by repository variable `CODEQL_KOTLIN_SUPPORTED=true`; `workflow_dispatch` is the explicit compatibility probe.
+Temporary PR #226 is the latest compiled Kotlin compatibility probe. Run `35616437045` / job `106388233409` used the current pinned CodeQL action `4.38.1`, which still resolved stable CodeQL CLI `2.27.0`. Initialization succeeded, but the real `:app:assembleDebug` trace failed at Kotlin `2.4.20` with `KotlinVersionTooRecentError`; the PR was closed unmerged after recording the result. Automatic CodeQL execution therefore remains gated by repository variable `CODEQL_KOTLIN_SUPPORTED=true`; `workflow_dispatch` is the normal explicit compatibility probe.
 
 When a manual probe succeeds against the then-current application toolchain:
 
