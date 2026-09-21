@@ -92,6 +92,18 @@ Each skill cell is keyed by scope, meteorological season, parameter, canonical l
 
 ## Weight safety
 
-M4 must not convert one small campaign or one pooled winner directly into production weights. A later weight-policy slice must make sample counts, evidence scope, recency, stability/materiality thresholds and fallback behavior explicit.
+M4 does not convert one small campaign or one pooled winner directly into production weights. The guarded policy remains parameter- and lead-specific and tries evidence in this order:
 
-Until those gates pass, the evidence-backed result is the existing equal model-family weighting.
+1. exact privacy-reduced coordinate + meteorological season;
+2. the containing 5°×5° region + meteorological season;
+3. equal model-family weights.
+
+The default activation floors are deliberately conservative safety gates rather than claims of statistical optimality: at least 120 independent samples and 14 distinct model runs per model family; regional evidence also requires at least three distinct privacy-reduced coordinates. Evidence older than 30 days is stale. For temporal stability, the ordered run set is split into chronological halves and each half must retain at least 40 samples and five runs per model family.
+
+Unequal weights require the same unique model-family winner in the full window and both chronological halves, with at least a 5% skill advantage over the runner-up in every comparison. Temperature, pressure and precipitation use MAE; wind uses mean vector-error magnitude. Missing, sparse, stale, geographically narrow, immaterial or unstable evidence returns equal weights.
+
+When all gates pass, weights are derived monotonically from measured skill and normalized to mean 1.0. The strongest-to-weakest ratio is capped at 1.5×, so short-term evidence cannot suppress a model. These bounds are safety policy, not calibrated probability or numeric confidence. Every measured decision exposes its scope, full/half scores, sample/run counts, latest observation time, winning model family, material margin and ratio bound.
+
+Provider delivery paths never receive independent weights. #190 collapses duplicate paths inside one model-family/run/valid-time/observation identity before the policy sees independent skill; provider-path metrics remain diagnostic only.
+
+Until every applicable gate passes, the evidence-backed result remains the existing M0 equal model-family weighting.
