@@ -176,12 +176,14 @@ sealed interface VerificationSample {
     val context: VerificationContext
     val station: ObservationStation
     val parameter: VerificationParameter
+    val observedAt: Instant
 }
 
 data class ScalarVerificationSample(
     override val context: VerificationContext,
     override val station: ObservationStation,
     override val parameter: VerificationParameter,
+    override val observedAt: Instant,
     val predicted: Double,
     val observed: Double,
 ) : VerificationSample {
@@ -203,6 +205,7 @@ data class ScalarVerificationSample(
 data class WindVerificationSample(
     override val context: VerificationContext,
     override val station: ObservationStation,
+    override val observedAt: Instant,
     val predictedSpeedMps: Double,
     val predictedDirectionDegrees: Double?,
     val observedSpeedMps: Double,
@@ -245,6 +248,8 @@ data class PrecipitationVerificationSample(
     val observedMm: Double,
 ) : VerificationSample {
     override val parameter: VerificationParameter = VerificationParameter.PRECIPITATION
+    override val observedAt: Instant
+        get() = interval.end
 
     val error: ScalarError = VerificationMetrics.scalarError(predictedMm, observedMm)
 
