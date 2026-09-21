@@ -107,3 +107,18 @@ When all gates pass, weights are derived monotonically from measured skill and n
 Provider delivery paths never receive independent weights. #190 collapses duplicate paths inside one model-family/run/valid-time/observation identity before the policy sees independent skill; provider-path metrics remain diagnostic only.
 
 Until every applicable gate passes, the evidence-backed result remains the existing M0 equal model-family weighting.
+## Fusion integration
+
+The forecast domain owns a small verification-agnostic model-family weight-provider boundary. `:forecast:domain` does not depend on Room, observation transport or verification storage. `:forecast:data` adapts the guarded M4 policy to that boundary by mapping only the four verified parameters (temperature, sea-level pressure, wind and precipitation) plus exact model-run-derived lead, local meteorological season and the privacy-reduced forecast coordinate.
+
+Provider paths still collapse before model-family weighting. The equal baseline is unchanged and may therefore use all valid delivery paths for that model family. The measured candidate is stricter: only provider paths that expose one common exact non-null model run may contribute its weighted value. A null-run Open-Meteo delivery is never assigned the run exposed by a direct official path and is never folded into that exact-run measured value.
+
+At least two model families must expose measured candidates for the same exact run before the policy is queried. Families without trustworthy exact-run provenance remain present in the final fusion with their legacy collapsed value and neutral weight 1.0; they are not included in the measured-policy request. UNKNOWN model families are likewise never dynamically weighted. Conflicting exact runs cause equal fallback rather than run selection or inference.
+
+The integration is fail-safe. `EqualFallback`, missing or conflicting run provenance, unsupported parameters, malformed/mismatched measured weights, or an evidence-provider failure all execute the existing equal-weight fusion path. When weights are equal, scalar averaging and circular wind-direction behavior are not replaced by a numerically different implementation.
+
+Temperature and sea-level pressure use guarded weighted model-family scalars. Precipitation first runs the existing exact interval-selection rule and only then weights values from the selected interval. Wind uses measured model-family weights on meteorological vectors; if complete vectors or trustworthy run provenance are unavailable it retains the established equal speed/direction behavior. Wind gusts and all other fields remain equal-weight because M4 has no verified skill metric for them.
+
+`:forecast:data` exposes an explicit Android production composition overload that accepts already-collected `VerificationWeightSampleSource` evidence. It performs no observation/history I/O inside fusion; acquisition, persistence and matching stay in their existing M4 capabilities. The ordinary `M1ForecastEngine.android(context)` factory remains the original equal-weight path when no M4 evidence source is supplied.
+
+Measured weights therefore change only fields and hours for which both current forecast provenance and historical M4 evidence satisfy the full safety contract. Everywhere else fusion is deterministically identical to the M0/M1 equal-weight baseline.
