@@ -107,3 +107,14 @@ When all gates pass, weights are derived monotonically from measured skill and n
 Provider delivery paths never receive independent weights. #190 collapses duplicate paths inside one model-family/run/valid-time/observation identity before the policy sees independent skill; provider-path metrics remain diagnostic only.
 
 Until every applicable gate passes, the evidence-backed result remains the existing M0 equal model-family weighting.
+## Fusion integration
+
+The forecast domain owns a small verification-agnostic model-family weight-provider boundary. `:forecast:domain` does not depend on Room, observation transport or verification storage. `:forecast:data` adapts the guarded M4 policy to that boundary by mapping only the four verified parameters (temperature, sea-level pressure, wind and precipitation) plus exact model-run-derived lead, local meteorological season and the privacy-reduced forecast coordinate.
+
+Weighting happens only after alternate provider paths have collapsed to one evidence value per model family. A contributing model-family group is eligible for measured weighting only when it carries one unambiguous non-null model-run provenance; null alternate deliveries never create or infer a run, while a family with no exact run remains on the legacy equal path. All model families participating in one measured fusion operation must resolve to the same exact run. UNKNOWN model families are never dynamically weighted.
+
+The integration is fail-safe. `EqualFallback`, missing or conflicting run provenance, unsupported parameters, malformed/mismatched measured weights, or an evidence-provider failure all execute the existing equal-weight fusion path. When weights are equal, scalar averaging and circular wind-direction behavior are not replaced by a numerically different implementation.
+
+Temperature and sea-level pressure use guarded weighted model-family scalars. Precipitation first runs the existing exact interval-selection rule and only then weights values from the selected interval. Wind uses measured model-family weights on meteorological vectors; if complete vectors or trustworthy run provenance are unavailable it retains the established equal speed/direction behavior. Wind gusts and all other fields remain equal-weight because M4 has no verified skill metric for them.
+
+Measured weights therefore change only fields and hours for which both current forecast provenance and historical M4 evidence satisfy the full safety contract. Everywhere else fusion is deterministically identical to the M0/M1 equal-weight baseline.
