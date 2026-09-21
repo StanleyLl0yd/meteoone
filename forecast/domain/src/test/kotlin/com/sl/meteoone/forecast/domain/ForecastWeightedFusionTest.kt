@@ -293,6 +293,49 @@ class ForecastWeightedFusionTest {
         )
     }
 
+    @Test
+    fun measuredWindDoesNotBorrowDirectionForAnUnusableExactProviderPath() {
+        val provider = RecordingWeightProvider(
+            mapOf(
+                ForecastWeightParameter.WIND to mapOf(
+                    ModelFamily.NOAA_GFS to 1.5,
+                    ModelFamily.DWD_ICON to 1.0,
+                ),
+            ),
+        )
+        val result = ForecastFusionEngine(provider).fuse(
+            listOf(
+                source(
+                    ForecastProvider.NOAA_NOMADS,
+                    ModelFamily.NOAA_GFS,
+                    temperature = 10.0,
+                    windSpeed = 10.0,
+                    windDirection = 0.0,
+                ),
+                source(
+                    ForecastProvider.OPEN_METEO,
+                    ModelFamily.NOAA_GFS,
+                    temperature = 10.0,
+                    windSpeed = 100.0,
+                    windDirection = null,
+                ),
+                source(
+                    ForecastProvider.DWD_OPEN_DATA,
+                    ModelFamily.DWD_ICON,
+                    temperature = 10.0,
+                    windSpeed = 10.0,
+                    windDirection = 90.0,
+                ),
+            ),
+        )
+
+        val weather = result.hourly.single().weather
+        assertTrue(abs(assertNotNull(weather.windSpeedMps) - 7.211102550927978) < 1e-12)
+        assertTrue(
+            abs(assertNotNull(weather.windDirectionDegrees) - 33.690067525979785) < 1e-12,
+        )
+    }
+
     private fun source(
         provider: ForecastProvider,
         model: ModelFamily,

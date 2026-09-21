@@ -204,7 +204,7 @@ class ForecastFusionEngine(
 
         val weights = measuredWeights(
             parameter = parameter,
-            evidence = evidence.mapNotNull(ScalarEvidence::measuredIdentityOrNull),
+            evidence = evidence.mapNotNull { it.measuredIdentityOrNull() },
             coordinate = coordinate,
             validTime = validTime,
             timeZoneId = timeZoneId,
@@ -237,7 +237,7 @@ class ForecastFusionEngine(
 
         val weights = measuredWeights(
             parameter = ForecastWeightParameter.WIND,
-            evidence = evidence.mapNotNull(WindEvidence::measuredIdentityOrNull),
+            evidence = evidence.mapNotNull { it.measuredIdentityOrNull() },
             coordinate = coordinate,
             validTime = validTime,
             timeZoneId = timeZoneId,
@@ -284,22 +284,31 @@ class ForecastFusionEngine(
             directionDegrees = baselineDirection,
         )
 
-        val exactWithSpeed = group.filter {
-            it.origin.modelRun != null && it.point.windSpeedMps != null
+        val exactUsable = group.mapNotNull { sourcePoint ->
+            val run = sourcePoint.origin.modelRun ?: return@mapNotNull null
+            val speed = sourcePoint.point.windSpeedMps ?: return@mapNotNull null
+            if (speed < 0.0) return@mapNotNull null
+            val vector = meteorologicalWindVector(
+                speedMps = speed,
+                directionDegrees = sourcePoint.point.windDirectionDegrees,
+            ) ?: return@mapNotNull null
+            ExactWindSourceValue(
+                modelRun = run,
+                vector = vector,
+            )
         }
-        val exactRuns = exactWithSpeed.map {
-            requireNotNull(it.origin.modelRun)
-        }.distinct()
+        val exactRuns = exactUsable.map(ExactWindSourceValue::modelRun).distinct()
         val exactRun = exactRuns.singleOrNull()
-        val exactSubset = exactRun?.let { run ->
-            exactWithSpeed.filter { it.origin.modelRun == run }
+        val exactVectors = exactRun?.let { run ->
+            exactUsable.filter { it.modelRun == run }.map(ExactWindSourceValue::vector)
         }.orEmpty()
-        val exactSpeed = median(exactSubset.mapNotNull { it.point.windSpeedMps })
-        val exactDirection = circularMeanDegrees(
-            exactSubset.mapNotNull { it.point.windDirectionDegrees },
-        )
-        val exactVector = exactSpeed?.let { speed ->
-            if (speed < 0.0) null else meteorologicalWindVector(speed, exactDirection)
+        val exactVector = if (exactVectors.isEmpty()) {
+            null
+        } else {
+            WindVector(
+                uMps = requireNotNull(median(exactVectors.map(WindVector::uMps))),
+                vMps = requireNotNull(median(exactVectors.map(WindVector::vMps))),
+            )
         }
 
         return WindEvidence(
@@ -308,7 +317,7 @@ class ForecastFusionEngine(
             baselineDirectionDegrees = baselineDirection,
             baselineVector = baselineVector,
             exactVector = exactVector,
-            exactRun = exactRun.takeIf { exactVector != null },
+            exactRun = if (exactVector != null) exactRun else null,
         )
     }
 
@@ -593,6 +602,11 @@ class ForecastFusionEngine(
     private data class MeasuredEvidenceIdentity(
         val key: EvidenceKey,
         val modelRun: Instant,
+    )
+
+    private data class ExactWindSourceValue(
+        val modelRun: Instant,
+        val vector: WindVector,
     )
 
     private data class WindEvidence(
