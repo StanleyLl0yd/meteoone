@@ -53,7 +53,7 @@ class VerificationObservationStoreTest {
     }
 
     @Test
-    fun canonicalSurfaceAndExplicitPrecipitationRoundTrip() = runBlocking {
+    fun canonicalSurfaceAndExplicitPrecipitationRoundTrip() : Unit = runBlocking {
         val observedAt = Instant.parse("2026-09-20T12:00:00Z")
         val surface = surface(
             observedAt = observedAt,
@@ -88,7 +88,7 @@ class VerificationObservationStoreTest {
     }
 
     @Test
-    fun repeatedEvidenceIsIdempotentAndMissingFieldsMayOnlyBeEnriched() = runBlocking {
+    fun repeatedEvidenceIsIdempotentAndMissingFieldsMayOnlyBeEnriched() : Unit = runBlocking {
         val observedAt = Instant.parse("2026-09-20T12:00:00Z")
         val first = surface(observedAt, temperatureC = 11.2)
         val store = store()
@@ -115,7 +115,7 @@ class VerificationObservationStoreTest {
     }
 
     @Test
-    fun sameFieldOrPrecipitationIntervalCannotBeSilentlyRewritten() = runBlocking {
+    fun sameFieldOrPrecipitationIntervalCannotBeSilentlyRewritten() : Unit = runBlocking {
         val observedAt = Instant.parse("2026-09-20T12:00:00Z")
         val store = store()
         store.archive(
@@ -159,7 +159,7 @@ class VerificationObservationStoreTest {
     }
 
     @Test
-    fun stationIdentityCannotBeReboundToDifferentPublicMetadata() = runBlocking {
+    fun stationIdentityCannotBeReboundToDifferentPublicMetadata() : Unit = runBlocking {
         val observedAt = Instant.parse("2026-09-20T12:00:00Z")
         val store = store()
         store.archive(
@@ -194,7 +194,7 @@ class VerificationObservationStoreTest {
     }
 
     @Test
-    fun retentionSkipsExpiredInputAndPrunesEvidenceThatCanNoLongerVerifyRuns() = runBlocking {
+    fun retentionSkipsExpiredInputAndPrunesEvidenceThatCanNoLongerVerifyRuns() : Unit = runBlocking {
         val retention = Duration.ofDays(10)
         val firstNow = Instant.parse("2026-09-15T12:00:00Z")
         val firstStore = store(
@@ -254,7 +254,7 @@ class VerificationObservationStoreTest {
     }
 
     @Test
-    fun futureEmptyAndDuplicateBatchEvidenceFailClosed() = runBlocking {
+    fun futureEmptyAndDuplicateBatchEvidenceFailClosed() : Unit = runBlocking {
         val store = store()
 
         assertFailsWith<IllegalArgumentException> {
@@ -342,7 +342,7 @@ class VerificationObservationStoreTest {
     }
 
     @Test
-    fun expiredOnlyArchiveDoesNotLeaveOrphanStation() = runBlocking {
+    fun expiredOnlyArchiveDoesNotLeaveOrphanStation() : Unit = runBlocking {
         val expired = now.minus(Duration.ofDays(181))
         val result = store().archive(
             station,
