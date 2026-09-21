@@ -11,6 +11,55 @@ DIGEST = "sha256:" + "a" * 64
 
 
 class CiSupplyChainVerifierTest(unittest.TestCase):
+    def test_workflow_requires_exact_top_level_deny_permissions(self) -> None:
+        path = Path(".github/workflows/example.yml")
+
+        accepted = verify_document(
+            path,
+            "permissions: {}\njobs:\n  verify:\n    runs-on: ubuntu-latest\n",
+            is_workflow=True,
+        )
+        self.assertEqual(accepted, [])
+
+        missing = verify_document(
+            path,
+            "jobs:\n  verify:\n    runs-on: ubuntu-latest\n",
+            is_workflow=True,
+        )
+        self.assertTrue(
+            any(
+                "top-level workflow permissions must be exactly permissions: {}"
+                in error
+                for error in missing
+            )
+        )
+
+        broad_block = verify_document(
+            path,
+            "permissions:\n  contents: write\njobs:\n  verify:\n    runs-on: ubuntu-latest\n",
+            is_workflow=True,
+        )
+        self.assertTrue(
+            any(
+                "top-level workflow permissions must be exactly permissions: {}"
+                in error
+                for error in broad_block
+            )
+        )
+
+        broad_scalar = verify_document(
+            path,
+            "permissions: write-all\njobs:\n  verify:\n    runs-on: ubuntu-latest\n",
+            is_workflow=True,
+        )
+        self.assertTrue(
+            any(
+                "top-level workflow permissions must be exactly permissions: {}"
+                in error
+                for error in broad_scalar
+            )
+        )
+
     def test_docker_action_requires_digest(self) -> None:
         path = Path(".github/actions/example/action.yml")
         errors = verify_document(
