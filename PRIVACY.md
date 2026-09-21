@@ -1,8 +1,8 @@
 # MeteoOne Privacy Policy
 
-Effective date: 2026-09-18
+Effective date: 2026-09-21
 
-This policy describes the behavior of the MeteoOne Android application, package `com.sl.meteoone`, for the `0.2.0-alpha.1` release line.
+This policy describes the current MeteoOne Android application source, package `com.sl.meteoone`, after completion of M4 Verification Engine. The published `0.2.0-alpha.1` build predates the M4 verification-data flow described below.
 
 ## Location
 
@@ -18,7 +18,7 @@ MeteoOne stores the minimum state needed for its offline-first forecast behavior
 
 - the active privacy-reduced 0.1-degree forecast-grid coordinate;
 - the active time-zone identifier;
-- cached fused forecast snapshots, per-source/model comparison evidence, failed-source identities, and forecast provenance/freshness information.
+- cached fused forecast snapshots, per-source/model comparison evidence, failed-source identities, and forecast provenance/freshness information;\n- bounded local verification forecast history plus public observation-station metadata and weather observations used to evaluate model skill.
 
 The current alpha location flow does not persist device elevation for the active target.
 
@@ -28,15 +28,15 @@ Android backup is disabled for the application. Clearing MeteoOne's app storage 
 
 ## Network requests and weather providers
 
-MeteoOne obtains forecast data over HTTPS from weather-data services, including Open-Meteo and direct official-source paths for NOAA/NCEP GFS, ECMWF IFS Open Data, and DWD ICON Open Data.
+MeteoOne obtains forecast data over HTTPS from weather-data services, including Open-Meteo and direct official-source paths for NOAA/NCEP GFS, ECMWF IFS Open Data, and DWD ICON Open Data. M4 also retrieves public surface-station observations over HTTPS from NOAA/NCEI Global Historical Climatology Network hourly (GHCNh) for on-device forecast verification.
 
-Where a provider request needs a location, MeteoOne may send the privacy-reduced forecast-grid coordinate and related forecast request parameters. MeteoOne does not send the raw device latitude or longitude to forecast providers.
+Where a forecast-provider request needs a location, MeteoOne may send the privacy-reduced forecast-grid coordinate and related forecast request parameters. MeteoOne does not send the raw device latitude or longitude to forecast providers. GHCNh station selection is performed locally against the privacy-reduced coordinate; GHCNh data requests identify public stations/years rather than sending the device coordinate.
 
 As with any Internet request, an external service can receive ordinary transport metadata such as the public IP address used for the connection. Processing and retention performed by an external weather provider is governed by that provider's own terms and privacy practices.
 
 ## Accounts, advertising, and analytics
 
-The `0.2.0-alpha.1` application has no MeteoOne account system, advertising SDK, analytics SDK, or behavioral-tracking SDK. The release code contains no mechanism for selling user data.
+The current application source has no MeteoOne account system, advertising SDK, analytics SDK, or behavioral-tracking SDK. It contains no mechanism for selling user data.
 
 ## Permissions
 
@@ -63,9 +63,9 @@ If MeteoOne's data behavior changes, this policy must be updated before a releas
 
 # Политика конфиденциальности MeteoOne
 
-Дата вступления в силу: 18 сентября 2026 года
+Дата вступления в силу: 21 сентября 2026 года
 
-Эта политика описывает поведение Android-приложения MeteoOne с пакетом `com.sl.meteoone` для линейки релизов `0.2.0-alpha.1`.
+Эта политика описывает текущий исходный код Android-приложения MeteoOne с пакетом `com.sl.meteoone` после завершения M4 Verification Engine. Опубликованная сборка `0.2.0-alpha.1` создана до появления описанного ниже потока данных M4 для проверки прогноза.
 
 ## Местоположение
 
@@ -81,7 +81,7 @@ MeteoOne хранит минимальный набор данных, необх
 
 - активную координату сетки прогноза с пониженной точностью 0,1°;
 - идентификатор часового пояса активной цели;
-- кэшированные объединённые прогнозы, данные отдельных источников/моделей для сравнения, идентификаторы недоступных источников, а также сведения о происхождении и актуальности прогноза.
+- кэшированные объединённые прогнозы, данные отдельных источников/моделей для сравнения, идентификаторы недоступных источников, а также сведения о происхождении и актуальности прогноза;\n- ограниченную по сроку локальную историю прогнозов для проверки, метаданные публичных метеостанций и погодные наблюдения, используемые для оценки качества моделей.
 
 Текущий alpha-сценарий определения местоположения не сохраняет высоту устройства для активной цели.
 
@@ -91,15 +91,15 @@ MeteoOne хранит минимальный набор данных, необх
 
 ## Сетевые запросы и поставщики погодных данных
 
-MeteoOne получает прогнозы по HTTPS от погодных сервисов, включая Open-Meteo и прямые официальные источники NOAA/NCEP GFS, ECMWF IFS Open Data и DWD ICON Open Data.
+MeteoOne получает прогнозы по HTTPS от погодных сервисов, включая Open-Meteo и прямые официальные источники NOAA/NCEP GFS, ECMWF IFS Open Data и DWD ICON Open Data. M4 также получает по HTTPS публичные станционные наблюдения NOAA/NCEI Global Historical Climatology Network hourly (GHCNh) для локальной проверки прогноза.
 
-Если запрос к источнику требует местоположение, MeteoOne может передавать координату сетки прогноза с пониженной точностью и связанные параметры запроса. Исходные широта и долгота устройства поставщикам прогноза не передаются.
+Если запрос к поставщику прогноза требует местоположение, MeteoOne может передавать координату сетки прогноза с пониженной точностью и связанные параметры запроса. Исходные широта и долгота устройства поставщикам прогноза не передаются. Выбор станции GHCNh выполняется локально по координате с пониженной точностью; запросы данных GHCNh указывают публичную станцию и год, а не координату устройства.
 
 Как и при любом интернет-соединении, внешний сервис может получать обычные транспортные метаданные, например публичный IP-адрес соединения. Обработка и сроки хранения данных внешним поставщиком определяются его собственными условиями и политикой конфиденциальности.
 
 ## Аккаунты, реклама и аналитика
 
-В приложении `0.2.0-alpha.1` нет системы аккаунтов MeteoOne, рекламного SDK, SDK аналитики или SDK поведенческого трекинга. В коде этой версии нет механизма продажи пользовательских данных.
+В текущем исходном коде приложения нет системы аккаунтов MeteoOne, рекламного SDK, SDK аналитики или SDK поведенческого трекинга. В нём нет механизма продажи пользовательских данных.
 
 ## Разрешения
 
