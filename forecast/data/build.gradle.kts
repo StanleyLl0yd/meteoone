@@ -35,7 +35,7 @@ dependencies {
     api(project(":core:model"))
 
     implementation(project(":forecast:domain"))
-    implementation(project(":verification:domain"))
+    api(project(":verification:domain"))
     implementation(project(":core:network"))
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.commons.compress)

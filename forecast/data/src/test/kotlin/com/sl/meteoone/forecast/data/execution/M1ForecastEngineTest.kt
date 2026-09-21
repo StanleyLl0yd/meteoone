@@ -10,7 +10,16 @@ import com.sl.meteoone.core.model.SourceForecast
 import com.sl.meteoone.core.model.WeatherCondition
 import com.sl.meteoone.forecast.data.openmeteo.OpenMeteoModel
 import com.sl.meteoone.forecast.domain.ForecastSourceIdentity
+import com.sl.meteoone.verification.domain.LeadTimeBucket
+import com.sl.meteoone.verification.domain.ObservationStation
+import com.sl.meteoone.verification.domain.ScalarVerificationSample
+import com.sl.meteoone.verification.domain.VerificationContext
+import com.sl.meteoone.verification.domain.VerificationParameter
+import com.sl.meteoone.verification.domain.VerificationSample
+import com.sl.meteoone.verification.domain.VerificationWeightRequest
+import java.time.Duration
 import java.time.Instant
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -74,6 +83,42 @@ class M1ForecastEngineTest {
             executor.openMeteoModels,
         )
         assertEquals(emptyList(), available.failedSources)
+    }
+
+    @Test
+    fun verificationWeightedFactoryReachesM1FusionWithoutInferringOpenMeteoRun() {
+        val queries = mutableListOf<VerificationWeightRequest>()
+        val engine = verificationWeightedM1ForecastEngine(
+            sourceExecutor = FakeForecastSourceExecutor(),
+            sampleSource = VerificationWeightSampleSource { request ->
+                queries += request
+                stableWeightSamples(request)
+            },
+        )
+
+        val available = assertIs<M1ForecastEngineResult.Available>(
+            engine.forecast(location, generatedAt),
+        )
+
+        val weightedHour = available.forecast.hourly.single {
+            it.weather.time == Instant.parse("2026-09-14T13:00:00Z")
+        }
+        val weightedTemperature = requireNotNull(weightedHour.weather.temperatureC)
+        assertTrue(abs(weightedTemperature - (33.2 / 3.0)) < 1e-12)
+
+        val ordinaryHour = available.forecast.hourly.single {
+            it.weather.time == Instant.parse("2026-09-14T14:00:00Z")
+        }
+        assertEquals(11.0, ordinaryHour.weather.temperatureC)
+
+        val request = queries.single()
+        assertEquals(VerificationParameter.TEMPERATURE, request.parameter)
+        assertEquals(LeadTimeBucket.H6_24, request.leadBucket)
+        assertEquals(
+            setOf(ModelFamily.NOAA_GFS, ModelFamily.DWD_ICON),
+            request.modelFamilies,
+        )
+        assertEquals(ForecastCoordinate(59.9, 30.3), request.coordinate)
     }
 
     @Test
@@ -190,6 +235,57 @@ class M1ForecastEngineTest {
                 generatedAt,
             ),
         )
+    }
+
+    private fun stableWeightSamples(
+        request: VerificationWeightRequest,
+    ): List<VerificationSample> {
+        val station = ObservationStation(
+            sourceId = "NOAA_GHCNH",
+            stationId = "TEST0000001",
+            latitude = 59.8,
+            longitude = 30.2,
+            elevationMeters = 12.0,
+        )
+        val firstRun = Instant.parse("2026-09-01T00:00:00Z")
+        return request.modelFamilies.flatMap { family ->
+            buildList {
+                repeat(14) { runIndex ->
+                    val modelRun = firstRun.plus(Duration.ofDays(runIndex.toLong()))
+                    val points = if (runIndex == 13) 6 else 10
+                    repeat(points) { pointIndex ->
+                        val validTime = modelRun.plus(Duration.ofHours(7L + pointIndex))
+                        add(
+                            ScalarVerificationSample(
+                                context = VerificationContext(
+                                    coordinate = request.coordinate,
+                                    provider = when (family) {
+                                        ModelFamily.NOAA_GFS -> ForecastProvider.NOAA_NOMADS
+                                        ModelFamily.DWD_ICON -> ForecastProvider.DWD_OPEN_DATA
+                                        ModelFamily.ECMWF_IFS -> ForecastProvider.ECMWF_OPEN_DATA
+                                        ModelFamily.UNKNOWN -> error("Unknown model family is not M4 evidence")
+                                    },
+                                    modelFamily = family,
+                                    modelRun = modelRun,
+                                    validTime = validTime,
+                                    timeZoneId = location.timeZoneId,
+                                ),
+                                station = station,
+                                parameter = request.parameter,
+                                observedAt = validTime,
+                                predicted = when (family) {
+                                    ModelFamily.NOAA_GFS -> 1.0
+                                    ModelFamily.DWD_ICON -> 2.0
+                                    ModelFamily.ECMWF_IFS -> 3.0
+                                    ModelFamily.UNKNOWN -> error("Unknown model family is not M4 evidence")
+                                },
+                                observed = 0.0,
+                            ),
+                        )
+                    }
+                }
+            }
+        }
     }
 
     private fun m1Identity(

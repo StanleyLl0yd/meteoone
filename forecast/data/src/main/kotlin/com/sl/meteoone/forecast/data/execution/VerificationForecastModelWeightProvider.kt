@@ -14,7 +14,13 @@ import com.sl.meteoone.verification.domain.VerificationWeightRequest
 import java.time.Duration
 import java.time.ZoneId
 
-internal fun interface VerificationWeightSampleSource {
+/**
+ * Supplies already-collected M4 verification samples to the synchronous forecast fusion boundary.
+ *
+ * Acquisition, matching and persistence remain separate M4 capabilities. Callers may precompute or
+ * cache samples before invoking forecast execution; this boundary never performs observation I/O.
+ */
+fun interface VerificationWeightSampleSource {
     fun samples(request: VerificationWeightRequest): Collection<VerificationSample>
 }
 

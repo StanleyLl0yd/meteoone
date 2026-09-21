@@ -72,21 +72,19 @@ class ForecastFusionEngine(
 
         fun collapsedScalar(
             selector: (HourlyWeatherPoint) -> Double?,
-        ): List<EvidenceValue> = evidenceGroups.mapNotNull { (key, group) ->
-            median(group.mapNotNull { selector(it.point) })?.let { value ->
-                EvidenceValue(
-                    key = key,
-                    value = value,
-                    modelRun = exactModelRun(group),
-                )
-            }
+        ): List<ScalarEvidence> = evidenceGroups.mapNotNull { (key, group) ->
+            collapseScalarEvidence(
+                key = key,
+                group = group,
+                selector = selector,
+            )
         }
 
         fun fuseScalar(
             parameter: ForecastWeightParameter? = null,
             selector: (HourlyWeatherPoint) -> Double?,
         ): Double? = fuseEvidenceScalar(
-            values = collapsedScalar(selector),
+            evidence = collapsedScalar(selector),
             parameter = parameter,
             coordinate = coordinate,
             validTime = first.time,
@@ -95,9 +93,9 @@ class ForecastFusionEngine(
         )
 
         val temperatureEvidence = collapsedScalar { it.temperatureC }
-        val temperatureValues = temperatureEvidence.map(EvidenceValue::value)
+        val temperatureValues = temperatureEvidence.map(ScalarEvidence::baselineValue)
         val temperature = fuseEvidenceScalar(
-            values = temperatureEvidence,
+            evidence = temperatureEvidence,
             parameter = ForecastWeightParameter.TEMPERATURE,
             coordinate = coordinate,
             validTime = first.time,
@@ -161,28 +159,59 @@ class ForecastFusionEngine(
         )
     }
 
+    private fun collapseScalarEvidence(
+        key: EvidenceKey,
+        group: List<SourcePoint>,
+        selector: (HourlyWeatherPoint) -> Double?,
+    ): ScalarEvidence? {
+        val available = group.mapNotNull { sourcePoint ->
+            selector(sourcePoint.point)?.let { value -> ScalarSourceValue(sourcePoint, value) }
+        }
+        val baselineValue = median(available.map(ScalarSourceValue::value)) ?: return null
+
+        val exact = available.filter { it.sourcePoint.origin.modelRun != null }
+        val exactRuns = exact.map {
+            requireNotNull(it.sourcePoint.origin.modelRun)
+        }.distinct()
+        val exactRun = exactRuns.singleOrNull()
+        val exactValue = exactRun?.let { run ->
+            median(
+                exact
+                    .filter { it.sourcePoint.origin.modelRun == run }
+                    .map(ScalarSourceValue::value),
+            )
+        }
+
+        return ScalarEvidence(
+            key = key,
+            baselineValue = baselineValue,
+            exactValue = exactValue,
+            exactRun = exactRun,
+        )
+    }
+
     private fun fuseEvidenceScalar(
-        values: List<EvidenceValue>,
+        evidence: List<ScalarEvidence>,
         parameter: ForecastWeightParameter?,
         coordinate: ForecastCoordinate?,
         validTime: Instant,
         timeZoneId: String,
         evaluatedAt: Instant,
     ): Double? {
-        if (values.isEmpty()) return null
-        val baseline = values.map(EvidenceValue::value).average()
+        if (evidence.isEmpty()) return null
+        val baseline = evidence.map(ScalarEvidence::baselineValue).average()
         if (parameter == null || coordinate == null) return baseline
 
         val weights = measuredWeights(
             parameter = parameter,
-            evidence = values,
+            evidence = evidence.mapNotNull(ScalarEvidence::measuredIdentityOrNull),
             coordinate = coordinate,
             validTime = validTime,
             timeZoneId = timeZoneId,
             evaluatedAt = evaluatedAt,
         ) ?: return baseline
 
-        return weightedAverage(values, weights)
+        return weightedScalarAverage(evidence, weights) ?: baseline
     }
 
     private fun fuseWind(
@@ -192,66 +221,45 @@ class ForecastFusionEngine(
         timeZoneId: String,
         evaluatedAt: Instant,
     ): WindFusion {
-        val speedEvidence = evidenceGroups.mapNotNull { (key, group) ->
-            median(group.mapNotNull { it.point.windSpeedMps })?.let { speed ->
-                EvidenceValue(key, speed, exactModelRun(group))
-            }
-        }
-        val directionEvidence = evidenceGroups.mapNotNull { (key, group) ->
-            circularMeanDegrees(group.mapNotNull { it.point.windDirectionDegrees })?.let { direction ->
-                EvidenceValue(key, direction, exactModelRun(group))
-            }
+        val evidence = evidenceGroups.mapNotNull { (key, group) ->
+            collapseWindEvidence(key, group)
         }
         val baseline = WindFusion(
-            speedMps = speedEvidence
-                .map(EvidenceValue::value)
+            speedMps = evidence
+                .map(WindEvidence::baselineSpeedMps)
                 .takeIf { it.isNotEmpty() }
                 ?.average(),
             directionDegrees = circularMeanDegrees(
-                directionEvidence.map(EvidenceValue::value),
+                evidence.mapNotNull(WindEvidence::baselineDirectionDegrees),
             ),
         )
-        if (coordinate == null || speedEvidence.size < 2) return baseline
-
-        val vectorEvidence = mutableListOf<WindEvidence>()
-        for (speed in speedEvidence) {
-            if (speed.value < 0.0) return baseline
-            val direction = directionEvidence.firstOrNull { it.key == speed.key }?.value
-            val vector = meteorologicalWindVector(speed.value, direction) ?: return baseline
-            vectorEvidence += WindEvidence(
-                key = speed.key,
-                modelRun = speed.modelRun,
-                uMps = vector.uMps,
-                vMps = vector.vMps,
-            )
-        }
+        if (coordinate == null || evidence.size < 2) return baseline
 
         val weights = measuredWeights(
             parameter = ForecastWeightParameter.WIND,
-            evidence = vectorEvidence.map { evidence ->
-                EvidenceValue(
-                    key = evidence.key,
-                    value = hypot(evidence.uMps, evidence.vMps),
-                    modelRun = evidence.modelRun,
-                )
-            },
+            evidence = evidence.mapNotNull(WindEvidence::measuredIdentityOrNull),
             coordinate = coordinate,
             validTime = validTime,
             timeZoneId = timeZoneId,
             evaluatedAt = evaluatedAt,
         ) ?: return baseline
 
-        val denominator = vectorEvidence.sumOf { evidence ->
-            weights.getValue(requireNotNull(evidence.key.modelFamily))
+        val selected = evidence.map { item ->
+            val family = item.key.modelFamily
+            val measuredWeight = family?.let(weights::get)
+            if (measuredWeight != null) {
+                val vector = item.exactVector ?: return baseline
+                WeightedVector(vector, measuredWeight)
+            } else {
+                val vector = item.baselineVector ?: return baseline
+                WeightedVector(vector, 1.0)
+            }
         }
+        val denominator = selected.sumOf(WeightedVector::weight)
         if (denominator <= 0.0 || !denominator.isFinite()) return baseline
 
-        val u = vectorEvidence.sumOf { evidence ->
-            evidence.uMps * weights.getValue(requireNotNull(evidence.key.modelFamily))
-        } / denominator
-        val v = vectorEvidence.sumOf { evidence ->
-            evidence.vMps * weights.getValue(requireNotNull(evidence.key.modelFamily))
-        } / denominator
+        val u = selected.sumOf { it.vector.uMps * it.weight } / denominator
+        val v = selected.sumOf { it.vector.vMps * it.weight } / denominator
         val speed = hypot(u, v)
         if (speed <= DIRECTION_VECTOR_EPSILON) {
             return WindFusion(speedMps = 0.0, directionDegrees = null)
@@ -259,6 +267,48 @@ class ForecastFusionEngine(
         return WindFusion(
             speedMps = speed,
             directionDegrees = normalizeDegrees(Math.toDegrees(atan2(-u, -v))),
+        )
+    }
+
+    private fun collapseWindEvidence(
+        key: EvidenceKey,
+        group: List<SourcePoint>,
+    ): WindEvidence? {
+        val baselineSpeed = median(group.mapNotNull { it.point.windSpeedMps }) ?: return null
+        if (baselineSpeed < 0.0) return null
+        val baselineDirection = circularMeanDegrees(
+            group.mapNotNull { it.point.windDirectionDegrees },
+        )
+        val baselineVector = meteorologicalWindVector(
+            speedMps = baselineSpeed,
+            directionDegrees = baselineDirection,
+        )
+
+        val exactWithSpeed = group.filter {
+            it.origin.modelRun != null && it.point.windSpeedMps != null
+        }
+        val exactRuns = exactWithSpeed.map {
+            requireNotNull(it.origin.modelRun)
+        }.distinct()
+        val exactRun = exactRuns.singleOrNull()
+        val exactSubset = exactRun?.let { run ->
+            exactWithSpeed.filter { it.origin.modelRun == run }
+        }.orEmpty()
+        val exactSpeed = median(exactSubset.mapNotNull { it.point.windSpeedMps })
+        val exactDirection = circularMeanDegrees(
+            exactSubset.mapNotNull { it.point.windDirectionDegrees },
+        )
+        val exactVector = exactSpeed?.let { speed ->
+            if (speed < 0.0) null else meteorologicalWindVector(speed, exactDirection)
+        }
+
+        return WindEvidence(
+            key = key,
+            baselineSpeedMps = baselineSpeed,
+            baselineDirectionDegrees = baselineDirection,
+            baselineVector = baselineVector,
+            exactVector = exactVector,
+            exactRun = exactRun.takeIf { exactVector != null },
         )
     }
 
@@ -300,27 +350,19 @@ class ForecastFusionEngine(
         )
 
         val selected = ranked.first().key.interval
-        val evidenceValues = evidenceGroups.mapNotNull { (key, group) ->
-            median(
-                group.mapNotNull { sourcePoint ->
-                    if (intervalSelector(sourcePoint.point) == selected) {
-                        valueSelector(sourcePoint.point)
-                    } else {
-                        null
-                    }
+        val evidence = evidenceGroups.mapNotNull { (key, group) ->
+            collapseScalarEvidence(
+                key = key,
+                group = group.filter { sourcePoint ->
+                    intervalSelector(sourcePoint.point) == selected
                 },
-            )?.let { value ->
-                EvidenceValue(
-                    key = key,
-                    value = value,
-                    modelRun = exactModelRun(group),
-                )
-            }
+                selector = valueSelector,
+            )
         }
 
         return IntervalScalarFusion(
             value = fuseEvidenceScalar(
-                values = evidenceValues,
+                evidence = evidence,
                 parameter = parameter,
                 coordinate = coordinate,
                 validTime = validTime,
@@ -333,20 +375,21 @@ class ForecastFusionEngine(
 
     private fun measuredWeights(
         parameter: ForecastWeightParameter,
-        evidence: List<EvidenceValue>,
+        evidence: List<MeasuredEvidenceIdentity>,
         coordinate: ForecastCoordinate,
         validTime: Instant,
         timeZoneId: String,
         evaluatedAt: Instant,
     ): Map<ModelFamily, Double>? {
-        if (evidence.size < 2) return null
-        if (evidence.any { it.key.modelFamily == null || it.key.modelFamily == ModelFamily.UNKNOWN }) {
-            return null
+        val eligible = evidence.filter {
+            it.key.modelFamily != null &&
+                it.key.modelFamily != ModelFamily.UNKNOWN
         }
+        if (eligible.size < 2) return null
 
-        val families = evidence.map { requireNotNull(it.key.modelFamily) }.toSet()
-        if (families.size != evidence.size) return null
-        val modelRuns = evidence.map { it.modelRun ?: return null }.toSet()
+        val families = eligible.map { requireNotNull(it.key.modelFamily) }.toSet()
+        if (families.size != eligible.size) return null
+        val modelRuns = eligible.map(MeasuredEvidenceIdentity::modelRun).toSet()
         val modelRun = modelRuns.singleOrNull() ?: return null
         if (validTime.isBefore(modelRun)) return null
 
@@ -375,25 +418,42 @@ class ForecastFusionEngine(
         return weights
     }
 
-    private fun weightedAverage(
-        values: List<EvidenceValue>,
+    private fun weightedScalarAverage(
+        evidence: List<ScalarEvidence>,
         weights: Map<ModelFamily, Double>,
-    ): Double {
-        val denominator = values.sumOf { value ->
-            weights.getValue(requireNotNull(value.key.modelFamily))
+    ): Double? {
+        var numerator = 0.0
+        var denominator = 0.0
+        evidence.forEach { item ->
+            val family = item.key.modelFamily
+            val measuredWeight = family?.let(weights::get)
+            if (measuredWeight != null) {
+                val exactValue = item.exactValue ?: return null
+                numerator += exactValue * measuredWeight
+                denominator += measuredWeight
+            } else {
+                numerator += item.baselineValue
+                denominator += 1.0
+            }
         }
-        if (denominator <= 0.0 || !denominator.isFinite()) {
-            return values.map(EvidenceValue::value).average()
-        }
-        return values.sumOf { value ->
-            value.value * weights.getValue(requireNotNull(value.key.modelFamily))
-        } / denominator
+        if (denominator <= 0.0 || !denominator.isFinite()) return null
+        val result = numerator / denominator
+        return result.takeIf(Double::isFinite)
     }
 
-    private fun exactModelRun(group: List<SourcePoint>): Instant? {
-        val runs = group.mapNotNull { it.origin.modelRun }.distinct()
-        return runs.singleOrNull()
-    }
+    private fun ScalarEvidence.measuredIdentityOrNull(): MeasuredEvidenceIdentity? =
+        if (exactValue != null && exactRun != null) {
+            MeasuredEvidenceIdentity(key = key, modelRun = exactRun)
+        } else {
+            null
+        }
+
+    private fun WindEvidence.measuredIdentityOrNull(): MeasuredEvidenceIdentity? =
+        if (exactVector != null && exactRun != null) {
+            MeasuredEvidenceIdentity(key = key, modelRun = exactRun)
+        } else {
+            null
+        }
 
     private fun meteorologicalWindVector(
         speedMps: Double,
@@ -518,22 +578,40 @@ class ForecastFusionEngine(
         val provider: ForecastProvider? = null,
     )
 
-    private data class EvidenceValue(
-        val key: EvidenceKey,
+    private data class ScalarSourceValue(
+        val sourcePoint: SourcePoint,
         val value: Double,
-        val modelRun: Instant?,
+    )
+
+    private data class ScalarEvidence(
+        val key: EvidenceKey,
+        val baselineValue: Double,
+        val exactValue: Double?,
+        val exactRun: Instant?,
+    )
+
+    private data class MeasuredEvidenceIdentity(
+        val key: EvidenceKey,
+        val modelRun: Instant,
     )
 
     private data class WindEvidence(
         val key: EvidenceKey,
-        val modelRun: Instant?,
-        val uMps: Double,
-        val vMps: Double,
+        val baselineSpeedMps: Double,
+        val baselineDirectionDegrees: Double?,
+        val baselineVector: WindVector?,
+        val exactVector: WindVector?,
+        val exactRun: Instant?,
     )
 
     private data class WindVector(
         val uMps: Double,
         val vMps: Double,
+    )
+
+    private data class WeightedVector(
+        val vector: WindVector,
+        val weight: Double,
     )
 
     private data class WindFusion(

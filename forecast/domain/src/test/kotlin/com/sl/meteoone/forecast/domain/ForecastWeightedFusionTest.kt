@@ -26,7 +26,7 @@ class ForecastWeightedFusionTest {
     )
 
     @Test
-    fun measuredTemperatureWeightsApplyAfterDuplicateProviderCollapse() {
+    fun measuredTemperatureUsesOnlyExactRunPathsInsideWeightedFamily() {
         val provider = RecordingWeightProvider(
             mapOf(
                 ForecastWeightParameter.TEMPERATURE to mapOf(
@@ -57,7 +57,7 @@ class ForecastWeightedFusionTest {
         )
 
         val hour = result.hourly.single()
-        assertEquals(14.0, hour.weather.temperatureC)
+        assertEquals(12.8, hour.weather.temperatureC)
         assertEquals(3, hour.providerCount)
         assertEquals(2, hour.independentEvidenceCount)
         val request = provider.requests.single {
@@ -68,6 +68,48 @@ class ForecastWeightedFusionTest {
             request.modelFamilies,
         )
         assertEquals(modelRun, request.modelRun)
+    }
+
+    @Test
+    fun familyWithoutExactRunRemainsNeutralAndOutsideMeasuredRequest() {
+        val provider = RecordingWeightProvider(
+            mapOf(
+                ForecastWeightParameter.TEMPERATURE to mapOf(
+                    ModelFamily.NOAA_GFS to 1.5,
+                    ModelFamily.DWD_ICON to 1.0,
+                ),
+            ),
+        )
+        val result = ForecastFusionEngine(provider).fuse(
+            listOf(
+                source(
+                    ForecastProvider.NOAA_NOMADS,
+                    ModelFamily.NOAA_GFS,
+                    temperature = 10.0,
+                ),
+                source(
+                    ForecastProvider.DWD_OPEN_DATA,
+                    ModelFamily.DWD_ICON,
+                    temperature = 20.0,
+                ),
+                source(
+                    ForecastProvider.OPEN_METEO,
+                    ModelFamily.ECMWF_IFS,
+                    temperature = 30.0,
+                    run = null,
+                ),
+            ),
+        )
+
+        val temperature = assertNotNull(result.hourly.single().weather.temperatureC)
+        assertTrue(abs(temperature - (65.0 / 3.5)) < 1e-12)
+        val request = provider.requests.single {
+            it.parameter == ForecastWeightParameter.TEMPERATURE
+        }
+        assertEquals(
+            setOf(ModelFamily.NOAA_GFS, ModelFamily.DWD_ICON),
+            request.modelFamilies,
+        )
     }
 
     @Test
@@ -102,7 +144,7 @@ class ForecastWeightedFusionTest {
     }
 
     @Test
-    fun missingExactRunForContributingFamilyKeepsEqualWeights() {
+    fun fewerThanTwoExactFamiliesKeepsEqualWeights() {
         val provider = RecordingWeightProvider(
             mapOf(
                 ForecastWeightParameter.TEMPERATURE to mapOf(

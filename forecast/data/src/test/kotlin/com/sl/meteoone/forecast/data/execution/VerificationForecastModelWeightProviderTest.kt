@@ -62,7 +62,7 @@ class VerificationForecastModelWeightProviderTest {
                 decision.weights.getValue(ModelFamily.DWD_ICON),
         )
         assertTrue(
-            decision.weights.getValue(ModelFamily.DWD_ICON) >
+            decision.weights.getValue(ModelFamily.ECMWF_IFS) >
                 decision.weights.getValue(ModelFamily.NOAA_GFS),
         )
         assertTrue(

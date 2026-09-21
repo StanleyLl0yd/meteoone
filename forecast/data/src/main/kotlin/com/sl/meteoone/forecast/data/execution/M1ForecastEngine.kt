@@ -28,6 +28,7 @@ import com.sl.meteoone.forecast.data.openmeteo.OpenMeteoForecastMapper
 import com.sl.meteoone.forecast.data.openmeteo.OpenMeteoForecastRequestPlanner
 import com.sl.meteoone.forecast.data.openmeteo.OpenMeteoModel
 import com.sl.meteoone.forecast.data.transport.ForecastHttpAdapter
+import com.sl.meteoone.forecast.domain.ForecastFusionEngine
 import com.sl.meteoone.forecast.domain.ForecastOrchestrationResult
 import com.sl.meteoone.forecast.domain.ForecastSourceIdentity
 import com.sl.meteoone.forecast.domain.ForecastSourceOrchestrator
@@ -208,6 +209,19 @@ internal fun productionForecastSourceExecutor(
         dwdDecompress = decompressor::decompress,
     )
 }
+
+internal fun verificationWeightedM1ForecastEngine(
+    sourceExecutor: ForecastSourceExecutor,
+    sampleSource: VerificationWeightSampleSource,
+): M1ForecastEngine =
+    M1ForecastEngine(
+        sourceExecutor = sourceExecutor,
+        orchestrator = ForecastSourceOrchestrator(
+            fusionEngine = ForecastFusionEngine(
+                weightProvider = VerificationForecastModelWeightProvider(sampleSource),
+            ),
+        ),
+    )
 
 class M1ForecastEngine internal constructor(
     private val sourceExecutor: ForecastSourceExecutor,
@@ -397,6 +411,20 @@ class M1ForecastEngine internal constructor(
                 transport = DefaultBoundedHttpsTransport(),
             )
 
+        /**
+         * Android production entry point for callers that have already assembled M4 verification
+         * samples. Observation/history I/O stays outside synchronous forecast fusion.
+         */
+        fun android(
+            context: Context,
+            verificationSamples: VerificationWeightSampleSource,
+        ): M1ForecastEngine =
+            android(
+                context = context,
+                transport = DefaultBoundedHttpsTransport(),
+                verificationSamples = verificationSamples,
+            )
+
         internal fun android(
             context: Context,
             transport: BoundedHttpsTransport,
@@ -406,6 +434,19 @@ class M1ForecastEngine internal constructor(
                 transport = transport,
             ),
         )
+
+        internal fun android(
+            context: Context,
+            transport: BoundedHttpsTransport,
+            verificationSamples: VerificationWeightSampleSource,
+        ): M1ForecastEngine =
+            verificationWeightedM1ForecastEngine(
+                sourceExecutor = productionForecastSourceExecutor(
+                    context = context,
+                    transport = transport,
+                ),
+                sampleSource = verificationSamples,
+            )
     }
 }
 
