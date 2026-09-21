@@ -59,6 +59,24 @@ class OpenMeteoParserTest(unittest.TestCase):
         self.assertEqual(point.wind_speed_mps, 4.2)
         self.assertEqual(point.precipitation_probability_percent, 60.0)
 
+    def test_non_finite_open_meteo_values_are_treated_as_missing(self) -> None:
+        payload = {
+            "hourly": {
+                "time": [1788948000],
+                "temperature_2m": [float("nan")],
+                "wind_speed_10m": [float("inf")],
+            }
+        }
+
+        forecast = parse_open_meteo(
+            payload,
+            LOCATION,
+            OpenMeteoModel("icon_global", "DWD_ICON"),
+        )
+
+        self.assertIsNone(forecast.hourly[0].temperature_c)
+        self.assertIsNone(forecast.hourly[0].wind_speed_mps)
+
     def test_deterministic_requests_exclude_ensemble_probability(self) -> None:
         params = OpenMeteoAdapter._params(
             LOCATION,
@@ -230,6 +248,30 @@ class MetNorwayParserTest(unittest.TestCase):
         self.assertEqual(forecast.origin.provider, "MET_NORWAY")
         self.assertEqual(forecast.origin.model_family, "ECMWF_IFS")
         self.assertEqual(forecast.hourly[0].precipitation_mm, 0.2)
+
+    def test_non_finite_met_norway_values_are_treated_as_missing(self) -> None:
+        payload = {
+            "properties": {
+                "timeseries": [
+                    {
+                        "time": "2026-09-09T11:00:00Z",
+                        "data": {
+                            "instant": {
+                                "details": {
+                                    "air_temperature": float("-inf"),
+                                    "wind_speed": float("nan"),
+                                }
+                            },
+                        },
+                    }
+                ],
+            }
+        }
+
+        forecast = parse_met_norway(payload, LOCATION, 72)
+
+        self.assertIsNone(forecast.hourly[0].temperature_c)
+        self.assertIsNone(forecast.hourly[0].wind_speed_mps)
 
 
 if __name__ == "__main__":

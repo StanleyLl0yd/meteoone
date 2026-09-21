@@ -26,6 +26,12 @@ class ErrorSummaryTest(unittest.TestCase):
     def test_no_pairs_returns_none(self) -> None:
         self.assertIsNone(error_summary([None], [1.0]))
 
+    def test_non_finite_error_input_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "finite"):
+            error_summary([float("nan")], [1.0])
+        with self.assertRaisesRegex(ValueError, "finite"):
+            error_summary([1.0], [float("inf")])
+
 
 class BrierScoreTest(unittest.TestCase):
     def test_brier_score(self) -> None:
@@ -59,6 +65,22 @@ class WindVectorErrorTest(unittest.TestCase):
         self.assertIsNotNone(value)
         assert value is not None
         self.assertAlmostEqual(value, 0.0)
+
+    def test_non_finite_wind_input_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "finite"):
+            wind_vector_error_mps(
+                [float("inf")],
+                [90.0],
+                [5.0],
+                [90.0],
+            )
+        with self.assertRaisesRegex(ValueError, "finite"):
+            wind_vector_error_mps(
+                [5.0],
+                [float("nan")],
+                [5.0],
+                [90.0],
+            )
 
     def test_non_calm_wind_still_requires_direction(self) -> None:
         self.assertIsNone(
