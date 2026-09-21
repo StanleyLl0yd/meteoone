@@ -13,6 +13,7 @@ private val DEFAULT_OBSERVATION_RETENTION: Duration = Duration.ofDays(180)
 data class VerificationObservationArchiveResult(
     val stationInserted: Boolean,
     val insertedSurface: Int,
+    val enrichedSurface: Int,
     val existingSurface: Int,
     val skippedExpiredSurface: Int,
     val insertedPrecipitation: Int,
@@ -132,6 +133,7 @@ internal class RoomVerificationObservationStore(
         return VerificationObservationArchiveResult(
             stationInserted = counts.stationInserted,
             insertedSurface = counts.insertedSurface,
+            enrichedSurface = counts.enrichedSurface,
             existingSurface = counts.existingSurface,
             skippedExpiredSurface = skippedExpiredSurface,
             insertedPrecipitation = counts.insertedPrecipitation,
