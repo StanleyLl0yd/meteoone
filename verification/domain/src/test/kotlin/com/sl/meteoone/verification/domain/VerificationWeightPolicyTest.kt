@@ -79,7 +79,7 @@ class VerificationWeightPolicyTest {
 
     @Test
     fun staleEvidenceFallsBackToEqualWeights() {
-        val staleStart = Instant.parse("2026-06-01T00:00:00Z")
+        val staleStart = Instant.parse("2026-09-01T00:00:00Z")
         val samples = families.flatMap { family ->
             campaign(
                 family = family,
@@ -89,7 +89,10 @@ class VerificationWeightPolicyTest {
         }
 
         val decision = assertIs<VerificationWeightDecision.EqualFallback>(
-            policy.derive(request(), samples),
+            policy.derive(
+                request(evaluatedAt = Instant.parse("2026-11-16T00:00:00Z")),
+                samples,
+            ),
         )
 
         assertEquals(setOf(1.0), decision.weights.values.toSet())
@@ -153,6 +156,7 @@ class VerificationWeightPolicyTest {
     fun sparseLocationCanFallBackToSufficientStableRegionEvidence() {
         val second = ForecastCoordinate(58.0, 31.0)
         val third = ForecastCoordinate(56.0, 34.0)
+        val fourth = ForecastCoordinate(57.0, 32.0)
         val samples = buildList {
             families.forEach { family ->
                 addAll(
@@ -177,6 +181,13 @@ class VerificationWeightPolicyTest {
                         coordinate = third,
                     ),
                 )
+                addAll(
+                    campaign(
+                        family = family,
+                        errorForRun = { scoreFor(family) },
+                        coordinate = fourth,
+                    ),
+                )
             }
         }
 
@@ -189,7 +200,7 @@ class VerificationWeightPolicyTest {
         )
         assertEquals(VerificationRegionKey.from(coordinate), region.key)
         assertEquals(ModelFamily.ECMWF_IFS, decision.evidence.winningModelFamily)
-        assertEquals(300, decision.evidence.independentSampleCounts[ModelFamily.ECMWF_IFS])
+        assertEquals(440, decision.evidence.independentSampleCounts[ModelFamily.ECMWF_IFS])
     }
 
     @Test
