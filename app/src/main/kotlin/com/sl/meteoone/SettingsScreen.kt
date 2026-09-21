@@ -93,6 +93,15 @@ internal fun SettingsContent(
 
         item {
             SettingsSourceCard(
+                title = stringResource(R.string.settings_source_ghcnh_title),
+                body = stringResource(R.string.settings_source_ghcnh_body),
+                linkLabel = stringResource(R.string.settings_source_details),
+                onOpen = { uriHandler.openUri(GHCNH_URL) },
+            )
+        }
+
+        item {
+            SettingsSourceCard(
                 title = stringResource(R.string.settings_source_ecmwf_title),
                 body = stringResource(R.string.settings_source_ecmwf_body),
                 linkLabel = stringResource(R.string.settings_source_details),
@@ -229,5 +238,7 @@ private const val PRIVACY_POLICY_URL =
     "https://github.com/StanleyLl0yd/meteoone/blob/main/PRIVACY.md"
 private const val OPEN_METEO_URL = "https://open-meteo.com/"
 private const val NOAA_NOMADS_URL = "https://nomads.ncep.noaa.gov/"
+private const val GHCNH_URL =
+    "https://www.ncei.noaa.gov/products/global-historical-climatology-network-hourly"
 private const val ECMWF_OPEN_DATA_URL = "https://www.ecmwf.int/en/forecasts/datasets/open-data"
 private const val DWD_OPEN_DATA_URL = "https://opendata.dwd.de/"

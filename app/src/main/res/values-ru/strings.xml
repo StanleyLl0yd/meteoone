@@ -147,12 +147,12 @@
     <string name="settings_open_privacy_policy">Политика конфиденциальности</string>
     <string name="settings_offline_title">Offline-first</string>
     <string name="settings_offline_body">Последний объединённый прогноз и сохранённые данные моделей и источников остаются доступны из локального кэша. Неудачное обновление не заменяет корректный сохранённый прогноз.</string>
-    <string name="settings_sources_title">Данные прогноза и атрибуция</string>
-    <string name="settings_sources_explanation">Источник — это путь получения данных, а семейство модели — прогнозное свидетельство. Несколько путей получения одной модели не считаются дополнительными независимыми моделями.</string>
+    <string name="settings_sources_title">Погодные данные и атрибуция</string>
+    <string name="settings_sources_explanation">Поставщики прогноза остаются путями получения данных, сгруппированными по семействам моделей. MeteoOne также использует публичные станционные наблюдения для локальной проверки прогноза; наблюдения не считаются дополнительным голосом прогнозной модели.</string>
     <string name="settings_source_open_meteo_title">Open-Meteo</string>
     <string name="settings_source_open_meteo_body">MeteoOne использует Open-Meteo как поставщика данных прогноза. Для погодных данных Open-Meteo требуется атрибуция по лицензии CC BY 4.0.</string>
     <string name="settings_source_noaa_title">NOAA / NCEP GFS</string>
-    <string name="settings_source_noaa_body">MeteoOne может получать данные прогноза GFS через NOAA/NCEP NOMADS. Информация государственных служб NOAA/NWS, как правило, находится в общественном достоянии, если явно не указано иное; NOAA/NWS не поддерживает MeteoOne и не аффилирован с ним.</string>
+    <string name="settings_source_noaa_body">MeteoOne может получать данные прогноза GFS через NOAA/NCEP NOMADS. Информация государственных служб NOAA/NWS, как правило, находится в общественном достоянии, если явно не указано иное; NOAA/NWS не поддерживает MeteoOne и не аффилирован с ним.</string>\n    <string name="settings_source_ghcnh_title">Наблюдения NOAA / NCEI GHCNh</string>\n    <string name="settings_source_ghcnh_body">MeteoOne использует публичные станционные наблюдения Global Historical Climatology Network hourly (GHCNh) для локальной проверки прогноза. NOAA передаёт данные GHCNh в общественное достояние по CC0-1.0 и публикует рекомендуемую ссылку на набор данных.</string>
     <string name="settings_source_ecmwf_title">ECMWF IFS Open Data</string>
     <string name="settings_source_ecmwf_body">Сервис основан в том числе на данных и продуктах Европейского центра среднесрочных прогнозов погоды (ECMWF). ECMWF Open Data публикуется по CC BY 4.0 и объединяется MeteoOne с другими прогнозными данными. ECMWF не несёт ответственности за ошибки, пропуски, доступность данных, ущерб или убытки, связанные с их использованием.</string>
     <string name="settings_source_dwd_title">DWD ICON Open Data</string>
