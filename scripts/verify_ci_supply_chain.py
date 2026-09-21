@@ -14,7 +14,7 @@ SETUP_ANDROID_PACKAGES = re.compile(
 )
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 DIGEST = re.compile(r"@sha256:[0-9a-f]{64}$")
-TOP_LEVEL_PERMISSIONS = re.compile(r"(?m)^permissions:\s*(?:\{\}|$)")
+TOP_LEVEL_DENY_PERMISSIONS = re.compile(r"(?m)^permissions:\s*\{\}\s*(?:#.*)?$")
 
 
 def _unquote(value: str) -> str:
@@ -35,8 +35,10 @@ def _step_block(lines: list[str], *, start: int, indent: int) -> list[str]:
 
 def verify_document(path: Path, text: str, *, is_workflow: bool) -> list[str]:
     errors: list[str] = []
-    if is_workflow and not TOP_LEVEL_PERMISSIONS.search(text):
-        errors.append(f"{path}: explicit top-level workflow permissions are required")
+    if is_workflow and not TOP_LEVEL_DENY_PERMISSIONS.search(text):
+        errors.append(
+            f"{path}: top-level workflow permissions must be exactly permissions: {{}}"
+        )
     if "pull_request_target:" in text:
         errors.append(f"{path}: pull_request_target is forbidden")
     if "persist-credentials: true" in text:
