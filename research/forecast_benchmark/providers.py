@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import ssl
 import time
 import urllib.error
@@ -306,7 +307,8 @@ def _at(values: Sequence[Any] | None, index: int) -> float | None:
     value = values[index]
     if value is None:
         return None
-    return float(value)
+    numeric = float(value)
+    return numeric if math.isfinite(numeric) else None
 
 
 def parse_open_meteo(
@@ -448,4 +450,5 @@ def _number(mapping: Mapping[str, Any], key: str) -> float | None:
     value = mapping.get(key)
     if value is None:
         return None
-    return float(value)
+    numeric = float(value)
+    return numeric if math.isfinite(numeric) else None
