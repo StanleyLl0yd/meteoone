@@ -153,17 +153,15 @@ jobs:
           gh auth setup-git
           git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
           # Publication is built entirely from the verified artifact in RUNNER_TEMP.
-          # Discard any checkout-side line-ending/tooling drift before switching
-          # to the generated branch so no source-tree mutation can block or leak
-          # into publication.
-          git reset --hard "${GITHUB_SHA}"
+          # Force the generated-branch checkout so checkout-side line-ending/tooling
+          # drift cannot block publication or leak into the generated commit.
           git clean -ffd
-          test -z "$(git status --porcelain)"
           if git fetch --no-tags origin \
             "refs/heads/${GENERATED_BRANCH}:refs/remotes/origin/${GENERATED_BRANCH}"; then
-            git switch -c publish-grib-native "refs/remotes/origin/${GENERATED_BRANCH}"
+            git switch --discard-changes -C publish-grib-native \
+              "refs/remotes/origin/${GENERATED_BRANCH}"
           else
-            git switch --orphan publish-grib-native
+            git switch --discard-changes --orphan publish-grib-native
           fi
           git rm -rf --ignore-unmatch .
           mkdir -p bundle
