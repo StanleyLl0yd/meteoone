@@ -187,6 +187,7 @@ class ForecastFusionEngine(
             baselineValue = baselineValue,
             exactValue = exactValue,
             exactRun = exactRun,
+            hasExactRunConflict = exactRuns.size > 1,
         )
     }
 
@@ -201,6 +202,8 @@ class ForecastFusionEngine(
         if (evidence.isEmpty()) return null
         val baseline = evidence.map(ScalarEvidence::baselineValue).average()
         if (parameter == null || coordinate == null) return baseline
+
+        if (evidence.any(ScalarEvidence::hasExactRunConflict)) return baseline
 
         val weights = measuredWeights(
             parameter = parameter,
@@ -234,6 +237,8 @@ class ForecastFusionEngine(
             ),
         )
         if (coordinate == null || evidence.size < 2) return baseline
+
+        if (evidence.any(WindEvidence::hasExactRunConflict)) return baseline
 
         val weights = measuredWeights(
             parameter = ForecastWeightParameter.WIND,
@@ -318,6 +323,7 @@ class ForecastFusionEngine(
             baselineVector = baselineVector,
             exactVector = exactVector,
             exactRun = if (exactVector != null) exactRun else null,
+            hasExactRunConflict = exactRuns.size > 1,
         )
     }
 
@@ -597,6 +603,7 @@ class ForecastFusionEngine(
         val baselineValue: Double,
         val exactValue: Double?,
         val exactRun: Instant?,
+        val hasExactRunConflict: Boolean,
     )
 
     private data class MeasuredEvidenceIdentity(
@@ -616,6 +623,7 @@ class ForecastFusionEngine(
         val baselineVector: WindVector?,
         val exactVector: WindVector?,
         val exactRun: Instant?,
+        val hasExactRunConflict: Boolean,
     )
 
     private data class WindVector(

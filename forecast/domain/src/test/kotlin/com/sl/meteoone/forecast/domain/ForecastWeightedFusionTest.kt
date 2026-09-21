@@ -176,6 +176,49 @@ class ForecastWeightedFusionTest {
     }
 
     @Test
+    fun conflictingExactRunsInOneFamilyForceWholeParameterToEqualFallback() {
+        val provider = RecordingWeightProvider(
+            mapOf(
+                ForecastWeightParameter.TEMPERATURE to mapOf(
+                    ModelFamily.DWD_ICON to 1.5,
+                    ModelFamily.ECMWF_IFS to 1.0,
+                ),
+            ),
+        )
+        val result = ForecastFusionEngine(provider).fuse(
+            listOf(
+                source(
+                    ForecastProvider.NOAA_NOMADS,
+                    ModelFamily.NOAA_GFS,
+                    temperature = 8.0,
+                    run = modelRun,
+                ),
+                source(
+                    ForecastProvider.OPEN_METEO,
+                    ModelFamily.NOAA_GFS,
+                    temperature = 12.0,
+                    run = modelRun.minusSeconds(6 * 3600),
+                ),
+                source(
+                    ForecastProvider.DWD_OPEN_DATA,
+                    ModelFamily.DWD_ICON,
+                    temperature = 20.0,
+                ),
+                source(
+                    ForecastProvider.ECMWF_OPEN_DATA,
+                    ModelFamily.ECMWF_IFS,
+                    temperature = 30.0,
+                ),
+            ),
+        )
+
+        assertEquals(20.0, result.hourly.single().weather.temperatureC)
+        assertTrue(provider.requests.none {
+            it.parameter == ForecastWeightParameter.TEMPERATURE
+        })
+    }
+
+    @Test
     fun unsupportedFieldsRemainEqualWhileTemperatureIsWeighted() {
         val provider = RecordingWeightProvider(
             mapOf(
