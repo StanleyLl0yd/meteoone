@@ -21,11 +21,18 @@ def error_summary(
     if len(predicted) != len(observed):
         raise ValueError("predicted and observed lengths differ")
 
-    errors = [
-        p - o
-        for p, o in zip(predicted, observed, strict=True)
-        if p is not None and o is not None
-    ]
+    errors = []
+    for predicted_value, observed_value in zip(
+        predicted, observed, strict=True
+    ):
+        if predicted_value is None or observed_value is None:
+            continue
+        if not (
+            math.isfinite(predicted_value)
+            and math.isfinite(observed_value)
+        ):
+            raise ValueError("error inputs must be finite when present")
+        errors.append(predicted_value - observed_value)
     if not errors:
         return None
 
@@ -100,11 +107,16 @@ def wind_vector_components(
     if speed is None:
         return None
     numeric_speed = float(speed)
+    if not math.isfinite(numeric_speed):
+        raise ValueError("wind speed must be finite when present")
     if numeric_speed == 0.0:
         return (0.0, 0.0)
     if direction_deg is None:
         return None
-    return _wind_uv(numeric_speed, float(direction_deg))
+    numeric_direction = float(direction_deg)
+    if not math.isfinite(numeric_direction):
+        raise ValueError("wind direction must be finite when present")
+    return _wind_uv(numeric_speed, numeric_direction)
 
 
 def lead_bucket(hours: float) -> str | None:
