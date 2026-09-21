@@ -189,9 +189,9 @@ Do not raise minSdk without a concrete technical or product reason.
 
 Before a release, verify current Google Play and RuStore requirements rather than assuming an old documented requirement is still sufficient.
 
-## Planned Android architecture
+## Android module architecture
 
-The currently planned modular direction is:
+The current implemented module set is:
 
 ```text
 :app
@@ -199,20 +199,15 @@ The currently planned modular direction is:
 :core:network
 :core:database
 :core:location
-:core:designsystem
+:core:preferences
 :forecast:domain
 :forecast:data
-:feature:forecast
-:feature:models
-:feature:settings
-:feature:about
+:forecast:repository
+:verification:domain
+:verification:data
 ```
 
-This is a direction, not a mandate to create empty modules.
-
-Adjust the split only when real dependency boundaries justify it.
-
-Do not create speculative modules, interfaces, repositories, use cases, or service abstractions solely for hypothetical future features.
+Create additional design-system or feature modules only when a concrete dependency boundary justifies them. Do not create empty modules, speculative interfaces, repositories, use cases, or service abstractions solely for hypothetical future features.
 
 Prefer the smallest architecture that preserves current boundaries and testability.
 
