@@ -40,7 +40,7 @@ The fusion engine must keep the existing equal-weight behavior whenever the veri
 
 It does not depend on Android, Room, HTTP, WIS2/GHCNh formats or provider DTOs.
 
-`:verification:data` is the pure JVM transport/normalization boundary for M4 evidence sources. Its first concrete responsibility is bounded NOAA/NCEI GHCNh station discovery from the privacy-reduced `ForecastCoordinate`; later observation parsing remains outside `:verification:domain` as well.
+`:verification:data` is the pure JVM transport/normalization boundary for M4 evidence sources. It owns bounded NOAA/NCEI GHCNh station discovery plus station/year PSV retrieval, format validation, source/QC preservation, candidate fallback and normalization into MeteoOne-owned observation types.
 
 ## Identity and privacy
 
@@ -54,7 +54,13 @@ Public observing-station coordinates are not user-location data, but station sel
 
 The M0 Roshydromet adapter is a research exception that uses a measured HTTP-only endpoint. Production Android M4 must not reuse that transport.
 
-Production observation ingestion uses authenticated HTTPS and real station measurements only. NOAA/NCEI GHCNh is the primary historical/on-demand source because it is the current hourly/synoptic station dataset replacing ISD and exposes station/year archives suitable for catch-up after the app has been offline. WMO WIS2 core observations remain a possible supplementary fresh path, but Global Cache retention is too short to be the only verification archive for an intermittently used Android app. Transport/parsing stays outside the verification domain.
+Production observation ingestion uses HTTPS and real station measurements only. NOAA/NCEI GHCNh is the primary historical/on-demand source because it is the current hourly/synoptic station dataset replacing ISD and exposes station/year archives suitable for catch-up after the app has been offline. WMO WIS2 core observations remain a possible supplementary fresh path, but Global Cache retention is too short to be the only verification archive for an intermittently used Android app. Transport/parsing stays outside the verification domain.
+
+GHCNh station/year requests are bound to the exact NCEI HTTPS host, station id and year and inherit the common bounded-response/no-redirect transport. PSV parsing is driven by normalized header names rather than column positions. Current GHCNh v1.1 data identify rows with `Station_ID`, an ISO UTC date-time and named latitude/longitude/elevation fields; the parser also accepts the NCEI search aliases `STATION` and `DATE` without changing identity semantics.
+
+For every retained weather value the data layer preserves the five GHCNh attributes: measurement code, quality code, report type, source code and source station id. Canonical M4 observations accept only values with no failure flag or the legacy documented pass-all-QC codes `1`/`5`; suspect/error flags remain raw evidence but do not become verification truth. Duplicate timestamps are resolved by usable-field completeness, while equal-quality/equal-completeness conflicts become missing instead of being guessed.
+
+Generic `precipitation` remains raw evidence because its accumulation interval is not intrinsically fixed. Canonical precipitation is emitted only from explicit-duration GHCNh fields (5/15 minutes and 3/6/9/12/15/18/21/24 hours). Trace reports are preserved as source evidence but are not fabricated as 0 mm.
 
 ## Metric semantics
 
