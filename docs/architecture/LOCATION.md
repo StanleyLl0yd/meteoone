@@ -14,7 +14,7 @@ manual fallback coordinates ──────┘
 
 - Current-location acquisition uses Android framework `LocationManager` and only `ACCESS_COARSE_LOCATION`.
 - Precise (`ACCESS_FINE_LOCATION`) and background location permissions are outside the current scope.
-- Permission-request and onboarding UI belongs to M3; the M1 data boundary reports `PERMISSION_REQUIRED` without presenting UI.
+- Permission-request and onboarding UI was implemented in M3; the M1 data boundary itself still reports `PERMISSION_REQUIRED` without presenting UI.
 - Raw `android.location.Location` values never leave `:core:location`.
 - Raw device or manual latitude/longitude values are not retained after normalization.
 - `ForecastCoordinate` is rounded to the canonical 0.1 degree grid and is the only coordinate type intended to cross the public location-to-forecast data boundary. Near-grid floating-point aliases and negative zero are not valid coordinate identities.
