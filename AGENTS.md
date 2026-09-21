@@ -37,7 +37,7 @@ Android application ID:
 
 Current repository phase:
 
-`M4 Verification Engine in progress`
+`M1-M4 complete; M5 not started`
 
 Current product sequence is defined by `ROADMAP.md`.
 
