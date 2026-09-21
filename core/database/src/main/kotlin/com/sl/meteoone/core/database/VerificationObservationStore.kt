@@ -47,6 +47,7 @@ interface VerificationObservationStore {
 internal data class VerificationObservationArchiveCounts(
     val stationInserted: Boolean,
     val insertedSurface: Int,
+    val enrichedSurface: Int,
     val existingSurface: Int,
     val insertedPrecipitation: Int,
     val existingPrecipitation: Int,
