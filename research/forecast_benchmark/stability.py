@@ -197,6 +197,22 @@ def analyze_stability(
 def _split_forecasts(
     forecasts: Sequence[Forecast],
 ) -> dict[str, tuple[Forecast, ...]]:
+    runs: list[datetime] = []
+    parsed_runs: list[tuple[Forecast, datetime]] = []
+    for forecast in forecasts:
+        run = forecast.origin.model_run
+        if run is None:
+            raise ValueError(
+                f"Forecast {forecast.origin.model_id} has no model_run"
+            )
+        parsed = _parse_utc(run)
+        parsed_runs.append((forecast, parsed))
+        runs.append(parsed)
+
+    unique_runs = sorted(set(runs))
+    midpoint = (len(unique_runs) + 1) // 2
+    first_half_runs = set(unique_runs[:midpoint])
+
     splits: dict[str, list[Forecast]] = {
         "all": [],
         "first-half": [],
@@ -204,16 +220,12 @@ def _split_forecasts(
         "odd": [],
         "even": [],
     }
-    for forecast in forecasts:
-        run = forecast.origin.model_run
-        if run is None:
-            raise ValueError(
-                f"Forecast {forecast.origin.model_id} has no model_run"
-            )
-        day = _parse_utc(run).day
+    for forecast, run in parsed_runs:
         splits["all"].append(forecast)
-        splits["first-half" if day <= 14 else "second-half"].append(forecast)
-        splits["odd" if day % 2 else "even"].append(forecast)
+        splits[
+            "first-half" if run in first_half_runs else "second-half"
+        ].append(forecast)
+        splits["odd" if run.day % 2 else "even"].append(forecast)
 
     empty = [name for name, values in splits.items() if not values]
     if empty:
