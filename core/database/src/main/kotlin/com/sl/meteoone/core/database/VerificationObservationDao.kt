@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Update
 
 @Dao
 internal abstract class VerificationObservationDao {
@@ -13,6 +14,9 @@ internal abstract class VerificationObservationDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     protected abstract suspend fun insertSurface(row: VerificationSurfaceObservationEntity): Long
+
+    @Update
+    protected abstract suspend fun updateSurface(row: VerificationSurfaceObservationEntity): Int
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     protected abstract suspend fun insertPrecipitation(
@@ -180,6 +184,7 @@ internal abstract class VerificationObservationDao {
         }
 
         var insertedSurface = 0
+        var enrichedSurface = 0
         var existingSurface = 0
         surface.forEach { row ->
             if (insertSurface(row) != -1L) {
@@ -195,10 +200,15 @@ internal abstract class VerificationObservationDao {
                 ) {
                     "Verification surface observation disappeared during archival"
                 }
-                check(existing == row) {
-                    "Verification surface observation conflicts with immutable evidence"
+                val merged = existing.mergeNonConflicting(row)
+                if (merged == existing) {
+                    existingSurface += 1
+                } else {
+                    check(updateSurface(merged) == 1) {
+                        "Verification surface observation disappeared during enrichment"
+                    }
+                    enrichedSurface += 1
                 }
-                existingSurface += 1
             }
         }
 
@@ -234,6 +244,7 @@ internal abstract class VerificationObservationDao {
         return VerificationObservationArchiveCounts(
             stationInserted = stationInserted,
             insertedSurface = insertedSurface,
+            enrichedSurface = enrichedSurface,
             existingSurface = existingSurface,
             insertedPrecipitation = insertedPrecipitation,
             existingPrecipitation = existingPrecipitation,
@@ -242,4 +253,43 @@ internal abstract class VerificationObservationDao {
             prunedStations = prunedStations,
         )
     }
+}
+
+
+private fun VerificationSurfaceObservationEntity.mergeNonConflicting(
+    incoming: VerificationSurfaceObservationEntity,
+): VerificationSurfaceObservationEntity {
+    check(
+        sourceId == incoming.sourceId &&
+            stationId == incoming.stationId &&
+            observedAtEpochSecond == incoming.observedAtEpochSecond &&
+            observedAtNano == incoming.observedAtNano,
+    ) {
+        "Verification surface observation identity changed during enrichment"
+    }
+
+    fun mergeField(
+        stored: Double?,
+        candidate: Double?,
+        label: String,
+    ): Double? = when {
+        stored == null -> candidate
+        candidate == null || stored == candidate -> stored
+        else -> error("Verification surface $label conflicts with immutable evidence")
+    }
+
+    return copy(
+        temperatureC = mergeField(temperatureC, incoming.temperatureC, "temperature"),
+        pressureSeaLevelHpa = mergeField(
+            pressureSeaLevelHpa,
+            incoming.pressureSeaLevelHpa,
+            "sea-level pressure",
+        ),
+        windSpeedMps = mergeField(windSpeedMps, incoming.windSpeedMps, "wind speed"),
+        windDirectionDegrees = mergeField(
+            windDirectionDegrees,
+            incoming.windDirectionDegrees,
+            "wind direction",
+        ),
+    )
 }
