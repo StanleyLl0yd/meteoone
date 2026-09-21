@@ -36,6 +36,7 @@ room {
 
 dependencies {
     api(project(":core:model"))
+    api(project(":verification:domain"))
     api(libs.kotlinx.coroutines.core)
 
     implementation(libs.androidx.room.runtime)

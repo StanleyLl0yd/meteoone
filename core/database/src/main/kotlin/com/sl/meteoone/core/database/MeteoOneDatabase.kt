@@ -14,13 +14,17 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ForecastFailedSourceEntity::class,
         VerificationForecastRunEntity::class,
         VerificationForecastHourlyEntity::class,
+        VerificationObservationStationEntity::class,
+        VerificationSurfaceObservationEntity::class,
+        VerificationPrecipitationObservationEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 internal abstract class MeteoOneDatabase : RoomDatabase() {
     abstract fun forecastSnapshotDao(): ForecastSnapshotDao
     abstract fun forecastVerificationHistoryDao(): ForecastVerificationHistoryDao
+    abstract fun verificationObservationDao(): VerificationObservationDao
 }
 
 internal val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -195,6 +199,93 @@ internal val MIGRATION_2_3 = object : Migration(2, 3) {
                 "`index_verification_forecast_hourly_valid_time_epoch_second_valid_time_nano` " +
                 "ON `verification_forecast_hourly` " +
                 "(`valid_time_epoch_second`, `valid_time_nano`)",
+        )
+    }
+}
+
+
+internal val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `verification_observation_stations` (
+                `source_id` TEXT NOT NULL,
+                `station_id` TEXT NOT NULL,
+                `latitude` REAL NOT NULL,
+                `longitude` REAL NOT NULL,
+                `elevation_meters` REAL,
+                PRIMARY KEY(`source_id`, `station_id`)
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `verification_surface_observations` (
+                `source_id` TEXT NOT NULL,
+                `station_id` TEXT NOT NULL,
+                `observed_at_epoch_second` INTEGER NOT NULL,
+                `observed_at_nano` INTEGER NOT NULL,
+                `temperature_c` REAL,
+                `pressure_sea_level_hpa` REAL,
+                `wind_speed_mps` REAL,
+                `wind_direction_degrees` REAL,
+                PRIMARY KEY(
+                    `source_id`,
+                    `station_id`,
+                    `observed_at_epoch_second`,
+                    `observed_at_nano`
+                ),
+                FOREIGN KEY(`source_id`, `station_id`)
+                    REFERENCES `verification_observation_stations`(`source_id`, `station_id`)
+                    ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS " +
+                "`index_verification_surface_observations_source_id_station_id` " +
+                "ON `verification_surface_observations` (`source_id`, `station_id`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS " +
+                "`index_verification_surface_observations_observed_at_epoch_second_observed_at_nano` " +
+                "ON `verification_surface_observations` " +
+                "(`observed_at_epoch_second`, `observed_at_nano`)",
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `verification_precipitation_observations` (
+                `source_id` TEXT NOT NULL,
+                `station_id` TEXT NOT NULL,
+                `interval_start_epoch_second` INTEGER NOT NULL,
+                `interval_start_nano` INTEGER NOT NULL,
+                `interval_end_epoch_second` INTEGER NOT NULL,
+                `interval_end_nano` INTEGER NOT NULL,
+                `amount_mm` REAL NOT NULL,
+                PRIMARY KEY(
+                    `source_id`,
+                    `station_id`,
+                    `interval_start_epoch_second`,
+                    `interval_start_nano`,
+                    `interval_end_epoch_second`,
+                    `interval_end_nano`
+                ),
+                FOREIGN KEY(`source_id`, `station_id`)
+                    REFERENCES `verification_observation_stations`(`source_id`, `station_id`)
+                    ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS " +
+                "`index_verification_precipitation_observations_source_id_station_id` " +
+                "ON `verification_precipitation_observations` (`source_id`, `station_id`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS " +
+                "`index_verification_precipitation_observations_interval_end_epoch_second_interval_end_nano` " +
+                "ON `verification_precipitation_observations` " +
+                "(`interval_end_epoch_second`, `interval_end_nano`)",
         )
     }
 }

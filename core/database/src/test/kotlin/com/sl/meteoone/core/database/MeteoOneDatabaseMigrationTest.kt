@@ -18,7 +18,7 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class MeteoOneDatabaseMigrationTest {
-    private val databaseName = "meteoone-v1-v3-migration-test.db"
+    private val databaseName = "meteoone-v1-v4-migration-test.db"
 
     @get:Rule
     val migrationHelper = MigrationTestHelper(
@@ -27,7 +27,7 @@ class MeteoOneDatabaseMigrationTest {
     )
 
     @Test
-    fun v1FusedSnapshotSurvivesThroughV3WithEmptyNewEvidence() = runBlocking {
+    fun v1FusedSnapshotSurvivesThroughV4WithEmptyNewEvidence() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         context.deleteDatabase(databaseName)
 
@@ -63,7 +63,7 @@ class MeteoOneDatabaseMigrationTest {
         }
 
         val latest = Room.databaseBuilder(context, MeteoOneDatabase::class.java, databaseName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .allowMainThreadQueries()
             .build()
         try {
@@ -84,9 +84,81 @@ class MeteoOneDatabaseMigrationTest {
             assertEquals(0L, sqlite.count("forecast_failed_sources"))
             assertEquals(0L, sqlite.count("verification_forecast_runs"))
             assertEquals(0L, sqlite.count("verification_forecast_hourly"))
+            assertEquals(0L, sqlite.count("verification_observation_stations"))
+            assertEquals(0L, sqlite.count("verification_surface_observations"))
+            assertEquals(0L, sqlite.count("verification_precipitation_observations"))
         } finally {
             latest.close()
             context.deleteDatabase(databaseName)
+        }
+    }
+
+
+    @Test
+    fun v3ForecastHistorySurvivesObservationMigrationToV4() = runBlocking {
+        val migrationDatabaseName = "meteoone-v3-v4-migration-test.db"
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        context.deleteDatabase(migrationDatabaseName)
+
+        migrationHelper.createDatabase(migrationDatabaseName, 3).use { database ->
+            database.execSQL(
+                """
+                INSERT INTO verification_forecast_runs (
+                    coordinate_key,
+                    latitude_tenths,
+                    longitude_tenths,
+                    provider,
+                    model_family,
+                    model_run_epoch_second,
+                    model_run_nano,
+                    first_captured_at_epoch_second,
+                    first_captured_at_nano,
+                    elevation_meters,
+                    time_zone_id
+                ) VALUES (
+                    '599:303', 599, 303, 'OPEN_METEO', 'ECMWF_IFS',
+                    1000, 0, 1100, 0, 12, 'UTC'
+                )
+                """.trimIndent(),
+            )
+            database.execSQL(
+                """
+                INSERT INTO verification_forecast_hourly (
+                    coordinate_key,
+                    provider,
+                    model_family,
+                    model_run_epoch_second,
+                    model_run_nano,
+                    valid_time_epoch_second,
+                    valid_time_nano,
+                    lead_seconds,
+                    lead_nano,
+                    temperature_c
+                ) VALUES (
+                    '599:303', 'OPEN_METEO', 'ECMWF_IFS',
+                    1000, 0, 4600, 0, 3600, 0, 7.5
+                )
+                """.trimIndent(),
+            )
+        }
+
+        val latest = Room.databaseBuilder(
+            context,
+            MeteoOneDatabase::class.java,
+            migrationDatabaseName,
+        ).addMigrations(MIGRATION_3_4)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            val sqlite = latest.openHelper.readableDatabase
+            assertEquals(1L, sqlite.count("verification_forecast_runs"))
+            assertEquals(1L, sqlite.count("verification_forecast_hourly"))
+            assertEquals(0L, sqlite.count("verification_observation_stations"))
+            assertEquals(0L, sqlite.count("verification_surface_observations"))
+            assertEquals(0L, sqlite.count("verification_precipitation_observations"))
+        } finally {
+            latest.close()
+            context.deleteDatabase(migrationDatabaseName)
         }
     }
 
