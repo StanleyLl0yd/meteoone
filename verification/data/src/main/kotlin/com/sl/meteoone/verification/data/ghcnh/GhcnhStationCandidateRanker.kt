@@ -1,6 +1,7 @@
 package com.sl.meteoone.verification.data.ghcnh
 
 import com.sl.meteoone.core.model.ForecastCoordinate
+import com.sl.meteoone.verification.domain.ObservationStation
 import kotlin.math.asin
 import kotlin.math.cos
 import kotlin.math.sin
@@ -29,6 +30,44 @@ class GhcnhStationCandidateRanker(
             "GHCNh candidate count must be within 1..$MAX_ALLOWED_CANDIDATES"
         }
     }
+
+    fun rankStoredStations(
+        target: ForecastCoordinate,
+        targetElevationMeters: Int?,
+        stations: List<ObservationStation>,
+    ): List<ObservationStation> =
+        stations.asSequence()
+            .mapNotNull { station ->
+                val distanceKm = haversineKm(
+                    target.latitude,
+                    target.longitude,
+                    station.latitude,
+                    station.longitude,
+                )
+                if (distanceKm > maxDistanceKm) return@mapNotNull null
+
+                val elevationDelta = if (targetElevationMeters == null) {
+                    null
+                } else {
+                    val stationElevation = station.elevationMeters ?: return@mapNotNull null
+                    kotlin.math.abs(stationElevation - targetElevationMeters)
+                        .takeIf { it <= maxElevationDeltaMeters }
+                        ?: return@mapNotNull null
+                }
+                StoredStationCandidate(
+                    station = station,
+                    distanceKm = distanceKm,
+                    elevationDeltaMeters = elevationDelta,
+                )
+            }
+            .sortedWith(
+                compareBy<StoredStationCandidate> { it.distanceKm }
+                    .thenBy { it.elevationDeltaMeters ?: 0.0 }
+                    .thenBy { it.station.stationId },
+            )
+            .take(maxCandidates)
+            .map(StoredStationCandidate::station)
+            .toList()
 
     fun rank(
         target: ForecastCoordinate,
@@ -79,6 +118,11 @@ class GhcnhStationCandidateRanker(
             elevationDeltaMeters = elevationDelta,
         )
     }
+    private data class StoredStationCandidate(
+        val station: ObservationStation,
+        val distanceKm: Double,
+        val elevationDeltaMeters: Double?,
+    )
 }
 
 internal fun haversineKm(

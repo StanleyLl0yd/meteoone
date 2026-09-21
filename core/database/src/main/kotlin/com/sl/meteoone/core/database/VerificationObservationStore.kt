@@ -37,6 +37,8 @@ interface VerificationObservationStore {
         precipitationObservations: List<PrecipitationObservation>,
     ): VerificationObservationArchiveResult
 
+    suspend fun readStations(sourceId: String): List<ObservationStation>
+
     suspend fun readSince(
         sourceId: String,
         stationId: String,
@@ -144,6 +146,11 @@ internal class RoomVerificationObservationStore(
             prunedPrecipitation = counts.prunedPrecipitation,
             prunedStations = counts.prunedStations,
         )
+    }
+
+    override suspend fun readStations(sourceId: String): List<ObservationStation> {
+        require(sourceId.isNotBlank()) { "Verification observation source id must not be blank" }
+        return dao.readStations(sourceId).map(VerificationObservationStationEntity::toModel)
     }
 
     override suspend fun readSince(

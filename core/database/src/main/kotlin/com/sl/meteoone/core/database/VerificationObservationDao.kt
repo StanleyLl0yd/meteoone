@@ -115,6 +115,17 @@ internal abstract class VerificationObservationDao {
     @Query(
         """
         SELECT * FROM verification_observation_stations
+        WHERE source_id = :sourceId
+        ORDER BY station_id
+        """,
+    )
+    abstract suspend fun readStations(
+        sourceId: String,
+    ): List<VerificationObservationStationEntity>
+
+    @Query(
+        """
+        SELECT * FROM verification_observation_stations
         WHERE source_id = :sourceId AND station_id = :stationId
         LIMIT 1
         """,

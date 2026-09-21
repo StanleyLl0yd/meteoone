@@ -30,13 +30,26 @@ import kotlinx.coroutines.withContext
 
 private val DEFAULT_FRESH_DURATION: Duration = Duration.ofHours(3)
 
-internal fun createAndroidForecastRepository(context: Context): ForecastRepository =
-    DefaultForecastRepository(
-        store = ForecastSnapshotDatabase.open(context),
-        refreshSource = M1ForecastRefreshSource(
-            engine = M1ForecastEngine.android(context),
+internal fun createAndroidForecastRepository(context: Context): ForecastRepository {
+    val appContext = context.applicationContext
+    val sampleSource = RefreshScopedVerificationWeightSampleSource()
+    val weightedEngine = M1ForecastEngine.android(
+        context = appContext,
+        verificationSamples = sampleSource,
+    )
+    val coordinator = productionM4VerificationEvidenceCoordinator(
+        historyStore = ForecastSnapshotDatabase.openVerificationHistory(appContext),
+        observationStore = ForecastSnapshotDatabase.openVerificationObservations(appContext),
+    )
+    return DefaultForecastRepository(
+        store = ForecastSnapshotDatabase.open(appContext),
+        refreshSource = M4ForecastRefreshSource(
+            coordinator = coordinator,
+            sampleSource = sampleSource,
+            delegate = M1ForecastRefreshSource(weightedEngine),
         ),
     )
+}
 
 internal sealed interface ForecastRefreshSourceResult {
     data class Available(
@@ -50,7 +63,7 @@ internal sealed interface ForecastRefreshSourceResult {
 }
 
 internal fun interface ForecastRefreshSource {
-    fun forecast(
+    suspend fun forecast(
         coordinate: ForecastCoordinate,
         elevationMeters: Int?,
         timeZoneId: String,
@@ -61,7 +74,7 @@ internal fun interface ForecastRefreshSource {
 internal class M1ForecastRefreshSource(
     private val engine: M1ForecastEngine,
 ) : ForecastRefreshSource {
-    override fun forecast(
+    override suspend fun forecast(
         coordinate: ForecastCoordinate,
         elevationMeters: Int?,
         timeZoneId: String,

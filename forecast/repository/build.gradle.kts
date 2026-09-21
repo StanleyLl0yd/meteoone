@@ -30,6 +30,8 @@ dependencies {
 
     implementation(project(":core:database"))
     implementation(project(":forecast:data"))
+    implementation(project(":verification:domain"))
+    implementation(project(":verification:data"))
 
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.junit)

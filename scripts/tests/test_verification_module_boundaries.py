@@ -98,7 +98,8 @@ class VerificationModuleBoundaryTest(unittest.TestCase):
 
         for forbidden in (':verification:domain', ':verification:data'):
             self.assertNotIn(f'project("{forbidden}")', app_build)
-            self.assertNotIn(f'project("{forbidden}")', repository_build)
+        self.assertIn('implementation(project(":verification:domain"))', repository_build)
+        self.assertIn('implementation(project(":verification:data"))', repository_build)
         self.assertNotIn("com.sl.meteoone.verification", repository_facade)
 
 
