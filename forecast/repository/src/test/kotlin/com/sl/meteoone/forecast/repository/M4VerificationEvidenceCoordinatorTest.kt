@@ -180,6 +180,75 @@ class M4VerificationEvidenceCoordinatorTest {
     }
 
     @Test
+    fun futureStoredEvidenceDoesNotSuppressBoundedObservationRefresh() = runBlocking {
+        val completeHistory = (0L until 14L).flatMap { offset ->
+            val run = Instant.parse("2026-09-21T00:00:00Z").minus(Duration.ofDays(offset))
+            M4_MODEL_TEST_FAMILIES.map { family -> storedRun(family, run) }
+        }
+        val history = FakeHistoryStore(completeHistory)
+        val observations = FakeObservationStore(
+            initial = listOf(
+                StoredVerificationObservationSeries(
+                    station = station,
+                    surfaceObservations = listOf(
+                        surface(station, evaluatedAt.plus(Duration.ofHours(1))),
+                    ),
+                    precipitationObservations = emptyList(),
+                ),
+            ),
+        )
+        val metadata = GhcnhStationMetadata(
+            stationId = station.stationId,
+            latitude = station.latitude,
+            longitude = station.longitude,
+            elevationMeters = station.elevationMeters,
+            state = null,
+            name = station.stationId,
+            gsn = false,
+            hcnCrn = null,
+            wmoId = null,
+            icao = null,
+        )
+        val candidate = GhcnhStationCandidate(metadata, 7.0, 8.0)
+        var candidateCalls = 0
+        val coordinator = M4VerificationEvidenceCoordinator(
+            historyStore = history,
+            observationStore = observations,
+            exactRunSource = M4ExactRunSource { _, _, _, _, _ ->
+                error("complete recent history must not reacquire exact runs")
+            },
+            stationCandidateSource = M4StationCandidateSource { _, _ ->
+                candidateCalls += 1
+                GhcnhStationCandidatesResult.Available(listOf(candidate))
+            },
+            observationSource = M4ObservationSource { _, _, _ ->
+                GhcnhObservationsResult.Available(
+                    GhcnhObservationSeries(
+                        stationMetadata = metadata,
+                        station = station,
+                        surfaceObservations = listOf(
+                            surface(station, evaluatedAt.minus(Duration.ofHours(2))),
+                        ),
+                        precipitationObservations = emptyList(),
+                        evidence = emptyList(),
+                    ),
+                )
+            },
+            sampleProducer = RecordingSampleProducer(),
+        )
+
+        coordinator.prepareSamples(
+            coordinate = coordinate,
+            elevationMeters = 12,
+            timeZoneId = "Europe/Moscow",
+            evaluatedAt = evaluatedAt,
+        )
+
+        assertEquals(1, candidateCalls)
+        assertEquals(1, observations.archiveCalls)
+    }
+
+    @Test
     fun refreshScopedSamplesAreVisibleOnlyDuringDelegateForecast() = runBlocking {
         val sample = sample()
         val sampleSource = RefreshScopedVerificationWeightSampleSource()

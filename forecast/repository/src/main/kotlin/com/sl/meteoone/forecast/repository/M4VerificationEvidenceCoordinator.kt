@@ -108,6 +108,7 @@ internal class M4VerificationEvidenceCoordinator(
             coordinate = coordinate,
             elevationMeters = elevationMeters,
             fromInclusive = fromInclusive,
+            endInclusive = evaluatedAt,
         )
         val shouldRefreshObservations =
             observations == null ||
@@ -139,6 +140,7 @@ internal class M4VerificationEvidenceCoordinator(
         coordinate: ForecastCoordinate,
         elevationMeters: Int?,
         fromInclusive: Instant,
+        endInclusive: Instant,
     ): StoredVerificationObservationSeries? {
         val stations = observationStore.readStations(GHCNH_SOURCE_ID)
             .filter { it.sourceId == GHCNH_SOURCE_ID }
@@ -152,7 +154,7 @@ internal class M4VerificationEvidenceCoordinator(
                 sourceId = station.sourceId,
                 stationId = station.stationId,
                 fromInclusive = fromInclusive,
-            )
+            )?.boundedAt(endInclusive)
             if (series != null && series.hasUsableEvidence()) return series
         }
         return null
@@ -320,6 +322,17 @@ private fun planRunsToAcquire(
         .take(M4_MAX_RUNS_PER_REFRESH)
         .sorted()
 }
+
+private fun StoredVerificationObservationSeries.boundedAt(
+    endInclusive: Instant,
+): StoredVerificationObservationSeries = copy(
+    surfaceObservations = surfaceObservations.filter {
+        !it.observedAt.isAfter(endInclusive)
+    },
+    precipitationObservations = precipitationObservations.filter {
+        !it.interval.end.isAfter(endInclusive)
+    },
+)
 
 private fun StoredVerificationObservationSeries.hasUsableEvidence(): Boolean =
     surfaceObservations.isNotEmpty() || precipitationObservations.isNotEmpty()

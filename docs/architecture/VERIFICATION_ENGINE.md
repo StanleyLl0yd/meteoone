@@ -1,6 +1,6 @@
 # Verification Engine
 
-Status: M4 in progress.
+Status: M4 production-composition exit verification in progress.
 
 MeteoOne M4 measures forecast skill before it changes production fusion weights. The verification path is deliberately separate from provider transport and from the latest offline forecast cache.
 
@@ -119,6 +119,18 @@ The integration is fail-safe. `EqualFallback`, missing or conflicting run proven
 
 Temperature and sea-level pressure use guarded weighted model-family scalars. Precipitation first runs the existing exact interval-selection rule and only then weights values from the selected interval. Wind uses measured model-family weights on meteorological vectors; if complete vectors or trustworthy run provenance are unavailable it retains the established equal speed/direction behavior. Wind gusts and all other fields remain equal-weight because M4 has no verified skill metric for them.
 
-`:forecast:data` exposes an explicit Android production composition overload that accepts already-collected `VerificationWeightSampleSource` evidence. It performs no observation/history I/O inside fusion; acquisition, persistence and matching stay in their existing M4 capabilities. The ordinary `M1ForecastEngine.android(context)` factory remains the original equal-weight path when no M4 evidence source is supplied.
+`:forecast:data` exposes an explicit Android composition overload that accepts already-collected `VerificationWeightSampleSource` evidence. Fusion itself performs no observation/history I/O; acquisition, persistence and matching stay in their existing M4 capabilities. The ordinary `M1ForecastEngine.android(context)` factory remains the equal-weight path when no evidence source is supplied, while the Android repository composes the M4 evidence lifecycle around the production refresh delegate.
+
+## Production evidence lifecycle
+
+`:forecast:repository` is the production I/O composition boundary for M4. Before an ordinary forecast refresh it prepares only bounded local verification evidence, exposes that evidence through a refresh-scoped sample source while the delegate forecast runs, and clears the sample source in `finally` so evidence cannot leak into a later refresh.
+
+The coordinator works on a 30-day verification window and targets 14 complete exact 00Z model runs. A refresh acquires at most two missing eligible exact runs while bootstrapping; once the target is present, it may still acquire the newest missing eligible run as history advances. Exact-run acquisition remains bounded by the existing M4 source and persistence contracts.
+
+Persisted public GHCNh stations are reused and re-ranked against the privacy-reduced forecast coordinate before any station-catalog request. Stored observations are bounded to the current evaluation time, so future-dated rows cannot satisfy freshness. When new exact runs are being acquired, observation evidence older than seven days is refreshed; absent usable stored evidence also triggers bounded acquisition. Newly acquired observations are archived through the existing Room v4 observation store without a schema migration.
+
+Samples are produced from retained exact-run history plus the selected stored observation series and exist only for the current refresh. Any non-cancellation verification acquisition, storage, matching or policy-preparation failure degrades to empty evidence, which preserves the established equal-weight fusion behavior. Coroutine cancellation is always propagated.
+
+This lifecycle is opportunistic foreground repository composition only. M4 adds no backend, central scheduler, provider-health service, background orchestration or other M5 capability.
 
 Measured weights therefore change only fields and hours for which both current forecast provenance and historical M4 evidence satisfy the full safety contract. Everywhere else fusion is deterministically identical to the M0/M1 equal-weight baseline.
