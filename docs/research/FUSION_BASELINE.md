@@ -96,7 +96,7 @@ A single unequal model weight would therefore improve some parameters by constru
 
 The campaign is one month in one season. M1 now includes bounded direct official-source cross-checks while the historical M0 campaign used archived Open-Meteo delivery. That delivery-path difference is an additional reason not to convert the M0 measured errors into arbitrary numeric weight ratios.
 
-Parameter-, region-, season-, and lead-specific adaptive weights belong to the verification work in M4 after broader out-of-sample evidence exists.
+M4 later introduced guarded parameter-, region-, season-, and lead-specific weighting from separate persisted verification evidence. The August M0 campaign remains the equal-weight baseline and is not itself converted into those production weights.
 
 ## Precipitation probability
 
