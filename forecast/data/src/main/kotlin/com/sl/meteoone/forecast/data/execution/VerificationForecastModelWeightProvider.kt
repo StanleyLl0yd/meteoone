@@ -59,6 +59,8 @@ internal class VerificationForecastModelWeightProvider(
             }
         } catch (_: Exception) {
             ForecastModelWeightDecision.EqualFallback
+        } catch (_: LinkageError) {
+            ForecastModelWeightDecision.EqualFallback
         }
     }
 }

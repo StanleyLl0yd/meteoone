@@ -26,6 +26,62 @@ class ForecastWeightedFusionTest {
     )
 
     @Test
+    fun equalFallbackPreservesDirectionOnlyLegacyEvidence() {
+        val sources = listOf(
+            source(
+                ForecastProvider.NOAA_NOMADS,
+                ModelFamily.NOAA_GFS,
+                temperature = 10.0,
+                windSpeed = 10.0,
+                windDirection = 0.0,
+            ),
+            source(
+                ForecastProvider.DWD_OPEN_DATA,
+                ModelFamily.DWD_ICON,
+                temperature = 10.0,
+                windSpeed = 10.0,
+                windDirection = 90.0,
+            ),
+            source(
+                ForecastProvider.ECMWF_OPEN_DATA,
+                ModelFamily.ECMWF_IFS,
+                temperature = 10.0,
+                windSpeed = null,
+                windDirection = 180.0,
+            ),
+        )
+
+        val weather = ForecastFusionEngine().fuse(sources).hourly.single().weather
+
+        assertEquals(10.0, weather.windSpeedMps)
+        assertTrue(abs(assertNotNull(weather.windDirectionDegrees) - 90.0) < 1e-12)
+    }
+
+    @Test
+    fun linkageFailureInWeightProviderFallsBackToLegacyFusion() {
+        val sources = listOf(
+            source(
+                ForecastProvider.NOAA_NOMADS,
+                ModelFamily.NOAA_GFS,
+                temperature = 10.0,
+            ),
+            source(
+                ForecastProvider.DWD_OPEN_DATA,
+                ModelFamily.DWD_ICON,
+                temperature = 20.0,
+            ),
+        )
+        val baseline = ForecastFusionEngine().fuse(sources)
+        val failing = ForecastFusionEngine(
+            ForecastModelWeightProvider {
+                throw UnsatisfiedLinkError("planned verification linkage failure")
+            },
+        ).fuse(sources)
+
+        assertEquals(baseline, failing)
+    }
+
+    @Test
     fun measuredTemperatureUsesOnlyExactRunPathsInsideWeightedFamily() {
         val provider = RecordingWeightProvider(
             mapOf(

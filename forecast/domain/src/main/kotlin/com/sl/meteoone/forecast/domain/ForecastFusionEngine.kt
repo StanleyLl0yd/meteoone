@@ -224,19 +224,33 @@ class ForecastFusionEngine(
         timeZoneId: String,
         evaluatedAt: Instant,
     ): WindFusion {
+        val baselineSpeedValues = evidenceGroups.values.mapNotNull { group ->
+            median(group.mapNotNull { it.point.windSpeedMps })
+        }
+        val baselineDirectionValues = evidenceGroups.values.mapNotNull { group ->
+            circularMeanDegrees(group.mapNotNull { it.point.windDirectionDegrees })
+        }
+        val baseline = WindFusion(
+            speedMps = baselineSpeedValues.takeIf { it.isNotEmpty() }?.average(),
+            directionDegrees = circularMeanDegrees(baselineDirectionValues),
+        )
+
+        val contributingGroupCount = evidenceGroups.values.count { group ->
+            group.any { sourcePoint ->
+                sourcePoint.point.windSpeedMps != null ||
+                    sourcePoint.point.windDirectionDegrees != null
+            }
+        }
         val evidence = evidenceGroups.mapNotNull { (key, group) ->
             collapseWindEvidence(key, group)
         }
-        val baseline = WindFusion(
-            speedMps = evidence
-                .map(WindEvidence::baselineSpeedMps)
-                .takeIf { it.isNotEmpty() }
-                ?.average(),
-            directionDegrees = circularMeanDegrees(
-                evidence.mapNotNull(WindEvidence::baselineDirectionDegrees),
-            ),
-        )
-        if (coordinate == null || evidence.size < 2) return baseline
+        if (
+            coordinate == null ||
+            evidence.size < 2 ||
+            evidence.size != contributingGroupCount
+        ) {
+            return baseline
+        }
 
         if (evidence.any(WindEvidence::hasExactRunConflict)) return baseline
 
@@ -421,6 +435,8 @@ class ForecastFusionEngine(
                 ),
             )
         } catch (_: Exception) {
+            return null
+        } catch (_: LinkageError) {
             return null
         }
 
