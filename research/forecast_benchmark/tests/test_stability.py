@@ -15,6 +15,7 @@ from research.forecast_benchmark.observations import (
     ObservedPoint,
 )
 from research.forecast_benchmark.stability import (
+    _split_forecasts,
     analyze_forecast_stability,
     analyze_stability,
 )
@@ -156,6 +157,42 @@ class ForecastStabilityTest(unittest.TestCase):
         self.assertEqual(
             location_wins["temperature_mae"],
             {"cells": 1, "ties": 0, "wins": {"DWD_ICON": 1}},
+        )
+
+    def test_time_halves_follow_campaign_chronology_across_month_boundary(self) -> None:
+        forecasts = [
+            forecast(
+                "DWD_ICON",
+                "icon_global",
+                run,
+                valid_time,
+                11.0,
+                1003.0,
+                4.0,
+            )
+            for run, valid_time in (
+                ("2026-08-30T00:00:00Z", "2026-08-30T06:00:00Z"),
+                ("2026-08-31T00:00:00Z", "2026-08-31T06:00:00Z"),
+                ("2026-09-01T00:00:00Z", "2026-09-01T06:00:00Z"),
+                ("2026-09-02T00:00:00Z", "2026-09-02T06:00:00Z"),
+            )
+        ]
+
+        splits = _split_forecasts(forecasts)
+
+        self.assertEqual(
+            [value.origin.model_run for value in splits["first-half"]],
+            [
+                "2026-08-30T00:00:00Z",
+                "2026-08-31T00:00:00Z",
+            ],
+        )
+        self.assertEqual(
+            [value.origin.model_run for value in splits["second-half"]],
+            [
+                "2026-09-01T00:00:00Z",
+                "2026-09-02T00:00:00Z",
+            ],
         )
 
     def test_requires_observations_for_every_forecast_location(self) -> None:
