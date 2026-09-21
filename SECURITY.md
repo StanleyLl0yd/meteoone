@@ -65,6 +65,6 @@ The M0 research harness contains one documented exception: the public Roshydrome
 - Semgrep provides blocking SAST on pull requests and main;
 - Qodana provides scheduled/manual whole-repository defense-in-depth analysis;
 - Dependabot covers Gradle and GitHub Actions;
-- CodeQL is configured for real compiled Java/Kotlin analysis, but automatic runs remain compatibility-gated while stable CodeQL rejects Kotlin 2.4.20; manual dispatch is the explicit compatibility probe. Dependency Review runs on pull requests.
+- CodeQL is configured for real compiled Java/Kotlin analysis, but automatic runs remain compatibility-gated until a new manual compiled probe succeeds with the current Kotlin toolchain and a stable supported extractor; Dependency Review runs on pull requests.
 
 See `docs/security/SECURITY_BASELINE.md`, `docs/security/CI_SECURITY.md`, and `docs/release/SIGNING.md`.

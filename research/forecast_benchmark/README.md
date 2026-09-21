@@ -154,7 +154,7 @@ The Brier implementation therefore remains available for a future explicitly mod
 
 ## Weighting policy
 
-M0 production fusion is equal-weight across independent model families. The completed August campaign supports retaining that baseline; future unequal weights require broader validation rather than an arbitrary conversion of one campaign's errors into weight ratios.
+M0 production fusion is equal-weight across independent model families. The completed August campaign supports retaining that baseline and must not be converted directly into arbitrary unequal weights. M4 later added separately guarded parameter/lead/region/season weighting from persisted verification evidence; that production evolution does not reinterpret this M0 campaign as calibrated weights.
 
 Measured weights must be derived from reproducible historical skill, remain model-family aware, and be documented with the benchmark period, locations, lead bucket, parameter and usable sample counts. MET Norway must not increase ECMWF's independent evidence weight.
 
