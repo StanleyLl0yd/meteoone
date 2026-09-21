@@ -82,6 +82,14 @@ Precipitation is compared only when forecast and observation intervals are exact
 
 Missing values produce no sample. They are never replaced by zero.
 
+## Skill aggregation
+
+Per-sample evidence is aggregated twice: at the exact privacy-reduced 0.1° forecast coordinate and at a deterministic 5°×5° coarse grid. The coarse grid uses no administrative or national boundaries; latitude bands are anchored at -90° and longitude bands at -180°, with the north-pole value assigned to the final 85°..90° band.
+
+Provider-path samples remain available as diagnostics, but model-family skill collapses duplicate delivery paths for the same model-family/run/valid-time/observation identity into one independent sample. Scalar duplicate paths use the median signed error. Wind duplicate paths use component-wise median vector error. This mirrors the M0 rule that multiple deliveries of one model family do not create additional model votes.
+
+Each skill cell is keyed by scope, meteorological season, parameter, canonical lead bucket and model family. It carries independent sample count, distinct model-run count, distinct coordinate count, valid-time coverage and observation-time coverage so the later weight policy can enforce explicit sample and staleness gates. Temperature, pressure and compatible precipitation retain bias/MAE/RMSE; wind retains mean u/v component error and mean vector-error magnitude. Provider diagnostics carry the same coverage and metric family but never increase the model-family independent sample count.
+
 ## Weight safety
 
 M4 must not convert one small campaign or one pooled winner directly into production weights. A later weight-policy slice must make sample counts, evidence scope, recency, stability/materiality thresholds and fallback behavior explicit.
