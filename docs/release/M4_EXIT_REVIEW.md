@@ -1,6 +1,6 @@
 # M4 Verification Engine exit review
 
-Status: **PR-HEAD REVIEW COMPLETE**. M4 closure remains conditional on successful exact-head checks for #209, squash-merge, and successful exact-`main` CI/security verification.
+Status: **PRODUCTION-COMPOSITION FOLLOW-UP IN REVIEW**. The #209 exit review exposed one final production wiring gap; M4 closure is now conditional on exact-head checks for #211, squash-merge, and successful exact-`main` CI/security verification.
 
 ## Scope reviewed
 
@@ -17,7 +17,8 @@ The completed M4 slices are:
 - #189 forecast/observation matching and sample production;
 - #190 model-family skill aggregation;
 - #191 guarded dynamic model-family weights;
-- #192 guarded fusion integration and this exit review.
+- #192 guarded fusion integration and the initial exit review;
+- #210 production evidence lifecycle/composition follow-up, implemented by #211.
 
 ## Evidence and privacy boundaries
 
@@ -66,7 +67,9 @@ The completed M4 slices are:
 - wind gust and unsupported fields remain on the equal baseline;
 - malformed decisions, evidence-provider failures or conflicting provenance fail back to equal fusion.
 
-`M1ForecastEngine.android(context)` remains the original equal-weight production path. The explicit M4 overload accepts already-collected `VerificationWeightSampleSource` evidence and performs no observation/history I/O inside synchronous fusion. Acquisition, persistence and matching remain separate M4 capabilities; this milestone does not invent a station/history association or introduce M5-style background orchestration.
+The initial #209 exit review found that `ForecastRepository.android()` still instantiated the equal-only engine, so the already-implemented M4 acquisition, persistence, matching and guarded-weight capabilities were not active in the real app refresh path. #210/#211 close that gap at the repository I/O composition boundary without moving observation/history I/O into synchronous fusion.
+
+Production refresh now reuses ranked persisted GHCNh stations, works from a 30-day sample window, targets 14 complete exact 00Z runs, acquires at most two missing eligible runs per refresh while bootstrapping, refreshes observation evidence older than seven days when new runs are acquired, produces refresh-scoped samples, and clears those samples after the delegate refresh. Future-dated stored observations are bounded out before freshness decisions. Any non-cancellation verification failure becomes empty evidence/equal fallback; cancellation propagates. No backend, scheduler, provider-health or other M5 orchestration is introduced.
 
 ## Module and source-of-truth review
 
@@ -96,4 +99,4 @@ The completed M4 slices are:
 
 ## Exit gate
 
-M4 is complete only when #209 is merged from an exact green head and the resulting exact `main` SHA has successful CI, Security and Quality, and Secret Scan evidence, with CodeQL following the repository compatibility gate. Parent #185 must remain open until that post-merge verification is confirmed.
+M4 is complete only when #211 is merged from an exact green head and the resulting exact `main` SHA has successful CI, Security and Quality, and Secret Scan evidence, with CodeQL following the repository compatibility gate. #210 must close completed from that merge, and parent #185 must remain open until the post-merge exact-`main` evidence is confirmed.

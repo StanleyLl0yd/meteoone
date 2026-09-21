@@ -88,6 +88,44 @@ class VerificationObservationStoreTest {
     }
 
     @Test
+    fun stationCatalogReadIsSourceScopedAndDeterministic() : Unit = runBlocking {
+        val first = station.copy(stationId = "RSM00026062")
+        val second = station.copy(stationId = "RSM00026064")
+        val other = station.copy(sourceId = "other-source", stationId = "OTHER000001")
+        val store = store()
+
+        suspend fun archiveStation(candidate: ObservationStation) {
+            store.archive(
+                candidate,
+                listOf(
+                    SurfaceObservation(
+                        station = candidate,
+                        observedAt = now.minus(Duration.ofHours(1)),
+                        temperatureC = 10.0,
+                        pressureSeaLevelHpa = null,
+                        windSpeedMps = null,
+                        windDirectionDegrees = null,
+                    ),
+                ),
+                emptyList(),
+            )
+        }
+
+        archiveStation(second)
+        archiveStation(other)
+        archiveStation(first)
+
+        assertEquals(
+            listOf(first, second),
+            store.readStations(station.sourceId),
+        )
+        assertEquals(listOf(other), store.readStations(other.sourceId))
+        assertFailsWith<IllegalArgumentException> {
+            store.readStations(" ")
+        }
+    }
+
+    @Test
     fun repeatedEvidenceIsIdempotentAndMissingFieldsMayOnlyBeEnriched() : Unit = runBlocking {
         val observedAt = Instant.parse("2026-09-20T12:00:00Z")
         val first = surface(observedAt, temperatureC = 11.2)

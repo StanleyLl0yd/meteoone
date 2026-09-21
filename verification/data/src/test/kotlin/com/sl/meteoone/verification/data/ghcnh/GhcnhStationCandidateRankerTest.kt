@@ -1,6 +1,7 @@
 package com.sl.meteoone.verification.data.ghcnh
 
 import com.sl.meteoone.core.model.ForecastCoordinate
+import com.sl.meteoone.verification.domain.ObservationStation
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -30,6 +31,27 @@ class GhcnhStationCandidateRankerTest {
         assertTrue(candidates.zipWithNext().all { (left, right) ->
             left.distanceKm <= right.distanceKm
         })
+    }
+
+    @Test
+    fun persistedObservationStationsReuseTheSameDistanceAndElevationBounds() {
+        val stations = listOf(
+            ObservationStation("noaa-ncei-ghcnh", "RSM00000003", 59.9, 30.5, 20.0),
+            ObservationStation("noaa-ncei-ghcnh", "RSM00000002", 59.9, 30.4, 25.0),
+            ObservationStation("noaa-ncei-ghcnh", "RSM00000001", 59.9, 30.4, 25.0),
+            ObservationStation("noaa-ncei-ghcnh", "RSM99999999", 61.0, 30.3, 20.0),
+        )
+
+        val ranked = GhcnhStationCandidateRanker().rankStoredStations(
+            target = target,
+            targetElevationMeters = 20,
+            stations = stations,
+        )
+
+        assertEquals(
+            listOf("RSM00000001", "RSM00000002", "RSM00000003"),
+            ranked.map(ObservationStation::stationId),
+        )
     }
 
     @Test
