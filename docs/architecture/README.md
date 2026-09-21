@@ -31,7 +31,7 @@ Android app
 
 The production forecast path includes model-specific Open-Meteo 72-hour delivery plus bounded direct-official NOAA GFS, ECMWF IFS and DWD ICON cross-checks. Direct GRIB decode and spatial selection remain contained inside `:forecast:data`.
 
-M2 now has Room persistence, a repository source-of-truth layer, repository-owned freshness/stale classification, and durable privacy-reduced active-target state. Complete fused forecasts are stored under `ForecastCoordinate` keys, while DataStore persists only the normalized target needed to locate the cache after process restart. Retry/rate-limit policy and the minimal forecast UI remain subsequent M2 slices.
+M2 has Room persistence, a repository source-of-truth layer, repository-owned freshness/stale classification, and durable privacy-reduced active-target state. Complete fused forecasts are stored under `ForecastCoordinate` keys, while DataStore persists only the normalized target needed to locate the cache after process restart. Bounded retry/rate-limit policy is implemented in forecast execution, and the Forecast/Models/Settings product UI was completed in M3.
 
 ## Principles
 
@@ -115,6 +115,6 @@ The remaining roadmap modules are created only when their responsibilities becom
 :feature:about        # later UI milestone
 ```
 
-M4 adds further modules only when observation transport, historical persistence or evidence aggregation creates a real dependency boundary. Empty verification data/repository modules are not pre-created.
+M4 is complete with `:verification:domain` and `:verification:data`; verification persistence remains owned by `:core:database`, and production composition remains in `:forecast:repository`. Do not create additional verification modules unless a new concrete dependency boundary appears.
 
 The exact split may be adjusted only when real dependency boundaries justify it.
