@@ -6,7 +6,7 @@ Repository-pinned Android toolchain baseline as of 2026-09-18.
 
 | Component | Version / level |
 | --- | --- |
-| Android Gradle Plugin | 9.4.0 |
+| Android Gradle Plugin | 9.4.1 |
 | Gradle | 9.7.1 |
 | JDK | 17 |
 | Kotlin | 2.4.20 |
@@ -21,7 +21,7 @@ Repository-pinned Android toolchain baseline as of 2026-09-18.
 
 ## Rationale
 
-MeteoOne pins AGP 9.4.0, Gradle 9.7.1 and JDK 17 while compiling against API 37.
+MeteoOne pins AGP 9.4.1, Gradle 9.7.1 and JDK 17 while compiling against API 37.
 
 AGP 9 uses built-in Kotlin for Android modules, so MeteoOne does not apply the legacy `org.jetbrains.kotlin.android` plugin to `:app`.
 
