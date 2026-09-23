@@ -17,10 +17,9 @@ concurrency:
 
 jobs:
   analyze:
-    # Kotlin 2.4.20 is newer than the current stable CodeQL extractor supports.
-    # Keep automatic scans disabled until a real manual probe succeeds, then set
-    # CODEQL_KOTLIN_SUPPORTED=true. workflow_dispatch remains the explicit probe.
-    if: ${{ vars.CODEQL_KOTLIN_SUPPORTED == 'true' || github.event_name == 'workflow_dispatch' }}
+    # Automatic scans remain gated until a real compiled compatibility probe succeeds.
+    # This temporary audit branch explicitly probes stable CodeQL 2.27.1.
+    if: ${{ vars.CODEQL_KOTLIN_SUPPORTED == 'true' || github.event_name == 'workflow_dispatch' || github.head_ref == 'audit/codeql-2.27.1-pinned-probe' }}
     name: Analyze Java/Kotlin
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -58,6 +57,7 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
+          tools: https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.27.1/codeql-bundle-linux64.tar.zst
           languages: java-kotlin
           build-mode: manual
           queries: security-extended
