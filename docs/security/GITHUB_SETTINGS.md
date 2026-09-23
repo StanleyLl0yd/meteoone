@@ -34,18 +34,13 @@ This context is eligible to be added to `Protect main`. The connected GitHub aut
 
 ## CodeQL
 
-CodeQL must analyze the Kotlin application through a real compiled `java-kotlin` build. A Java-only `build-mode: none` database is not accepted as Kotlin coverage.
+CodeQL analyzes the Kotlin application through a real compiled `java-kotlin` build. A Java-only `build-mode: none` database is not accepted as Kotlin coverage.
 
-Temporary PR #229 is the latest compiled Kotlin compatibility probe. Although stable CodeQL bundle `2.27.1` was published on 2026-09-22 and upstream had identified that release as the Kotlin `2.4.20` support boundary, run `35883676128` / job `107258228336` with the current pinned CodeQL action `4.38.1` still selected hosted toolcache CLI `2.27.0`. Initialization succeeded, but the real `:app:assembleDebug` trace failed at Kotlin `2.4.20` with `KotlinVersionTooRecentError`; the PR was closed unmerged after recording the result. Automatic CodeQL execution therefore remains gated by repository variable `CODEQL_KOTLIN_SUPPORTED=true`; `workflow_dispatch` is the normal explicit compatibility probe. Re-probe when hosted action resolution actually advances to `2.27.1` or later rather than merely when a bundle release exists.
+Temporary probe #232 / run `35892590708` / job `107288489070` explicitly selected stable CodeQL 2.27.1 and proved compatibility with Kotlin 2.4.20: initialization, the traced `:app:assembleDebug` build, and `security-extended` analysis all succeeded. The probe was closed unmerged.
 
-When a manual probe succeeds against the then-current application toolchain:
+Production PR #233 removes the compatibility gate and explicitly selects the stable 2.27.1 bundle while pinned CodeQL action 4.38.1 still defaults to 2.27.0. Its first ordinary pull-request run `35893591476` / job `107291858207` succeeded. The exact emitted job/check context is `Analyze Java/Kotlin`.
 
-1. set `CODEQL_KOTLIN_SUPPORTED=true`;
-2. verify CodeQL on a real pull request and on main;
-3. record the exact successful check context;
-4. add that context to `Protect main` only after it is proven stable.
-
-Until then, CodeQL is an explicitly documented upstream compatibility gap, not a merge or release gate.
+CodeQL now runs on pull requests, pushes to `main`, the weekly schedule, and manual dispatch. It is not yet a live required context in `Protect main`; add it only after the enabled workflow also succeeds on canonical `main`, then re-read the live ruleset before documenting it as enforced.
 
 ## Security analysis settings
 
@@ -72,4 +67,4 @@ Production signing secrets must never be available to ordinary pull-request work
 
 ## Remaining administrative work
 
-Issue #12 tracks owner-side repository security settings. The `main` ruleset, secret scanning, and push protection are verified active. Remaining owner actions are: add the already-proven `dependency-review` context to `Protect main`, add and verify a `refs/tags/v*` immutability ruleset now that GitHub releases exist, and later decide whether stable CodeQL should also become a required context after a compatibility probe succeeds and the enabled workflow proves reliable.
+Issue #12 tracks owner-side repository security settings. The `main` ruleset, secret scanning, and push protection are verified active. Remaining owner actions are: add the already-proven `dependency-review` context to `Protect main`, add and verify a `refs/tags/v*` immutability ruleset now that GitHub releases exist, and—after canonical-main CodeQL verification—add the proven `Analyze Java/Kotlin` context if CodeQL is to be merge-required.
