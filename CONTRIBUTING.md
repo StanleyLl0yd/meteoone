@@ -7,7 +7,7 @@
 3. Keep changes focused and avoid unrelated churn.
 4. Add or update tests for behavior changes.
 5. Open a pull request and wait for required checks.
-6. Prefer squash merge unless preserving a meaningful commit series is useful.
+6. Use squash merge; the active repository ruleset enforces squash-only linear history.
 
 ## Branch naming
 
