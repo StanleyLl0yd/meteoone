@@ -40,7 +40,7 @@ Temporary probe #232 / run `35892590708` / job `107288489070` explicitly selecte
 
 Production PR #233 removes the compatibility gate and explicitly selects the stable 2.27.1 bundle while pinned CodeQL action 4.38.1 still defaults to 2.27.0. Its first ordinary pull-request run `35893591476` / job `107291858207` succeeded. The exact emitted job/check context is `Analyze Java/Kotlin`.
 
-CodeQL now runs on pull requests, pushes to `main`, the weekly schedule, and manual dispatch. It is not yet a live required context in `Protect main`; add it only after the enabled workflow also succeeds on canonical `main`, then re-read the live ruleset before documenting it as enforced.
+CodeQL now runs on pull requests, pushes to `main`, the weekly schedule, and manual dispatch. Canonical main `1027c614621738d2351c6e07572d641f8c9c832e` passed CodeQL run `35895324867` / job `107297696780`, so the workflow is proven on both PR and `main`. It is not yet a live required context in `Protect main`; adding `Analyze Java/Kotlin` is now an owner-side ruleset action, and the live ruleset must be re-read before documenting it as enforced.
 
 ## Security analysis settings
 
