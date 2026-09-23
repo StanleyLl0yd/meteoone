@@ -29,13 +29,15 @@ The repository is public, so the previous private-repository GitHub Advanced Sec
 
 Dependency Review was verified successfully on real public PR #17, including run `34456327413`. Its exact job/check context is `dependency-review`. It is therefore eligible to become a required `main` gate; the live ruleset must not be documented as requiring it until that owner-side ruleset update is actually applied and verified.
 
-## CodeQL compatibility boundary
+## CodeQL compiled analysis
 
-MeteoOne keeps CodeQL advanced setup configured for `java-kotlin` with a real compiled Android build; a Java-only/no-build database is not accepted as Kotlin coverage.
+MeteoOne runs CodeQL advanced setup for `java-kotlin` with a real compiled Android build; a Java-only/no-build database is not accepted as Kotlin coverage.
 
-The latest real compiled compatibility probe is temporary PR #229 on post-M4 audit main. Stable CodeQL bundle `2.27.1` was published on 2026-09-22, matching the upstream release that was expected to add Kotlin `2.4.20` support, but run `35883676128` / job `107258228336` with pinned CodeQL action `4.38.1` still selected hosted toolcache CLI `2.27.0`. Initialization succeeded, but the real `:app:assembleDebug` trace failed at `:core:model:compileKotlin` with `KotlinVersionTooRecentError`. PR #229 was closed unmerged after recording the evidence, so the automatic compatibility gate remains in place until the hosted action/toolcache actually resolves `2.27.1` or later and a real compiled probe succeeds.
+Temporary probe PR #232 proved stable CodeQL 2.27.1 against the current Kotlin 2.4.20 toolchain: run `35892590708` / job `107288489070` used CLI 2.27.1, completed the traced `:app:assembleDebug` build, and completed `security-extended` analysis successfully. The probe was closed unmerged.
 
-The application Kotlin version is not downgraded merely to satisfy scanner compatibility. Automatic CodeQL jobs therefore remain gated by repository variable `CODEQL_KOTLIN_SUPPORTED=true`; while it is unset/false, pull-request, push, and scheduled CodeQL jobs skip. `workflow_dispatch` remains the explicit compatibility probe. After a manual probe succeeds with the then-current application toolchain, enable the variable, verify a real PR and main run, and only then consider CodeQL for `Protect main` or as a release prerequisite.
+Production PR #233 then removed the compatibility gate and explicitly selected the stable 2.27.1 bundle because pinned `github/codeql-action` 4.38.1 still defaults to 2.27.0. Its first real pull-request run `35893591476` / job `107291858207` completed successfully. CodeQL therefore runs on pull requests, pushes to `main`, the weekly schedule, and manual dispatch. The emitted job/check context is `Analyze Java/Kotlin`.
+
+The application Kotlin version was not downgraded, no nightly bundle is used, and compiled Kotlin extraction remains mandatory. CodeQL is operational but is not documented as a required `Protect main` context until the owner-side ruleset is updated and re-read after a successful canonical-main run.
 
 ## Dependency policy
 
