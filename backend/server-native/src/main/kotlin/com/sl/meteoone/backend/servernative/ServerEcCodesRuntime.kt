@@ -33,7 +33,7 @@ private val EXPECTED_BUNDLE_FILES = setOf(
     "licenses/libaec-LICENSE.txt",
 )
 
-data class VerifiedServerEcCodesBundle internal constructor(
+class VerifiedServerEcCodesBundle internal constructor(
     val root: Path,
     val bridgeLibrary: Path,
     val definitionsDirectory: Path,
