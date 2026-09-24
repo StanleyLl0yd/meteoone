@@ -138,6 +138,56 @@ class ProviderHealthPolicyTest {
     }
 
     @Test
+    fun trackedProviderHostStateIsBounded() = runBlocking {
+        val now = AtomicLong(0L)
+        val policy = ProviderHealthPolicy(
+            failureThreshold = 3,
+            openCooldown = Duration.ofSeconds(30),
+            maxTrackedKeys = 2,
+            monotonicNanos = now::get,
+        )
+
+        for (host in listOf("one.example", "two.example", "three.example")) {
+            val permit = assertNotNull(
+                policy.tryAcquire(ForecastProvider.NOAA_NOMADS, host),
+            )
+            policy.recordSuccess(permit)
+        }
+
+        assertEquals(2, policy.trackedKeyCount())
+    }
+
+    @Test
+    fun halfOpenProbeIsNotEvictedToAdmitAnotherHealthKey() = runBlocking {
+        val now = AtomicLong(0L)
+        val cooldown = Duration.ofSeconds(5)
+        val policy = ProviderHealthPolicy(
+            failureThreshold = 2,
+            openCooldown = cooldown,
+            maxTrackedKeys = 1,
+            monotonicNanos = now::get,
+        )
+
+        repeat(2) {
+            val permit = assertNotNull(
+                policy.tryAcquire(ForecastProvider.NOAA_NOMADS, "weather.example"),
+            )
+            policy.recordFailure(permit, ProviderGatewayFailureReason.IO)
+        }
+        now.addAndGet(cooldown.toNanos())
+
+        val probe = assertNotNull(
+            policy.tryAcquire(ForecastProvider.NOAA_NOMADS, "weather.example"),
+        )
+        assertTrue(probe.halfOpenProbe)
+
+        assertNull(
+            policy.tryAcquire(ForecastProvider.ECMWF_OPEN_DATA, "other.example"),
+        )
+        assertEquals(1, policy.trackedKeyCount())
+    }
+
+    @Test
     fun nonHealthFailuresDoNotDegradeAndProviderHostScopesAreIndependent() = runBlocking {
         val now = AtomicLong(0L)
         val policy = policy(now = now)
