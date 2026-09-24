@@ -79,7 +79,7 @@ internal data class EcmwfRegularLatLonGeometry(
 }
 
 /**
- * Decoded DWD CLAT/CLON geometry owned only by :forecast:data.
+ * Decoded DWD CLAT/CLON geometry shared by Android and server official-source decoders.
  *
  * The arrays are adopted without copying to avoid doubling the multi-million-point geometry.
  * Callers inside this module must transfer ownership and must not mutate them afterwards.
