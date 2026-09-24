@@ -1,8 +1,6 @@
 package com.sl.meteoone.forecast.data.transport
 
 import com.sl.meteoone.core.model.ForecastCoordinate
-import com.sl.meteoone.core.model.ForecastProvider
-import com.sl.meteoone.core.model.ModelFamily
 import com.sl.meteoone.core.network.BoundedHttpsCall
 import com.sl.meteoone.core.network.BoundedHttpsFailureReason
 import com.sl.meteoone.core.network.BoundedHttpsRequest
@@ -10,13 +8,12 @@ import com.sl.meteoone.core.network.BoundedHttpsResponse
 import com.sl.meteoone.core.network.BoundedHttpsResult
 import com.sl.meteoone.core.network.BoundedHttpsTransport
 import com.sl.meteoone.forecast.data.ecmwf.EcmwfFieldRangePlan
+import com.sl.meteoone.forecast.data.ecmwf.EcmwfIfsFieldSelector
 import com.sl.meteoone.forecast.data.ecmwf.EcmwfIfsRequestPlanner
 import com.sl.meteoone.forecast.data.ecmwf.EcmwfSurfaceField
 import com.sl.meteoone.forecast.data.openmeteo.OpenMeteoForecastRequestPlanner
 import com.sl.meteoone.forecast.data.openmeteo.OpenMeteoModel
-import com.sl.meteoone.forecast.data.source.ByteRange
 import com.sl.meteoone.forecast.data.source.OfficialSourceRequest
-import java.net.URI
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -168,20 +165,13 @@ class ForecastHttpAdapterTest {
             modelRun = Instant.parse("2026-09-10T06:00:00Z"),
             forecastHour = 6,
         )
-        val range = ByteRange(offset = 100, length = 3)
-        return EcmwfFieldRangePlan(
-            request = OfficialSourceRequest(
-                uri = base.gribUri,
-                maxResponseBytes = range.length,
-            ),
-            range = range,
-            field = EcmwfSurfaceField.TEMPERATURE_2M,
-            provider = ForecastProvider.ECMWF_OPEN_DATA,
-            modelFamily = ModelFamily.ECMWF_IFS,
-            modelRun = base.modelRun,
-            validTime = base.validTime,
-            forecastHour = base.forecastHour,
-        )
+        val index =
+            """{"domain":"g","date":"20260910","time":"0600","class":"od","type":"fc","stream":"oper","step":"6","levtype":"sfc","param":"2t","_offset":100,"_length":3}"""
+        return EcmwfIfsFieldSelector.select(
+            indexContent = index,
+            plan = base,
+            fields = setOf(EcmwfSurfaceField.TEMPERATURE_2M),
+        ).single()
     }
 
     private fun assertInvalid(result: BoundedHttpsResult) {
