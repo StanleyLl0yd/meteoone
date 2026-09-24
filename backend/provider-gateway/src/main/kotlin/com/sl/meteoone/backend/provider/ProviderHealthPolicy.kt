@@ -187,7 +187,7 @@ internal class ProviderHealthPolicy(
         entries[key]?.let { return it }
         if (entries.size >= maxTrackedKeys) {
             val evictable = entries.entries.firstOrNull { (_, health) ->
-                health.state != ProviderHealthState.HALF_OPEN
+                health.state == ProviderHealthState.HEALTHY
             } ?: return null
             entries.remove(evictable.key)
         }
