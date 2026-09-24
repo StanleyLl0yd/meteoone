@@ -84,10 +84,6 @@ class ProviderHealthPolicyTest {
             policy.recordFailure(permit, ProviderGatewayFailureReason.IO)
         }
 
-        assertNull(
-            policy.tryAcquire(ForecastProvider.ECMWF_OPEN_DATA, "other.example"),
-        )
-
         now.addAndGet(cooldown.toNanos())
 
         val probe = assertNotNull(
@@ -178,6 +174,11 @@ class ProviderHealthPolicyTest {
             )
             policy.recordFailure(permit, ProviderGatewayFailureReason.IO)
         }
+
+        assertNull(
+            policy.tryAcquire(ForecastProvider.ECMWF_OPEN_DATA, "other.example"),
+        )
+
         now.addAndGet(cooldown.toNanos())
 
         val probe = assertNotNull(
