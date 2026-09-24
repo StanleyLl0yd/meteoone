@@ -93,6 +93,86 @@ class ServerProviderGatewayTest {
     }
 
     @Test
+    fun byteRangeOwnsHeadersAndValidatesExactPartialResponse() = runBlocking {
+        val range = ProviderByteRange(offset = 100, length = 3)
+        val transport = RecordingTransport(
+            success(
+                statusCode = 206,
+                body = "abc".encodeToByteArray(),
+                headers = mapOf("Content-Range" to listOf("bytes 100-102/1000")),
+            ),
+        )
+        val result = gateway(transport).execute(
+            request(
+                maxResponseBytes = 3,
+                expectedStatusCodes = setOf(206),
+                byteRange = range,
+            ),
+        )
+
+        assertIs<ProviderGatewayResult.Success>(result)
+        val sent = transport.requests.single()
+        assertEquals("bytes=100-102", sent.headers["Range"])
+        assertEquals("identity", sent.headers["Accept-Encoding"])
+    }
+
+    @Test
+    fun byteRangeFailsClosedOnHeaderRangeTotalOrLengthMismatch() = runBlocking {
+        val range = ProviderByteRange(offset = 100, length = 3)
+        val responses = listOf(
+            success(statusCode = 206, body = "abc".encodeToByteArray()),
+            success(
+                statusCode = 206,
+                body = "abc".encodeToByteArray(),
+                headers = mapOf("Content-Range" to listOf("bytes 99-101/1000")),
+            ),
+            success(
+                statusCode = 206,
+                body = "abc".encodeToByteArray(),
+                headers = mapOf("Content-Range" to listOf("bytes 100-102/102")),
+            ),
+            success(
+                statusCode = 206,
+                body = "ab".encodeToByteArray(),
+                headers = mapOf("Content-Range" to listOf("bytes 100-102/1000")),
+            ),
+        )
+        for (response in responses) {
+            val result = gateway(RecordingTransport(response)).execute(
+                request(
+                    maxResponseBytes = 3,
+                    expectedStatusCodes = setOf(206),
+                    byteRange = range,
+                ),
+            )
+            assertEquals(
+                ProviderGatewayFailureReason.INVALID_RESPONSE,
+                assertIs<ProviderGatewayResult.Failure>(result).reason,
+            )
+        }
+    }
+
+    @Test
+    fun byteRangeAcceptsUnknownCompleteLength() = runBlocking {
+        val result = gateway(
+            RecordingTransport(
+                success(
+                    statusCode = 206,
+                    body = "abc".encodeToByteArray(),
+                    headers = mapOf("Content-Range" to listOf("bytes 100-102/*")),
+                ),
+            ),
+        ).execute(
+            request(
+                maxResponseBytes = 3,
+                expectedStatusCodes = setOf(206),
+                byteRange = ProviderByteRange(100, 3),
+            ),
+        )
+        assertIs<ProviderGatewayResult.Success>(result)
+    }
+
+    @Test
     fun unexpectedHttpStatusFailsClosedWithoutRetry() = runBlocking {
         val transport = RecordingTransport(
             success(statusCode = 503),
@@ -253,12 +333,31 @@ class ServerProviderGatewayTest {
     }
 
     @Test
-    fun requestRejectsUnboundedResponseLimitAndExcessivePacing() {
+    fun requestRejectsUnboundedResponseLimitExcessivePacingAndInvalidRangePolicy() {
         assertFailsWith<IllegalArgumentException> {
             request(maxResponseBytes = Long.MAX_VALUE)
         }
         assertFailsWith<IllegalArgumentException> {
             request(minimumRequestSpacing = Duration.ofMinutes(11))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            request(
+                maxResponseBytes = 3,
+                byteRange = ProviderByteRange(100, 3),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            request(
+                maxResponseBytes = 4,
+                expectedStatusCodes = setOf(206),
+                byteRange = ProviderByteRange(100, 3),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            ProviderCredentialRequirement(
+                slot = ProviderCredentialSlot("WEATHER_KEY"),
+                headerName = "Range",
+            )
         }
     }
 
@@ -278,6 +377,8 @@ class ServerProviderGatewayTest {
         maxResponseBytes: Long = 1024,
         minimumRequestSpacing: Duration = Duration.ZERO,
         credential: ProviderCredentialRequirement? = null,
+        expectedStatusCodes: Set<Int> = setOf(200),
+        byteRange: ProviderByteRange? = null,
     ): ProviderGatewayRequest =
         ProviderGatewayRequest(
             provider = ForecastProvider.NOAA_NOMADS,
@@ -286,16 +387,21 @@ class ServerProviderGatewayTest {
             maxResponseBytes = maxResponseBytes,
             minimumRequestSpacing = minimumRequestSpacing,
             credential = credential,
+            expectedStatusCodes = expectedStatusCodes,
+            byteRange = byteRange,
         )
 
     private fun success(
         body: ByteArray = byteArrayOf(),
         statusCode: Int = 200,
+        headers: Map<String, List<String>> = mapOf(
+            "Content-Type" to listOf("application/octet-stream"),
+        ),
     ): BoundedHttpsResult =
         BoundedHttpsResult.Success(
             BoundedHttpsResponse(
                 statusCode = statusCode,
-                headers = mapOf("Content-Type" to listOf("application/octet-stream")),
+                headers = headers,
                 body = body,
             ),
         )
