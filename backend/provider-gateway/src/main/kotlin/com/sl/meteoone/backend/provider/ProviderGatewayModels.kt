@@ -49,6 +49,7 @@ data class ProviderGatewayRequest(
     val modelFamily: ModelFamily,
     val uri: URI,
     val maxResponseBytes: Long,
+    val expectedStatusCodes: Set<Int> = setOf(200),
     val minimumRequestSpacing: Duration = Duration.ZERO,
     val credential: ProviderCredentialRequirement? = null,
 ) {
@@ -58,6 +59,9 @@ data class ProviderGatewayRequest(
         }
         require(modelFamily != ModelFamily.UNKNOWN) {
             "Provider gateway request must use a known model family"
+        }
+        require(expectedStatusCodes.isNotEmpty() && expectedStatusCodes.all { it in 100..599 }) {
+            "Provider expected HTTP status codes must be non-empty valid status codes"
         }
         require(!minimumRequestSpacing.isNegative && minimumRequestSpacing <= MAX_REQUEST_SPACING) {
             "Provider request spacing must be between zero and $MAX_REQUEST_SPACING"
