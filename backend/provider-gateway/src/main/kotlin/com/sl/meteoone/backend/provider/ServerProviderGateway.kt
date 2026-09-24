@@ -6,6 +6,7 @@ import com.sl.meteoone.core.network.BoundedHttpsResult
 import com.sl.meteoone.core.network.BoundedHttpsTransport
 import com.sl.meteoone.core.network.DefaultBoundedHttpsTransport
 import kotlin.coroutines.resume
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -17,6 +18,7 @@ class ServerProviderGateway internal constructor(
     private val transport: BoundedHttpsTransport,
     private val secretSource: ProviderSecretSource,
     private val pacer: ProviderRequestPacer,
+    private val healthPolicy: ProviderHealthPolicy,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     suspend fun execute(request: ProviderGatewayRequest): ProviderGatewayResult {
@@ -32,6 +34,41 @@ class ServerProviderGateway internal constructor(
             }
         }
 
+        val permit = healthPolicy.tryAcquire(
+            provider = request.provider,
+            host = request.uri.host,
+        ) ?: return request.failure(ProviderGatewayFailureReason.CIRCUIT_OPEN)
+
+        return try {
+            val result = executeWithRetry(
+                request = request,
+                headers = headers,
+            )
+            when (result) {
+                is ProviderGatewayResult.Success -> healthPolicy.recordSuccess(permit)
+                is ProviderGatewayResult.Failure ->
+                    healthPolicy.recordFailure(permit, result.reason)
+            }
+            result
+        } catch (cancellation: CancellationException) {
+            healthPolicy.recordFailure(
+                permit = permit,
+                reason = ProviderGatewayFailureReason.CANCELLED,
+            )
+            throw cancellation
+        } catch (error: Throwable) {
+            healthPolicy.recordFailure(
+                permit = permit,
+                reason = ProviderGatewayFailureReason.CANCELLED,
+            )
+            throw error
+        }
+    }
+
+    private suspend fun executeWithRetry(
+        request: ProviderGatewayRequest,
+        headers: Map<String, String>,
+    ): ProviderGatewayResult {
         val networkRequest = BoundedHttpsRequest(
             uri = request.uri,
             maxResponseBytes = request.maxResponseBytes,
@@ -96,6 +133,7 @@ class ServerProviderGateway internal constructor(
                 transport = DefaultBoundedHttpsTransport(),
                 secretSource = secretSource,
                 pacer = processProviderRequestPacer,
+                healthPolicy = processProviderHealthPolicy,
             )
     }
 }
