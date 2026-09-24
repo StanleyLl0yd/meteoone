@@ -8,6 +8,8 @@ import kotlinx.coroutines.sync.withLock
 
 private const val DEFAULT_FAILURE_THRESHOLD = 3
 private const val MAX_FAILURE_THRESHOLD = 10
+private const val DEFAULT_MAX_TRACKED_KEYS = 64
+private const val MAX_TRACKED_KEYS = 256
 private val DEFAULT_OPEN_COOLDOWN: Duration = Duration.ofSeconds(30)
 private val MAX_OPEN_COOLDOWN: Duration = Duration.ofMinutes(10)
 
@@ -33,6 +35,7 @@ internal data class ProviderHealthPermit internal constructor(
 internal class ProviderHealthPolicy(
     private val failureThreshold: Int = DEFAULT_FAILURE_THRESHOLD,
     private val openCooldown: Duration = DEFAULT_OPEN_COOLDOWN,
+    private val maxTrackedKeys: Int = DEFAULT_MAX_TRACKED_KEYS,
     private val monotonicNanos: () -> Long = System::nanoTime,
 ) {
     init {
@@ -41,6 +44,9 @@ internal class ProviderHealthPolicy(
         }
         require(!openCooldown.isZero && !openCooldown.isNegative && openCooldown <= MAX_OPEN_COOLDOWN) {
             "Provider health open cooldown must be positive and at most $MAX_OPEN_COOLDOWN"
+        }
+        require(maxTrackedKeys in 1..MAX_TRACKED_KEYS) {
+            "Provider health tracked-key limit must be between 1 and $MAX_TRACKED_KEYS"
         }
     }
 
@@ -56,7 +62,11 @@ internal class ProviderHealthPolicy(
     )
 
     private val mutex = Mutex()
-    private val entries = mutableMapOf<HealthKey, MutableHealth>()
+    private val entries = LinkedHashMap<HealthKey, MutableHealth>(
+        16,
+        0.75f,
+        true,
+    )
 
     suspend fun tryAcquire(
         provider: ForecastProvider,
@@ -64,7 +74,7 @@ internal class ProviderHealthPolicy(
     ): ProviderHealthPermit? {
         val key = key(provider, host)
         return mutex.withLock {
-            val health = entries.getOrPut(key) { MutableHealth() }
+            val health = getOrCreate(key) ?: return@withLock null
             when (health.state) {
                 ProviderHealthState.HEALTHY,
                 ProviderHealthState.DEGRADED,
@@ -142,6 +152,11 @@ internal class ProviderHealthPolicy(
         }
     }
 
+    suspend fun trackedKeyCount(): Int =
+        mutex.withLock {
+            entries.size
+        }
+
     suspend fun snapshot(
         provider: ForecastProvider,
         host: String,
@@ -165,6 +180,19 @@ internal class ProviderHealthPolicy(
                 consecutiveFailures = health.consecutiveFailures,
                 remainingCooldown = remaining,
             )
+        }
+    }
+
+    private fun getOrCreate(key: HealthKey): MutableHealth? {
+        entries[key]?.let { return it }
+        if (entries.size >= maxTrackedKeys) {
+            val evictable = entries.entries.firstOrNull { (_, health) ->
+                health.state != ProviderHealthState.HALF_OPEN
+            } ?: return null
+            entries.remove(evictable.key)
+        }
+        return MutableHealth().also { health ->
+            entries[key] = health
         }
     }
 
