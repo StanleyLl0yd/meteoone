@@ -18,7 +18,7 @@ import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.longOrNull
 
-internal class OpenMeteoForecastMapper {
+class OpenMeteoForecastMapper {
     fun map(
         request: OpenMeteoForecastRequest,
         generatedAt: Instant,

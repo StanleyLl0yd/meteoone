@@ -93,6 +93,21 @@ enum class ProviderGatewayFailureReason {
     INVALID_RESPONSE,
 }
 
+fun interface ProviderResponseValidator {
+    fun isValid(response: ProviderGatewayResponse): Boolean
+
+    companion object {
+        val ACCEPT_ALL: ProviderResponseValidator = ProviderResponseValidator { true }
+    }
+}
+
+interface ProviderGateway {
+    suspend fun execute(
+        request: ProviderGatewayRequest,
+        responseValidator: ProviderResponseValidator = ProviderResponseValidator.ACCEPT_ALL,
+    ): ProviderGatewayResult
+}
+
 sealed interface ProviderGatewayResult {
     data class Success(
         val response: ProviderGatewayResponse,

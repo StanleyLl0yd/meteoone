@@ -18,7 +18,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.longOrNull
 
-internal class OpenMeteoSingleRunMapper {
+class OpenMeteoSingleRunMapper {
     fun map(
         request: OpenMeteoSingleRunRequest,
         capturedAt: Instant,

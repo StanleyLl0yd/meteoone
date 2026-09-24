@@ -107,6 +107,41 @@ class ServerProviderGatewayTest {
     }
 
     @Test
+    fun semanticResponseValidationAffectsProviderHealthBeforeSuccessIsRecorded() = runBlocking {
+        val healthPolicy = ProviderHealthPolicy(
+            failureThreshold = 2,
+            openCooldown = Duration.ofSeconds(30),
+        )
+        val transport = RecordingTransport(
+            success(body = "bad-1".encodeToByteArray()),
+            success(body = "bad-2".encodeToByteArray()),
+        )
+        val gateway = gateway(
+            transport = transport,
+            healthPolicy = healthPolicy,
+        )
+        val reject = ProviderResponseValidator { false }
+
+        val first = gateway.execute(request(), reject)
+        val second = gateway.execute(request(), reject)
+        val blocked = gateway.execute(request(), reject)
+
+        assertEquals(
+            ProviderGatewayFailureReason.INVALID_RESPONSE,
+            assertIs<ProviderGatewayResult.Failure>(first).reason,
+        )
+        assertEquals(
+            ProviderGatewayFailureReason.INVALID_RESPONSE,
+            assertIs<ProviderGatewayResult.Failure>(second).reason,
+        )
+        assertEquals(
+            ProviderGatewayFailureReason.CIRCUIT_OPEN,
+            assertIs<ProviderGatewayResult.Failure>(blocked).reason,
+        )
+        assertEquals(2, transport.createdCalls)
+    }
+
+    @Test
     fun nonIoFailureIsNotRetried() = runBlocking {
         val transport = RecordingTransport(
             BoundedHttpsResult.Failure(BoundedHttpsFailureReason.INVALID_RESPONSE),

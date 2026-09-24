@@ -35,7 +35,7 @@ internal val OPEN_METEO_HOURLY_FIELDS = listOf(
     "weather_code",
 )
 
-internal enum class OpenMeteoModel(
+enum class OpenMeteoModel(
     val apiId: String,
     val modelFamily: ModelFamily,
     val windGustIntervalHours: Long,
@@ -57,7 +57,7 @@ internal enum class OpenMeteoModel(
     ),
 }
 
-internal data class OpenMeteoForecastRequest(
+data class OpenMeteoForecastRequest(
     val uri: URI,
     val model: OpenMeteoModel,
     val coordinate: ForecastCoordinate,
@@ -102,7 +102,7 @@ internal data class OpenMeteoForecastRequest(
     }
 }
 
-internal object OpenMeteoForecastRequestPlanner {
+object OpenMeteoForecastRequestPlanner {
     private const val BASE_URL = "https://api.open-meteo.com/v1/forecast"
 
     fun plan(
