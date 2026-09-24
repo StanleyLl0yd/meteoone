@@ -152,6 +152,51 @@ class ServerProviderGatewayTest {
     }
 
     @Test
+    fun circuitOpensAfterConsecutiveFinalFailuresAndRecoversWithHalfOpenProbe() = runBlocking {
+        val now = AtomicLong(0L)
+        val cooldown = Duration.ofSeconds(5)
+        val healthPolicy = ProviderHealthPolicy(
+            failureThreshold = 2,
+            openCooldown = cooldown,
+            monotonicNanos = now::get,
+        )
+        val transport = RecordingTransport(
+            BoundedHttpsResult.Failure(BoundedHttpsFailureReason.IO),
+            BoundedHttpsResult.Failure(BoundedHttpsFailureReason.IO),
+            BoundedHttpsResult.Failure(BoundedHttpsFailureReason.IO),
+            BoundedHttpsResult.Failure(BoundedHttpsFailureReason.IO),
+            success(body = "recovered".encodeToByteArray()),
+        )
+        val gateway = gateway(
+            transport = transport,
+            healthPolicy = healthPolicy,
+        )
+
+        val first = gateway.execute(request())
+        val second = gateway.execute(request())
+        val blocked = gateway.execute(request())
+
+        assertEquals(ProviderGatewayFailureReason.IO, assertIs<ProviderGatewayResult.Failure>(first).reason)
+        assertEquals(ProviderGatewayFailureReason.IO, assertIs<ProviderGatewayResult.Failure>(second).reason)
+        assertEquals(
+            ProviderGatewayFailureReason.CIRCUIT_OPEN,
+            assertIs<ProviderGatewayResult.Failure>(blocked).reason,
+        )
+        assertEquals(4, transport.createdCalls)
+
+        now.addAndGet(cooldown.toNanos())
+
+        val recovered = gateway.execute(request())
+
+        assertIs<ProviderGatewayResult.Success>(recovered)
+        assertEquals(5, transport.createdCalls)
+        assertEquals(
+            ProviderHealthState.HEALTHY,
+            healthPolicy.snapshot(ForecastProvider.NOAA_NOMADS, "weather.example").state,
+        )
+    }
+
+    @Test
     fun cancellationCancelsActiveTransportCall() = runBlocking {
         val transport = BlockingTransport()
         val gateway = gateway(transport)
@@ -185,11 +230,13 @@ class ServerProviderGatewayTest {
     private fun gateway(
         transport: BoundedHttpsTransport,
         secretSource: ProviderSecretSource = ProviderSecretSource.NONE,
+        healthPolicy: ProviderHealthPolicy = ProviderHealthPolicy(),
     ): ServerProviderGateway =
         ServerProviderGateway(
             transport = transport,
             secretSource = secretSource,
             pacer = ProviderRequestPacer(),
+            healthPolicy = healthPolicy,
         )
 
     private fun request(
