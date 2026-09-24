@@ -175,9 +175,10 @@ class ProviderHealthPolicyTest {
             policy.recordFailure(permit, ProviderGatewayFailureReason.IO)
         }
 
-        assertNull(
+        val untrackedWhileOpen = assertNotNull(
             policy.tryAcquire(ForecastProvider.ECMWF_OPEN_DATA, "other.example"),
         )
+        assertEquals(false, untrackedWhileOpen.tracked)
 
         now.addAndGet(cooldown.toNanos())
 
@@ -186,9 +187,10 @@ class ProviderHealthPolicyTest {
         )
         assertTrue(probe.halfOpenProbe)
 
-        assertNull(
+        val untrackedWhileProbeActive = assertNotNull(
             policy.tryAcquire(ForecastProvider.ECMWF_OPEN_DATA, "other.example"),
         )
+        assertEquals(false, untrackedWhileProbeActive.tracked)
         assertEquals(1, policy.trackedKeyCount())
     }
 
