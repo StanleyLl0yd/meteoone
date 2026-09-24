@@ -64,7 +64,7 @@ internal class ProviderHealthPolicy(
     ): ProviderHealthPermit? {
         val key = key(provider, host)
         return mutex.withLock {
-            val health = entries.getOrPut(key, ::MutableHealth)
+            val health = entries.getOrPut(key) { MutableHealth() }
             when (health.state) {
                 ProviderHealthState.HEALTHY,
                 ProviderHealthState.DEGRADED,
