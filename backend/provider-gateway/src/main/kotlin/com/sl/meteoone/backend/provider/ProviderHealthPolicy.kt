@@ -26,7 +26,7 @@ internal data class ProviderHealthSnapshot(
     val remainingCooldown: Duration,
 )
 
-internal data class ProviderHealthPermit internal constructor(
+internal class ProviderHealthPermit internal constructor(
     val provider: ForecastProvider,
     val host: String,
     val halfOpenProbe: Boolean,
