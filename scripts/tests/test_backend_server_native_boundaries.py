@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import unittest
 
 
@@ -25,6 +26,17 @@ class BackendServerNativeBoundaryTest(unittest.TestCase):
         self.assertNotIn("System.getenv", sources)
         self.assertIn("EcCodesNativeLibrary.loadAbsolute", sources)
         self.assertIn("ServerEcCodesBundleVerifier.verify", sources)
+
+        pins = json.loads(
+            (ROOT / "research" / "grib_decoder_candidates" / "pins.json")
+            .read_text(encoding="utf-8")
+        )
+        for commit in (
+            pins["candidates"]["eccodes"]["commit"],
+            pins["candidates"]["libaec"]["commit"],
+            pins["tooling"]["ecbuild"]["commit"],
+        ):
+            self.assertIn(commit, sources)
 
 
 if __name__ == "__main__":
