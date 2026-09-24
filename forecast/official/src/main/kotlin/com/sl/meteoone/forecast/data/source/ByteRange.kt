@@ -1,6 +1,6 @@
 package com.sl.meteoone.forecast.data.source
 
-internal data class ByteRange(
+data class ByteRange(
     val offset: Long,
     val length: Long,
 ) {

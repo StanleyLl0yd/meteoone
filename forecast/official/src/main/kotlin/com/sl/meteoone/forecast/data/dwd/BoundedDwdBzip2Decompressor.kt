@@ -9,7 +9,7 @@ private const val MAX_COMPRESSED_DWD_BYTES = 8 * 1024 * 1024
 private const val MAX_DECOMPRESSED_GRIB_BYTES = 64 * 1024 * 1024
 private const val COPY_BUFFER_BYTES = 8 * 1024
 
-internal class BoundedDwdBzip2Decompressor(
+class BoundedDwdBzip2Decompressor(
     private val maxOutputBytes: Int = MAX_DECOMPRESSED_GRIB_BYTES,
 ) {
     init {
