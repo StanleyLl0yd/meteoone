@@ -11,22 +11,23 @@ done
 test -f "$JAVA_HOME/include/jni.h"
 test -f "$JAVA_HOME/include/linux/jni_md.h"
 
-ECBUILD_REPOSITORY="https://github.com/ecmwf/ecbuild.git"
-ECBUILD_COMMIT="60e7d659ec10a4316e0ec27be28254092dcd7921"
-
 readarray -t pins < <(python3 - <<'PY'
 import json
 from pathlib import Path
-pins = json.loads(Path("research/grib_decoder_candidates/pins.json").read_text())["candidates"]
+config = json.loads(Path("research/grib_decoder_candidates/pins.json").read_text())
 for name in ("eccodes", "libaec"):
-    print(pins[name]["repository"])
-    print(pins[name]["commit"])
+    print(config["candidates"][name]["repository"])
+    print(config["candidates"][name]["commit"])
+print(config["tooling"]["ecbuild"]["repository"])
+print(config["tooling"]["ecbuild"]["commit"])
 PY
 )
 ECCODES_REPOSITORY="${pins[0]}"
 ECCODES_COMMIT="${pins[1]}"
 LIBAEC_REPOSITORY="${pins[2]}"
 LIBAEC_COMMIT="${pins[3]}"
+ECBUILD_REPOSITORY="${pins[4]}"
+ECBUILD_COMMIT="${pins[5]}"
 
 work_root="$RUNNER_TEMP/meteoone-server-grib-native"
 src_root="$work_root/src"
