@@ -469,7 +469,7 @@ Default workflow:
 6. Update documentation when an invariant, architecture decision, release rule, or user-visible contract changes.
 7. Open a pull request.
 8. Wait for required checks.
-9. Prefer squash merge unless preserving a meaningful commit series is useful.
+9. Use squash merge; the active repository ruleset enforces squash-only linear history.
 
 Preferred branch prefixes:
 

@@ -37,7 +37,7 @@ Temporary probe PR #232 proved stable CodeQL 2.27.1 against the current Kotlin 2
 
 Production PR #233 then removed the compatibility gate and explicitly selected the stable 2.27.1 bundle because pinned `github/codeql-action` 4.38.1 still defaults to 2.27.0. Its first real pull-request run `35893591476` / job `107291858207` completed successfully. CodeQL therefore runs on pull requests, pushes to `main`, the weekly schedule, and manual dispatch. The emitted job/check context is `Analyze Java/Kotlin`.
 
-The application Kotlin version was not downgraded, no nightly bundle is used, and compiled Kotlin extraction remains mandatory. CodeQL is operational but is not documented as a required `Protect main` context until the owner-side ruleset is updated and re-read after a successful canonical-main run.
+The application Kotlin version was not downgraded, no nightly bundle is used, and compiled Kotlin extraction remains mandatory. Canonical main `1027c614621738d2351c6e07572d641f8c9c832e` also passed CodeQL run `35895324867` / job `107297696780`, alongside CI `35895324776`, Security and Quality `35895324727`, and Secret Scan `35895324707`. CodeQL is therefore proven on both a real pull request and canonical `main`; it is not documented as a required `Protect main` context until the owner-side ruleset is updated and re-read.
 
 ## Dependency policy
 
