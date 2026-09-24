@@ -20,8 +20,11 @@ class ServerProviderGateway internal constructor(
     private val pacer: ProviderRequestPacer,
     private val healthPolicy: ProviderHealthPolicy,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-) {
-    suspend fun execute(request: ProviderGatewayRequest): ProviderGatewayResult {
+) : ProviderGateway {
+    override suspend fun execute(
+        request: ProviderGatewayRequest,
+        responseValidator: ProviderResponseValidator,
+    ): ProviderGatewayResult {
         val headers = when (val credential = request.credential) {
             null -> emptyMap()
             else -> {
@@ -43,6 +46,7 @@ class ServerProviderGateway internal constructor(
             val result = executeWithRetry(
                 request = request,
                 headers = headers,
+                responseValidator = responseValidator,
             )
             when (result) {
                 is ProviderGatewayResult.Success -> healthPolicy.recordSuccess(permit)
@@ -68,6 +72,7 @@ class ServerProviderGateway internal constructor(
     private suspend fun executeWithRetry(
         request: ProviderGatewayRequest,
         headers: Map<String, String>,
+        responseValidator: ProviderResponseValidator,
     ): ProviderGatewayResult {
         val networkRequest = BoundedHttpsRequest(
             uri = request.uri,
@@ -88,15 +93,17 @@ class ServerProviderGateway internal constructor(
                     if (response.statusCode !in request.expectedStatusCodes) {
                         return request.failure(ProviderGatewayFailureReason.INVALID_RESPONSE)
                     }
-                    return ProviderGatewayResult.Success(
-                        ProviderGatewayResponse(
-                            provider = request.provider,
-                            modelFamily = request.modelFamily,
-                            statusCode = response.statusCode,
-                            headers = response.headers,
-                            body = response.body,
-                        ),
+                    val gatewayResponse = ProviderGatewayResponse(
+                        provider = request.provider,
+                        modelFamily = request.modelFamily,
+                        statusCode = response.statusCode,
+                        headers = response.headers,
+                        body = response.body,
                     )
+                    if (!responseValidator.isValid(gatewayResponse)) {
+                        return request.failure(ProviderGatewayFailureReason.INVALID_RESPONSE)
+                    }
+                    return ProviderGatewayResult.Success(gatewayResponse)
                 }
 
                 is BoundedHttpsResult.Failure -> {

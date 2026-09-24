@@ -120,6 +120,7 @@ jobs:
           :backend:gateway:test
           :backend:contract:test
           :backend:provider-gateway:test
+          :backend:provider-adapters:test
           :verification:data:test
           :app:testDebugUnitTest
           :app:lintDebug
