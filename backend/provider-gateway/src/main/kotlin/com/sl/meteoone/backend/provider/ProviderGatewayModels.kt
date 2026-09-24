@@ -86,6 +86,7 @@ class ProviderGatewayResponse(
 
 enum class ProviderGatewayFailureReason {
     MISSING_CREDENTIAL,
+    CIRCUIT_OPEN,
     CANCELLED,
     IO,
     RESPONSE_TOO_LARGE,
