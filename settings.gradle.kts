@@ -32,3 +32,4 @@ include(":verification:data")
 
 include(":backend:gateway")
 include(":backend:contract")
+include(":backend:provider-gateway")

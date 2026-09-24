@@ -118,6 +118,7 @@ jobs:
           :verification:domain:test
           :backend:gateway:test
           :backend:contract:test
+          :backend:provider-gateway:test
           :verification:data:test
           :app:testDebugUnitTest
           :app:lintDebug
