@@ -48,6 +48,9 @@ class ServerProviderGateway internal constructor(
             when (val result = executeOnce(networkRequest)) {
                 is BoundedHttpsResult.Success -> {
                     val response = result.response
+                    if (response.statusCode !in request.expectedStatusCodes) {
+                        return request.failure(ProviderGatewayFailureReason.INVALID_RESPONSE)
+                    }
                     return ProviderGatewayResult.Success(
                         ProviderGatewayResponse(
                             provider = request.provider,
