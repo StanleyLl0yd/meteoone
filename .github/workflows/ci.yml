@@ -117,6 +117,7 @@ jobs:
           :forecast:repository:assembleDebug
           :verification:domain:test
           :backend:gateway:test
+          :backend:contract:test
           :verification:data:test
           :app:testDebugUnitTest
           :app:lintDebug
