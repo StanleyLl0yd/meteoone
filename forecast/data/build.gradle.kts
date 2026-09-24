@@ -35,6 +35,7 @@ dependencies {
     api(project(":core:model"))
 
     implementation(project(":forecast:domain"))
+    implementation(project(":forecast:openmeteo"))
     api(project(":verification:domain"))
     implementation(project(":core:network"))
     implementation(libs.kotlinx.serialization.json)

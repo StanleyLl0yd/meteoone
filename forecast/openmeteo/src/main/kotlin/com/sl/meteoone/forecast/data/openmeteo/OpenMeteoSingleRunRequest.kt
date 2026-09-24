@@ -14,7 +14,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 internal const val OPEN_METEO_SINGLE_RUN_MAX_RESPONSE_BYTES = 256L * 1024L
-internal val OPEN_METEO_SINGLE_RUN_MINIMUM_REQUEST_SPACING: Duration = Duration.ofSeconds(1)
+val OPEN_METEO_SINGLE_RUN_MINIMUM_REQUEST_SPACING: Duration = Duration.ofSeconds(1)
 internal const val OPEN_METEO_SINGLE_RUN_FORECAST_HOURS = 72
 
 private const val SINGLE_RUN_HOST = "single-runs-api.open-meteo.com"
@@ -31,7 +31,7 @@ internal val OPEN_METEO_SINGLE_RUN_HOURLY_FIELDS = listOf(
     "precipitation",
 )
 
-internal data class OpenMeteoSingleRunRequest(
+data class OpenMeteoSingleRunRequest(
     val uri: URI,
     val model: OpenMeteoModel,
     val coordinate: ForecastCoordinate,
@@ -78,7 +78,7 @@ internal data class OpenMeteoSingleRunRequest(
         get() = model.modelFamily
 }
 
-internal object OpenMeteoSingleRunRequestPlanner {
+object OpenMeteoSingleRunRequestPlanner {
     private const val BASE_URL = "https://$SINGLE_RUN_HOST$SINGLE_RUN_PATH"
 
     fun plan(
