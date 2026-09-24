@@ -41,7 +41,7 @@ MeteoOne 1.0 targets:
 
 ## Status
 
-M1 Forecast Core, M2 Offline-first Data Layer, M3 Product UI, and M4 Verification Engine are complete. `v0.2.0-alpha.1` remains the published feature-complete M3 GitHub prerelease with its signed APK+AAB pair; no M4 release has been selected. Production refresh now composes local verification evidence and may use guarded dynamic model-family weights only when the documented evidence, provenance, recency, materiality, and stability gates pass; otherwise fusion deterministically retains the equal-weight baseline.
+M1 Forecast Core, M2 Offline-first Data Layer, M3 Product UI, and M4 Verification Engine are complete. M5 MeteoOne Backend is in progress. `v0.2.0-alpha.1` remains the published feature-complete M3 GitHub prerelease with its signed APK+AAB pair; no M4 release has been selected. Production refresh now composes local verification evidence and may use guarded dynamic model-family weights only when the documented evidence, provenance, recency, materiality, and stability gates pass; otherwise fusion deterministically retains the equal-weight baseline.
 
 See:
 

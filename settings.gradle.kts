@@ -29,3 +29,5 @@ include(":forecast:data")
 include(":forecast:repository")
 include(":verification:domain")
 include(":verification:data")
+
+include(":backend:gateway")

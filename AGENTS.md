@@ -37,7 +37,7 @@ Android application ID:
 
 Current repository phase:
 
-`M1-M4 complete; M5 not started`
+`M1-M4 complete; M5 in progress`
 
 Current product sequence is defined by `ROADMAP.md`.
 
