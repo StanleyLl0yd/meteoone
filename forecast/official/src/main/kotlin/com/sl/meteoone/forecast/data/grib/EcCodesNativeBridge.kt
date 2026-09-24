@@ -1,12 +1,12 @@
 package com.sl.meteoone.forecast.data.grib
 
-internal class NativeGribMessage(
+class NativeGribMessage(
     val metadata: LongArray,
     val geometry: DoubleArray,
     val values: DoubleArray,
 )
 
-internal interface EcCodesNativeApi {
+interface EcCodesNativeApi {
     fun configureDefinitions(definitionsPath: String)
 
     fun decode(
@@ -16,7 +16,7 @@ internal interface EcCodesNativeApi {
     ): Array<NativeGribMessage>
 }
 
-internal object EcCodesNativeBridge {
+object EcCodesNativeBridge {
     init {
         System.loadLibrary("meteoone_grib_jni")
     }
@@ -75,6 +75,6 @@ internal class SerializedEcCodesNativeApi(
     }
 }
 
-internal object ProductionEcCodesNativeApi : EcCodesNativeApi by SerializedEcCodesNativeApi(
+object ProductionEcCodesNativeApi : EcCodesNativeApi by SerializedEcCodesNativeApi(
     delegate = BridgeEcCodesNativeApi,
 )

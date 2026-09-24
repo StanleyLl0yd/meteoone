@@ -1,6 +1,5 @@
 package com.sl.meteoone.forecast.data.grib
 
-import android.content.Context
 import com.sl.meteoone.forecast.data.dwd.DwdIconGridGeometryPlan
 import java.time.DateTimeException
 import java.time.LocalDateTime
@@ -14,7 +13,7 @@ private const val MAX_NOAA_TOTAL_VALUES = 64
 private const val MAX_SINGLE_FIELD_MESSAGES = 1
 private const val MISSING_LONG = Long.MIN_VALUE
 
-internal fun interface EcCodesNativeSession {
+fun interface EcCodesNativeSession {
     fun decode(
         payload: ByteArray,
         maxMessages: Int,
@@ -22,41 +21,11 @@ internal fun interface EcCodesNativeSession {
     ): Array<NativeGribMessage>
 }
 
-internal class AndroidEcCodesNativeSession(
-    context: Context,
-    private val nativeApi: EcCodesNativeApi = ProductionEcCodesNativeApi,
-) : EcCodesNativeSession {
-    private val installer = EcCodesDefinitionsInstaller(context.applicationContext)
-    private val configureLock = Any()
-
-    @Volatile
-    private var configured = false
-
-    override fun decode(
-        payload: ByteArray,
-        maxMessages: Int,
-        maxTotalValues: Int,
-    ): Array<NativeGribMessage> {
-        ensureConfigured()
-        return nativeApi.decode(payload, maxMessages, maxTotalValues)
-    }
-
-    private fun ensureConfigured() {
-        if (configured) return
-        synchronized(configureLock) {
-            if (configured) return
-            val definitions = installer.install()
-            nativeApi.configureDefinitions(definitions.absolutePath)
-            configured = true
-        }
-    }
-}
-
-internal fun interface DwdIconGridGeometryProvider {
+fun interface DwdIconGridGeometryProvider {
     fun geometryFor(plan: DwdIconGridGeometryPlan): DwdIconGridGeometry
 }
 
-internal class EcCodesGribFieldDecoder(
+class EcCodesGribFieldDecoder(
     private val nativeSession: EcCodesNativeSession,
     private val dwdGeometryProvider: DwdIconGridGeometryProvider,
 ) : GribFieldDecoder {
@@ -100,15 +69,6 @@ internal class EcCodesGribFieldDecoder(
         }
     }
 
-    companion object {
-        fun android(
-            context: Context,
-            dwdGeometryProvider: DwdIconGridGeometryProvider,
-        ): EcCodesGribFieldDecoder = EcCodesGribFieldDecoder(
-            nativeSession = AndroidEcCodesNativeSession(context),
-            dwdGeometryProvider = dwdGeometryProvider,
-        )
-    }
 }
 
 private data class NativeDecodeLimits(

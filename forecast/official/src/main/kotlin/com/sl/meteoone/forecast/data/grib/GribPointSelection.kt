@@ -84,7 +84,7 @@ internal data class EcmwfRegularLatLonGeometry(
  * The arrays are adopted without copying to avoid doubling the multi-million-point geometry.
  * Callers inside this module must transfer ownership and must not mutate them afterwards.
  */
-internal class DwdIconGridGeometry(
+class DwdIconGridGeometry(
     val modelRun: Instant,
     private val latitudes: DoubleArray,
     private val longitudesDegreesEast: DoubleArray,
