@@ -173,6 +173,36 @@ class ServerProviderGatewayTest {
     }
 
     @Test
+    fun repeatedHealthFailureOpensProviderWithoutCallingTransportAgain() = runBlocking {
+        val health = ProviderHealthTracker(
+            failureThreshold = 1,
+            cooldown = Duration.ofMinutes(1),
+            monotonicNanos = { 0L },
+        )
+        val transport = RecordingTransport(
+            BoundedHttpsResult.Failure(BoundedHttpsFailureReason.INVALID_RESPONSE),
+            success(),
+        )
+        val gateway = gateway(
+            transport = transport,
+            healthTracker = health,
+        )
+
+        val first = gateway.execute(request())
+        val second = gateway.execute(request())
+
+        assertEquals(
+            ProviderGatewayFailureReason.INVALID_RESPONSE,
+            assertIs<ProviderGatewayResult.Failure>(first).reason,
+        )
+        assertEquals(
+            ProviderGatewayFailureReason.CIRCUIT_OPEN,
+            assertIs<ProviderGatewayResult.Failure>(second).reason,
+        )
+        assertEquals(1, transport.createdCalls)
+    }
+
+    @Test
     fun requestRejectsUnboundedResponseLimitAndExcessivePacing() {
         assertFailsWith<IllegalArgumentException> {
             request(maxResponseBytes = Long.MAX_VALUE)
@@ -185,11 +215,13 @@ class ServerProviderGatewayTest {
     private fun gateway(
         transport: BoundedHttpsTransport,
         secretSource: ProviderSecretSource = ProviderSecretSource.NONE,
+        healthTracker: ProviderHealthTracker = ProviderHealthTracker(),
     ): ServerProviderGateway =
         ServerProviderGateway(
             transport = transport,
             secretSource = secretSource,
             pacer = ProviderRequestPacer(),
+            healthTracker = healthTracker,
         )
 
     private fun request(
