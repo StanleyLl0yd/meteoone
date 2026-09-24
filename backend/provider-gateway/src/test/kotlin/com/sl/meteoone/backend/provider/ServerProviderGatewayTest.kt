@@ -93,6 +93,20 @@ class ServerProviderGatewayTest {
     }
 
     @Test
+    fun unexpectedHttpStatusFailsClosedWithoutRetry() = runBlocking {
+        val transport = RecordingTransport(
+            success(statusCode = 503),
+            success(),
+        )
+
+        val result = gateway(transport).execute(request())
+
+        val failure = assertIs<ProviderGatewayResult.Failure>(result)
+        assertEquals(ProviderGatewayFailureReason.INVALID_RESPONSE, failure.reason)
+        assertEquals(1, transport.createdCalls)
+    }
+
+    @Test
     fun nonIoFailureIsNotRetried() = runBlocking {
         val transport = RecordingTransport(
             BoundedHttpsResult.Failure(BoundedHttpsFailureReason.INVALID_RESPONSE),
@@ -192,10 +206,13 @@ class ServerProviderGatewayTest {
             credential = credential,
         )
 
-    private fun success(body: ByteArray = byteArrayOf()): BoundedHttpsResult =
+    private fun success(
+        body: ByteArray = byteArrayOf(),
+        statusCode: Int = 200,
+    ): BoundedHttpsResult =
         BoundedHttpsResult.Success(
             BoundedHttpsResponse(
-                statusCode = 200,
+                statusCode = statusCode,
                 headers = mapOf("Content-Type" to listOf("application/octet-stream")),
                 body = body,
             ),
