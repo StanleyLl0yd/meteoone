@@ -106,7 +106,7 @@ class DwdIconGridGeometry(
         }
     }
 
-    fun coordinateAt(index: Int): GridCoordinate = GridCoordinate(
+    internal fun coordinateAt(index: Int): GridCoordinate = GridCoordinate(
         latitude = latitudes[index],
         longitudeDegreesEast = longitudesDegreesEast[index],
     )
