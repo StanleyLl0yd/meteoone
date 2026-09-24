@@ -30,6 +30,7 @@ internal class ProviderHealthPermit internal constructor(
     val provider: ForecastProvider,
     val host: String,
     val halfOpenProbe: Boolean,
+    val tracked: Boolean,
 )
 
 internal class ProviderHealthPolicy(
@@ -74,11 +75,16 @@ internal class ProviderHealthPolicy(
     ): ProviderHealthPermit? {
         val key = key(provider, host)
         return mutex.withLock {
-            val health = getOrCreate(key) ?: return@withLock null
+            val health = getOrCreate(key)
+                ?: return@withLock permit(
+                    key = key,
+                    halfOpenProbe = false,
+                    tracked = false,
+                )
             when (health.state) {
                 ProviderHealthState.HEALTHY,
                 ProviderHealthState.DEGRADED,
-                -> permit(key, halfOpenProbe = false)
+                -> permit(key, halfOpenProbe = false, tracked = true)
 
                 ProviderHealthState.OPEN -> {
                     val now = monotonicNanos()
@@ -86,7 +92,7 @@ internal class ProviderHealthPolicy(
                         null
                     } else {
                         health.state = ProviderHealthState.HALF_OPEN
-                        permit(key, halfOpenProbe = true)
+                        permit(key, halfOpenProbe = true, tracked = true)
                     }
                 }
 
@@ -96,6 +102,7 @@ internal class ProviderHealthPolicy(
     }
 
     suspend fun recordSuccess(permit: ProviderHealthPermit) {
+        if (!permit.tracked) return
         val key = key(permit.provider, permit.host)
         mutex.withLock {
             val health = entries[key] ?: return@withLock
@@ -116,6 +123,7 @@ internal class ProviderHealthPolicy(
         permit: ProviderHealthPermit,
         reason: ProviderGatewayFailureReason,
     ) {
+        if (!permit.tracked) return
         val key = key(permit.provider, permit.host)
         mutex.withLock {
             val health = entries[key] ?: return@withLock
@@ -216,11 +224,13 @@ internal class ProviderHealthPolicy(
     private fun permit(
         key: HealthKey,
         halfOpenProbe: Boolean,
+        tracked: Boolean,
     ): ProviderHealthPermit =
         ProviderHealthPermit(
             provider = key.provider,
             host = key.host,
             halfOpenProbe = halfOpenProbe,
+            tracked = tracked,
         )
 
     private fun nextOpenUntil(now: Long): Long {
