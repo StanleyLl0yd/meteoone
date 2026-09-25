@@ -20,6 +20,9 @@ class ServerGribNativeBundlePolicyTest(unittest.TestCase):
         self.assertIn("research/grib_decoder_candidates/pins.json", build)
         self.assertIn("meteoone_grib_jni.c", build)
         self.assertIn("-Wl,-rpath,'$ORIGIN'", build)
+        self.assertIn('"libaec.so:libaec.so.0"', build)
+        self.assertIn('"libsz.so:libsz.so.2"', build)
+        self.assertIn('root.glob("*.so*")', build)
         self.assertIn("definition_file_count", build)
 
 
