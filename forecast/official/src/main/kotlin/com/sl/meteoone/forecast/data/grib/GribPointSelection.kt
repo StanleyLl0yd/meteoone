@@ -106,12 +106,12 @@ class DwdIconGridGeometry(
         }
     }
 
-    internal fun coordinateAt(index: Int): GridCoordinate = GridCoordinate(
+    fun coordinateAt(index: Int): GridCoordinate = GridCoordinate(
         latitude = latitudes[index],
         longitudeDegreesEast = longitudesDegreesEast[index],
     )
 
-    internal data class GridCoordinate(
+    data class GridCoordinate(
         val latitude: Double,
         val longitudeDegreesEast: Double,
     )
