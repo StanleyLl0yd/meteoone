@@ -12,7 +12,7 @@ private const val COORDINATE_EPSILON_DEGREES = 1e-6
 private const val INDEX_TIE_EPSILON = 1e-12
 private const val SPHERICAL_TIE_EPSILON = 1e-15
 
-internal data class SelectedGribGridPoint(
+data class SelectedGribGridPoint(
     val index: Int,
     val latitude: Double,
     val longitudeDegreesEast: Double,
@@ -20,7 +20,7 @@ internal data class SelectedGribGridPoint(
 )
 
 /** Compact GDT 0 geometry; scan modes outside the current ECMWF envelope fail closed. */
-internal data class EcmwfRegularLatLonGeometry(
+data class EcmwfRegularLatLonGeometry(
     val latitudeCount: Int,
     val longitudeCount: Int,
     val firstLatitude: Double,
@@ -79,12 +79,12 @@ internal data class EcmwfRegularLatLonGeometry(
 }
 
 /**
- * Decoded DWD CLAT/CLON geometry owned only by :forecast:data.
+ * Decoded DWD CLAT/CLON geometry shared by Android and server direct-official runtimes.
  *
  * The arrays are adopted without copying to avoid doubling the multi-million-point geometry.
  * Callers inside this module must transfer ownership and must not mutate them afterwards.
  */
-internal class DwdIconGridGeometry(
+class DwdIconGridGeometry(
     val modelRun: Instant,
     private val latitudes: DoubleArray,
     private val longitudesDegreesEast: DoubleArray,
@@ -117,7 +117,7 @@ internal class DwdIconGridGeometry(
     )
 }
 
-internal object GribPointSelector {
+object GribPointSelector {
     fun selectNoaa(
         context: OfficialGribDecodeContext.Noaa,
         gridDefinitionTemplate: Int,

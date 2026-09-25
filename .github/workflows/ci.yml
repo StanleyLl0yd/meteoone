@@ -110,6 +110,7 @@ jobs:
           :core:preferences:assembleDebug
           :forecast:domain:test
           :forecast:openmeteo:test
+          :forecast:official:test
           :forecast:data:testDebugUnitTest
           :forecast:data:lintDebug
           :forecast:data:assembleDebug

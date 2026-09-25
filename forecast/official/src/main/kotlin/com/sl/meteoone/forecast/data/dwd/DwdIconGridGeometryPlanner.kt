@@ -16,7 +16,7 @@ private enum class DwdIconGridGeometryField(
     LONGITUDE("clon", "CLON"),
 }
 
-internal data class DwdIconGridGeometryPlan(
+data class DwdIconGridGeometryPlan(
     val latitudeRequest: OfficialSourceRequest,
     val longitudeRequest: OfficialSourceRequest,
     val modelRun: Instant,
@@ -32,7 +32,7 @@ internal data class DwdIconGridGeometryPlan(
     }
 }
 
-internal object DwdIconGridGeometryPlanner {
+object DwdIconGridGeometryPlanner {
     fun plan(modelRun: Instant): DwdIconGridGeometryPlan {
         requireOperationalIconModelRun(modelRun)
 
