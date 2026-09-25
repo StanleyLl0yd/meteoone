@@ -20,25 +20,41 @@ class DwdIconGridGeometryDecoder(
         plan: DwdIconGridGeometryPlan,
         compressedLatitude: ByteArray,
         compressedLongitude: ByteArray,
-    ): DwdIconGridGeometry {
-        val latitudes = decodeCoordinateField(
-            compressed = compressedLatitude,
+    ): DwdIconGridGeometry =
+        assemble(
+            plan = plan,
+            latitudes = decodeLatitude(compressedLatitude),
+            longitudesDegreesEast = decodeLongitude(compressedLongitude),
+        )
+
+    fun decodeLatitude(compressed: ByteArray): DoubleArray =
+        decodeCoordinateField(
+            compressed = compressed,
             field = GeometryField.LATITUDE,
         )
-        val longitudes = decodeCoordinateField(
-            compressed = compressedLongitude,
+
+    fun decodeLongitude(compressed: ByteArray): DoubleArray {
+        val values = decodeCoordinateField(
+            compressed = compressed,
             field = GeometryField.LONGITUDE,
         )
-        require(latitudes.size == longitudes.size) {
-            "DWD ICON CLAT/CLON cardinality mismatch"
+        return DoubleArray(values.size) { index ->
+            normalizeLongitude(values[index])
         }
-        val normalizedLongitudes = DoubleArray(longitudes.size) { index ->
-            normalizeLongitude(longitudes[index])
+    }
+
+    fun assemble(
+        plan: DwdIconGridGeometryPlan,
+        latitudes: DoubleArray,
+        longitudesDegreesEast: DoubleArray,
+    ): DwdIconGridGeometry {
+        require(latitudes.size == longitudesDegreesEast.size) {
+            "DWD ICON CLAT/CLON cardinality mismatch"
         }
         return DwdIconGridGeometry(
             modelRun = plan.modelRun,
             latitudes = latitudes,
-            longitudesDegreesEast = normalizedLongitudes,
+            longitudesDegreesEast = longitudesDegreesEast,
         )
     }
 
