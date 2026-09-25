@@ -170,6 +170,7 @@ class ServerProviderGatewayTest {
             ),
         )
         assertIs<ProviderGatewayResult.Success>(result)
+        Unit
     }
 
     @Test
