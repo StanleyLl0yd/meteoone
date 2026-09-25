@@ -189,7 +189,7 @@ Do not raise minSdk without a concrete technical or product reason.
 
 Before a release, verify current Google Play and RuStore requirements rather than assuming an old documented requirement is still sufficient.
 
-## Android module architecture
+## Module architecture
 
 The current implemented module set is:
 
@@ -201,10 +201,16 @@ The current implemented module set is:
 :core:location
 :core:preferences
 :forecast:domain
+:forecast:openmeteo
+:forecast:official
 :forecast:data
 :forecast:repository
 :verification:domain
 :verification:data
+:backend:gateway
+:backend:contract
+:backend:provider-gateway
+:backend:provider-adapters
 ```
 
 Create additional design-system or feature modules only when a concrete dependency boundary justifies them. Do not create empty modules, speculative interfaces, repositories, use cases, or service abstractions solely for hypothetical future features.
