@@ -25,7 +25,9 @@ class BackendProviderAdaptersBoundaryTest(unittest.TestCase):
         self.assertIn('alias(libs.plugins.kotlin.jvm)', build)
         self.assertIn('api(project(":core:model"))', build)
         self.assertIn('implementation(project(":backend:provider-gateway"))', build)
+        self.assertIn('implementation(project(":backend:server-native"))', build)
         self.assertIn('implementation(project(":forecast:openmeteo"))', build)
+        self.assertIn('implementation(project(":forecast:official"))', build)
 
         for forbidden in (
             'android.',
