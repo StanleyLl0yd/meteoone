@@ -16,7 +16,7 @@ class ServerEcCodesRuntimeTest {
             writeFixture(root)
             ServerEcCodesBundleVerifier.verify(root)
 
-            Files.writeString(root.resolve("lib/libaec.so"), "mutated")
+            Files.writeString(root.resolve("lib/libaec.so.0"), "mutated")
 
             assertFailsWith<IllegalArgumentException> {
                 ServerEcCodesBundleVerifier.verify(root)
@@ -44,10 +44,10 @@ class ServerEcCodesRuntimeTest {
     private fun writeFixture(root: Path) {
         val files = linkedMapOf<String, ByteArray>()
         for (relative in listOf(
-            "lib/libaec.so",
+            "lib/libaec.so.0",
             "lib/libeccodes.so",
             "lib/libmeteoone_grib_jni.so",
-            "lib/libsz.so",
+            "lib/libsz.so.2",
             "licenses/eccodes-LICENSE",
             "licenses/eccodes-NOTICE",
             "licenses/libaec-LICENSE.txt",
