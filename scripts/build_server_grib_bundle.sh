@@ -71,9 +71,13 @@ cmake --build "$build_root/libaec" --target install --parallel 2   2>&1 | tee "$
 cmake -S "$src_root/eccodes" -B "$build_root/eccodes"   -DCMAKE_BUILD_TYPE=Release   -DCMAKE_INSTALL_PREFIX="$eccodes_prefix"   -DCMAKE_INSTALL_LIBDIR=lib   -DCMAKE_INSTALL_RPATH="\$ORIGIN"   -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON   -DCMAKE_MODULE_PATH="$src_root/ecbuild/cmake"   -DCMAKE_PREFIX_PATH="$aec_prefix"   -DBUILD_SHARED_LIBS=ON   -DENABLE_PRODUCT_GRIB=ON   -DENABLE_PRODUCT_BUFR=OFF   -DENABLE_AEC=ON   -DENABLE_USE_SHARED_LIB_AEC=ON   -DENABLE_ECCODES_THREADS=OFF   -DENABLE_EXAMPLES=OFF   -DENABLE_BUILD_TOOLS=OFF   -DENABLE_TESTS=OFF   -DENABLE_GEOGRAPHY=OFF   -DENABLE_JPG=OFF   -DENABLE_PNG=OFF   -DENABLE_NETCDF=OFF   -DENABLE_FORTRAN=OFF   -DENABLE_PYTHON=OFF   -DENABLE_MEMFS=OFF   -DENABLE_INSTALL_ECCODES_DEFINITIONS=ON   -DENABLE_INSTALL_ECCODES_SAMPLES=OFF   2>&1 | tee "$evidence_root/eccodes-configure.log"
 cmake --build "$build_root/eccodes" --target install --parallel 2   2>&1 | tee "$evidence_root/eccodes-build.log"
 
-for library in libaec.so libsz.so; do
-  test -e "$aec_prefix/lib/$library"
-  cp -L "$aec_prefix/lib/$library" "$bundle_root/lib/$library"
+for mapping in "libaec.so:libaec.so.0" "libsz.so:libsz.so.2"; do
+  linker_name="${mapping%%:*}"
+  runtime_name="${mapping##*:}"
+  source_library="$aec_prefix/lib/$linker_name"
+  test -e "$source_library"
+  readelf -d "$source_library" | grep -Fq "Library soname: [$runtime_name]"
+  cp -L "$source_library" "$bundle_root/lib/$runtime_name"
 done
 test -e "$eccodes_prefix/lib/libeccodes.so"
 cp -L "$eccodes_prefix/lib/libeccodes.so" "$bundle_root/lib/libeccodes.so"
@@ -119,10 +123,10 @@ with definitions_manifest.open("w", encoding="utf-8", newline="\n") as out:
 
 runtime_files = [
     Path("definitions.sha256"),
-    Path("lib/libaec.so"),
+    Path("lib/libaec.so.0"),
     Path("lib/libeccodes.so"),
     Path("lib/libmeteoone_grib_jni.so"),
-    Path("lib/libsz.so"),
+    Path("lib/libsz.so.2"),
     Path("licenses/eccodes-LICENSE"),
     Path("licenses/eccodes-NOTICE"),
     Path("licenses/libaec-LICENSE.txt"),
@@ -171,7 +175,7 @@ import sys
 from pathlib import Path
 
 root = Path(sys.argv[1])
-packaged = {p.name for p in root.glob("*.so")}
+packaged = {p.name for p in root.glob("*.so*") if p.is_file()}
 system = {
     "libc.so.6",
     "libdl.so.2",
@@ -182,7 +186,7 @@ system = {
     "libstdc++.so.6",
     "ld-linux-x86-64.so.2",
 }
-for library in sorted(root.glob("*.so")):
+for library in sorted(p for p in root.glob("*.so*") if p.is_file()):
     output = subprocess.check_output(["readelf", "-d", str(library)], text=True)
     needed = set(re.findall(r"Shared library: \[([^]]+)\]", output))
     missing = needed - packaged - system
