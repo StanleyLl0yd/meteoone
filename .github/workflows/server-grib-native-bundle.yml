@@ -1,0 +1,85 @@
+name: Server GRIB Native Bundle
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/server-grib-native-bundle.yml"
+      - "backend/server-native/**"
+      - "forecast/official/src/main/kotlin/com/sl/meteoone/forecast/data/grib/EcCodesNativeBridge.kt"
+      - "forecast/data/native/meteoone_grib_jni.c"
+      - "research/grib_decoder_candidates/pins.json"
+      - "scripts/build_server_grib_bundle.sh"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/server-grib-native-bundle.yml"
+      - "backend/server-native/**"
+      - "forecast/official/src/main/kotlin/com/sl/meteoone/forecast/data/grib/EcCodesNativeBridge.kt"
+      - "forecast/data/native/meteoone_grib_jni.c"
+      - "research/grib_decoder_candidates/pins.json"
+      - "scripts/build_server_grib_bundle.sh"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: server-grib-native-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Verify CI supply-chain policy
+        run: python3 scripts/verify_ci_supply_chain.py
+
+      - name: Validate build script syntax
+        run: bash -n scripts/build_server_grib_bundle.sh
+
+      - name: Set up JDK
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          cache-provider: basic
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+          validate-wrappers: true
+
+      - name: Build verified Linux runtime
+        env:
+          OUTPUT_DIR: ${{ runner.temp }}/meteoone-server-grib-output
+        run: bash scripts/build_server_grib_bundle.sh
+
+      - name: Run real JNI smoke
+        env:
+          OUTPUT_DIR: ${{ runner.temp }}/meteoone-server-grib-output
+        run: >-
+          ./gradlew
+          --no-daemon
+          --stacktrace
+          -Dmeteoone.server.eccodes.bundle="$OUTPUT_DIR/bundle"
+          :backend:server-native:test
+
+      - name: Upload runtime and evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: meteoone-m5-server-grib-native-${{ github.run_id }}
+          path: ${{ runner.temp }}/meteoone-server-grib-output
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6

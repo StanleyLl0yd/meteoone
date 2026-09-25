@@ -1,6 +1,5 @@
 package com.sl.meteoone.forecast.data.grib
 
-import android.content.Context
 import com.sl.meteoone.forecast.data.dwd.DwdIconGridGeometryPlan
 import java.time.DateTimeException
 import java.time.LocalDateTime
@@ -14,7 +13,7 @@ private const val MAX_NOAA_TOTAL_VALUES = 64
 private const val MAX_SINGLE_FIELD_MESSAGES = 1
 private const val MISSING_LONG = Long.MIN_VALUE
 
-internal fun interface EcCodesNativeSession {
+fun interface EcCodesNativeSession {
     fun decode(
         payload: ByteArray,
         maxMessages: Int,
@@ -22,47 +21,16 @@ internal fun interface EcCodesNativeSession {
     ): Array<NativeGribMessage>
 }
 
-internal class AndroidEcCodesNativeSession(
-    context: Context,
-    private val nativeApi: EcCodesNativeApi = ProductionEcCodesNativeApi,
-) : EcCodesNativeSession {
-    private val installer = EcCodesDefinitionsInstaller(context.applicationContext)
-    private val configureLock = Any()
-
-    @Volatile
-    private var configured = false
-
-    override fun decode(
-        payload: ByteArray,
-        maxMessages: Int,
-        maxTotalValues: Int,
-    ): Array<NativeGribMessage> {
-        ensureConfigured()
-        return nativeApi.decode(payload, maxMessages, maxTotalValues)
-    }
-
-    private fun ensureConfigured() {
-        if (configured) return
-        synchronized(configureLock) {
-            if (configured) return
-            val definitions = installer.install()
-            nativeApi.configureDefinitions(definitions.absolutePath)
-            configured = true
-        }
-    }
-}
-
-internal fun interface DwdIconGridGeometryProvider {
+fun interface DwdIconGridGeometryProvider {
     fun geometryFor(plan: DwdIconGridGeometryPlan): DwdIconGridGeometry
 }
 
-internal class EcCodesGribFieldDecoder(
+class EcCodesGribFieldDecoder(
     private val nativeSession: EcCodesNativeSession,
     private val dwdGeometryProvider: DwdIconGridGeometryProvider,
 ) : GribFieldDecoder {
     override fun decode(request: GribDecodeRequest): List<DecodedGribField> {
-        val context = request.context
-        val limits = when (context) {
+        val limits = when (request.context) {
             is OfficialGribDecodeContext.Noaa -> NativeDecodeLimits(
                 maxMessages = MAX_NOAA_MESSAGES,
                 maxTotalValues = MAX_NOAA_TOTAL_VALUES,
@@ -79,13 +47,13 @@ internal class EcCodesGribFieldDecoder(
             maxTotalValues = limits.maxTotalValues,
         )
         require(messages.isNotEmpty()) { "ecCodes returned no GRIB messages" }
-        if (context !is OfficialGribDecodeContext.Noaa) {
+        if (request.context !is OfficialGribDecodeContext.Noaa) {
             require(messages.size == 1) { "Official single-field GRIB request returned multiple messages" }
         }
 
-        val dwdGeometry = if (context is OfficialGribDecodeContext.Dwd) {
-            dwdGeometryProvider.geometryFor(context.geometryPlan).also { geometry ->
-                require(geometry.modelRun == context.modelRun) {
+        val dwdGeometry = if (request.context is OfficialGribDecodeContext.Dwd) {
+            dwdGeometryProvider.geometryFor(request.context.geometryPlan).also { geometry ->
+                require(geometry.modelRun == request.context.modelRun) {
                     "DWD geometry provider returned another model run"
                 }
             }
@@ -95,21 +63,12 @@ internal class EcCodesGribFieldDecoder(
 
         return buildList {
             messages.forEach { nativeMessage ->
-                val decoded = nativeMessage.decode(context, dwdGeometry)
+                val decoded = nativeMessage.decode(request.context, dwdGeometry)
                 if (decoded != null) add(decoded)
             }
         }
     }
 
-    companion object {
-        fun android(
-            context: Context,
-            dwdGeometryProvider: DwdIconGridGeometryProvider,
-        ): EcCodesGribFieldDecoder = EcCodesGribFieldDecoder(
-            nativeSession = AndroidEcCodesNativeSession(context),
-            dwdGeometryProvider = dwdGeometryProvider,
-        )
-    }
 }
 
 private data class NativeDecodeLimits(
