@@ -12,7 +12,9 @@ Forecast location normalization (:core:location)
 Privacy-reduced ForecastTarget (:core:model)
     ├── durable active target (:core:preferences / DataStore)
     ↓
-Provider/model execution (:forecast:data)
+Shared provider planning/normalization (:forecast:openmeteo / :forecast:official)
+    ↓
+Android provider execution + native runtime (:forecast:data)
     ↓
 Canonical normalization
     ↓
@@ -29,7 +31,7 @@ Observable local forecast state
 Android app
 ```
 
-The production forecast path includes model-specific Open-Meteo 72-hour delivery plus bounded direct-official NOAA GFS, ECMWF IFS and DWD ICON cross-checks. Direct GRIB decode and spatial selection remain contained inside `:forecast:data`.
+The Android production forecast path includes model-specific Open-Meteo 72-hour delivery plus bounded direct-official NOAA GFS, ECMWF IFS and DWD ICON cross-checks. Reusable Open-Meteo planning/mapping lives in `:forecast:openmeteo`; reusable direct-official request/provenance, GRIB decode contracts, spatial selection, semantic binding and canonical mapping live in pure-JVM `:forecast:official`. Android ecCodes/JNI packaging, the Android native session, direct transport execution and run-scoped DWD geometry loading remain in `:forecast:data`.
 
 M2 has Room persistence, a repository source-of-truth layer, repository-owned freshness/stale classification, and durable privacy-reduced active-target state. Complete fused forecasts are stored under `ForecastCoordinate` keys, while DataStore persists only the normalized target needed to locate the cache after process restart. Bounded retry/rate-limit policy is implemented in forecast execution, and the Forecast/Models/Settings product UI was completed in M3.
 
@@ -87,13 +89,19 @@ Before sufficient verification data exists, the UI exposes qualitative model agr
 :core:database
 :core:preferences
 :forecast:domain
+:forecast:openmeteo
+:forecast:official
 :forecast:data
 :forecast:repository
 :verification:domain
 :verification:data
+:backend:gateway
+:backend:contract
+:backend:provider-gateway
+:backend:provider-adapters
 ```
 
-`:core:network` is the concrete JVM-testable bounded HTTPS execution boundary. It exposes only MeteoOne-owned request/result/cancellation types; OkHttp remains an implementation detail. `:forecast:data` owns production source execution, direct NOAA/ECMWF/DWD transport/GRIB decode/normalization, model-specific Open-Meteo delivery, and the UI-independent M1 execution façade. `:core:location` owns foreground coarse-location acquisition and privacy-preserving forecast-coordinate normalization. `:forecast:domain` remains free of Android, HTTP, decoder and provider implementation details.
+`:core:network` is the concrete JVM-testable bounded HTTPS execution boundary. It exposes only MeteoOne-owned request/result/cancellation types; OkHttp remains an implementation detail. `:forecast:openmeteo` and `:forecast:official` own reusable pure-JVM provider planning/normalization contracts shared by Android and M5 server adapters. `:forecast:data` owns Android production source execution, bounded direct transport, Android ecCodes/JNI/runtime composition, and the UI-independent M1 execution façade. `:backend:gateway`, `:backend:contract`, `:backend:provider-gateway` and `:backend:provider-adapters` are the implemented M5 server cache/wire/provider boundaries; Android production routing has not migrated to them yet. `:core:location` owns foreground coarse-location acquisition and privacy-preserving forecast-coordinate normalization. `:forecast:domain` remains free of Android, HTTP, decoder and provider implementation details.
 
 `:core:database` owns only Room forecast persistence. It exposes MeteoOne model types through `ForecastSnapshotStore`, stores coordinate identity as integer tenths of a degree, and has a policy-enforced dependency boundary that prevents it from depending on location acquisition, networking, forecast execution, or forecast-domain implementation modules.
 

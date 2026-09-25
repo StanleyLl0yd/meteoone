@@ -18,7 +18,7 @@ private const val MAX_INDEX_RESPONSE_BYTES = 2L * 1024L * 1024L
  * The index is downloaded first. Individual GRIB fields are selected from its
  * JSON-lines metadata and retrieved later with one HTTP byte-range per field.
  */
-internal data class EcmwfIfsRequestPlan(
+data class EcmwfIfsRequestPlan(
     val indexRequest: OfficialSourceRequest,
     val gribUri: URI,
     val provider: ForecastProvider,
@@ -48,7 +48,7 @@ internal data class EcmwfIfsRequestPlan(
     }
 }
 
-internal object EcmwfIfsRequestPlanner {
+object EcmwfIfsRequestPlanner {
     fun plan(
         modelRun: Instant,
         forecastHour: Int,
@@ -80,7 +80,7 @@ internal object EcmwfIfsRequestPlanner {
     }
 }
 
-internal fun ecmwfGribUri(
+fun ecmwfGribUri(
     modelRun: Instant,
     forecastHour: Int,
 ): URI = URI.create("${ecmwfProductPrefix(modelRun, forecastHour)}.grib2")

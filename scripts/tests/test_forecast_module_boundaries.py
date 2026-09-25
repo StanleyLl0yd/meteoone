@@ -6,6 +6,8 @@ ROOT = Path(__file__).resolve().parents[2]
 APP_BUILD = ROOT / "app" / "build.gradle.kts"
 CORE_DATABASE_BUILD = ROOT / "core" / "database" / "build.gradle.kts"
 FORECAST_DATA_BUILD = ROOT / "forecast" / "data" / "build.gradle.kts"
+FORECAST_OFFICIAL_BUILD = ROOT / "forecast" / "official" / "build.gradle.kts"
+FORECAST_OFFICIAL_MAIN = ROOT / "forecast" / "official" / "src" / "main" / "kotlin"
 FORECAST_REPOSITORY_BUILD = ROOT / "forecast" / "repository" / "build.gradle.kts"
 FORECAST_REPOSITORY_FACADE = (
     ROOT
@@ -62,6 +64,30 @@ class ForecastModuleBoundaryTest(unittest.TestCase):
 
         self.assertIn('implementation(project(":forecast:domain"))', data_build)
         self.assertNotIn('api(project(":forecast:domain"))', data_build)
+
+    def test_official_contract_is_pure_jvm_and_data_consumes_it(self) -> None:
+        official_build = FORECAST_OFFICIAL_BUILD.read_text(encoding="utf-8")
+        official_sources = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in sorted(FORECAST_OFFICIAL_MAIN.rglob("*.kt"))
+        )
+        data_build = FORECAST_DATA_BUILD.read_text(encoding="utf-8")
+
+        self.assertIn('alias(libs.plugins.kotlin.jvm)', official_build)
+        self.assertIn('api(project(":core:model"))', official_build)
+        self.assertIn('implementation(project(":forecast:official"))', data_build)
+        self.assertNotIn('api(project(":forecast:official"))', data_build)
+
+        for forbidden in (
+            'com.android.',
+            'androidx.',
+            'android.',
+            ':core:network',
+            ':core:database',
+            ':verification:',
+            ':backend:',
+        ):
+            self.assertNotIn(forbidden, official_build + "\n" + official_sources)
 
     def test_database_module_stays_below_forecast_execution(self) -> None:
         database_build = CORE_DATABASE_BUILD.read_text(encoding="utf-8")

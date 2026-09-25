@@ -12,7 +12,7 @@ import kotlin.ConsistentCopyVisibility
 
 private const val MAX_DECODED_GRIB_PAYLOAD_BYTES = 64 * 1024 * 1024
 
-internal enum class GribForecastParameter {
+enum class GribForecastParameter {
     TEMPERATURE_2M,
     DEW_POINT_2M,
     RELATIVE_HUMIDITY_2M,
@@ -25,7 +25,7 @@ internal enum class GribForecastParameter {
     VISIBILITY,
 }
 
-internal enum class GribValueUnit {
+enum class GribValueUnit {
     KELVIN,
     PASCAL,
     METRES_PER_SECOND,
@@ -34,7 +34,7 @@ internal enum class GribValueUnit {
     PERCENT,
 }
 
-internal data class DecodedGribField(
+data class DecodedGribField(
     val parameter: GribForecastParameter,
     val value: Double,
     val unit: GribValueUnit,
@@ -62,7 +62,7 @@ internal data class DecodedGribField(
  * Only privacy-normalized coordinates or provider-side snapped grid points reach this boundary.
  * Raw device coordinates must never be carried by these types.
  */
-internal sealed interface OfficialGribDecodeContext {
+sealed interface OfficialGribDecodeContext {
     val provider: ForecastProvider
     val modelFamily: ModelFamily
     val modelRun: Instant
@@ -108,7 +108,7 @@ internal sealed interface OfficialGribDecodeContext {
     }
 }
 
-internal class GribDecodeRequest private constructor(
+class GribDecodeRequest private constructor(
     val payload: ByteArray,
     val context: OfficialGribDecodeContext,
 ) {
@@ -149,6 +149,6 @@ internal class GribDecodeRequest private constructor(
     }
 }
 
-internal fun interface GribFieldDecoder {
+fun interface GribFieldDecoder {
     fun decode(request: GribDecodeRequest): List<DecodedGribField>
 }

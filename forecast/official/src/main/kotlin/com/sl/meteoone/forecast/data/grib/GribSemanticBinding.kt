@@ -29,7 +29,7 @@ private const val SURFACE_HEIGHT_ABOVE_GROUND = 103
  * GRIB2 numeric metadata used by the immutable #26 corpus so provider semantics can
  * be validated without trusting short-name strings supplied by unrelated bytes.
  */
-internal data class GribMessageMetadata(
+data class GribMessageMetadata(
     val edition: Int,
     val discipline: Int,
     val parameterCategory: Int,
@@ -57,7 +57,7 @@ internal data class GribMessageMetadata(
     }
 }
 
-internal object GribSemanticBinder {
+object GribSemanticBinder {
     /**
      * Returns null only for NOAA messages that are valid members of the broad NOMADS
      * response but are not one of MeteoOne's canonical point fields (for example the

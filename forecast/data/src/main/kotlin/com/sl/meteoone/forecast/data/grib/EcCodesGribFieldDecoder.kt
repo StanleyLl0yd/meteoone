@@ -61,7 +61,8 @@ internal class EcCodesGribFieldDecoder(
     private val dwdGeometryProvider: DwdIconGridGeometryProvider,
 ) : GribFieldDecoder {
     override fun decode(request: GribDecodeRequest): List<DecodedGribField> {
-        val limits = when (request.context) {
+        val context = request.context
+        val limits = when (context) {
             is OfficialGribDecodeContext.Noaa -> NativeDecodeLimits(
                 maxMessages = MAX_NOAA_MESSAGES,
                 maxTotalValues = MAX_NOAA_TOTAL_VALUES,
@@ -78,13 +79,13 @@ internal class EcCodesGribFieldDecoder(
             maxTotalValues = limits.maxTotalValues,
         )
         require(messages.isNotEmpty()) { "ecCodes returned no GRIB messages" }
-        if (request.context !is OfficialGribDecodeContext.Noaa) {
+        if (context !is OfficialGribDecodeContext.Noaa) {
             require(messages.size == 1) { "Official single-field GRIB request returned multiple messages" }
         }
 
-        val dwdGeometry = if (request.context is OfficialGribDecodeContext.Dwd) {
-            dwdGeometryProvider.geometryFor(request.context.geometryPlan).also { geometry ->
-                require(geometry.modelRun == request.context.modelRun) {
+        val dwdGeometry = if (context is OfficialGribDecodeContext.Dwd) {
+            dwdGeometryProvider.geometryFor(context.geometryPlan).also { geometry ->
+                require(geometry.modelRun == context.modelRun) {
                     "DWD geometry provider returned another model run"
                 }
             }
@@ -94,7 +95,7 @@ internal class EcCodesGribFieldDecoder(
 
         return buildList {
             messages.forEach { nativeMessage ->
-                val decoded = nativeMessage.decode(request.context, dwdGeometry)
+                val decoded = nativeMessage.decode(context, dwdGeometry)
                 if (decoded != null) add(decoded)
             }
         }
