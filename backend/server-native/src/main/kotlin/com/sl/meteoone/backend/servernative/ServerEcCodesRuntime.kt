@@ -24,10 +24,10 @@ private val SHA256 = Regex("^[0-9a-f]{64}$")
 
 private val EXPECTED_BUNDLE_FILES = setOf(
     "definitions.sha256",
-    "lib/libaec.so",
+    "lib/libaec.so.0",
     "lib/libeccodes.so",
     "lib/libmeteoone_grib_jni.so",
-    "lib/libsz.so",
+    "lib/libsz.so.2",
     "licenses/eccodes-LICENSE",
     "licenses/eccodes-NOTICE",
     "licenses/libaec-LICENSE.txt",
