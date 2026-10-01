@@ -32,6 +32,55 @@ import kotlinx.coroutines.withContext
 
 private val DEFAULT_FRESH_DURATION: Duration = Duration.ofHours(3)
 
+
+internal fun getAndroidForecastRepository(
+    context: Context,
+    backendForecastUrl: String?,
+): ForecastRepository =
+    AndroidForecastRepositoryHolder.get(
+        context = context.applicationContext,
+        backendForecastUrl = backendForecastUrl,
+    )
+
+private object AndroidForecastRepositoryHolder {
+    @Volatile
+    private var instance: ForecastRepository? = null
+
+    @Volatile
+    private var configurationKey: String? = null
+
+    fun get(
+        context: Context,
+        backendForecastUrl: String?,
+    ): ForecastRepository {
+        val endpoint = backendForecastUrl
+            ?.takeIf(String::isNotBlank)
+            ?.let(BackendForecastEndpoint::parse)
+        val key = endpoint?.uri?.toASCIIString() ?: "legacy-direct"
+
+        instance?.let { existing ->
+            check(configurationKey == key) {
+                "Forecast repository is already initialized with a different refresh boundary"
+            }
+            return existing
+        }
+
+        return synchronized(this) {
+            instance?.also {
+                check(configurationKey == key) {
+                    "Forecast repository is already initialized with a different refresh boundary"
+                }
+            } ?: createAndroidForecastRepository(
+                context = context,
+                backendEndpoint = endpoint,
+            ).also { repository ->
+                configurationKey = key
+                instance = repository
+            }
+        }
+    }
+}
+
 internal fun createAndroidForecastRepository(
     context: Context,
     backendEndpoint: BackendForecastEndpoint? = null,
