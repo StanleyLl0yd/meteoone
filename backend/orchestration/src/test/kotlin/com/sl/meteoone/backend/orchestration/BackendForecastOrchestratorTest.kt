@@ -183,6 +183,7 @@ class BackendForecastOrchestratorTest {
         assertFailsWith<CancellationException> {
             orchestrator(sources).forecast(target, requestedAt)
         }
+        Unit
     }
 
     private fun orchestrator(sources: BackendForecastSources): BackendForecastOrchestrator =
