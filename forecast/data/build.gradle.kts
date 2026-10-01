@@ -41,6 +41,7 @@ dependencies {
     implementation(project(":backend:contract"))
     api(project(":verification:domain"))
     implementation(project(":core:network"))
+    implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.junit)
