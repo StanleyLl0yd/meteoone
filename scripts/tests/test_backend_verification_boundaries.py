@@ -20,6 +20,9 @@ class BackendVerificationBoundaryTest(unittest.TestCase):
         self.assertIn('include(":backend:verification")', settings)
         self.assertIn('alias(libs.plugins.kotlin.jvm)', build)
         self.assertIn('api(project(":verification:domain"))', build)
+        self.assertIn('implementation(project(":backend:provider-gateway"))', build)
+        self.assertIn('implementation(project(":forecast:openmeteo"))', build)
+        self.assertIn('implementation(project(":verification:data"))', build)
         self.assertIn("ForecastVerificationRunEvidence", sources)
         self.assertIn("MAX_RETENTION", sources)
 
