@@ -28,18 +28,16 @@ import com.sl.meteoone.forecast.data.openmeteo.OpenMeteoForecastMapper
 import com.sl.meteoone.forecast.data.openmeteo.OpenMeteoForecastRequestPlanner
 import com.sl.meteoone.forecast.data.openmeteo.OpenMeteoModel
 import com.sl.meteoone.forecast.data.transport.ForecastHttpAdapter
+import com.sl.meteoone.forecast.domain.FORECAST_HORIZON_HOURS
+import com.sl.meteoone.forecast.domain.FORECAST_HOURLY_CADENCE
 import com.sl.meteoone.forecast.domain.ForecastFusionEngine
+import com.sl.meteoone.forecast.domain.ForecastOfficialRunPolicy
 import com.sl.meteoone.forecast.domain.ForecastOrchestrationResult
 import com.sl.meteoone.forecast.domain.ForecastSourceIdentity
 import com.sl.meteoone.forecast.domain.ForecastSourceOrchestrator
 import com.sl.meteoone.forecast.domain.ForecastSourceResult
 import java.time.Duration
 import java.time.Instant
-import java.time.ZoneOffset
-
-private const val M1_HORIZON_HOURS = 72
-private val M1_HOURLY_CADENCE = Duration.ofHours(1)
-private val OFFICIAL_PUBLICATION_GUARD = Duration.ofHours(7)
 
 internal interface ForecastSourceExecutor {
     fun openMeteo(
@@ -257,9 +255,9 @@ class M1ForecastEngine internal constructor(
             latitude = location.latitude,
             longitude = location.longitude,
         )
-        val modelRun = M1OfficialRunPolicy.selectModelRun(generatedAt)
-        val hourlyForecastHour = M1OfficialRunPolicy.hourlyForecastHour(modelRun, generatedAt)
-        val ecmwfForecastHour = M1OfficialRunPolicy.ecmwfForecastHour(modelRun, generatedAt)
+        val modelRun = ForecastOfficialRunPolicy.selectModelRun(generatedAt)
+        val hourlyForecastHour = ForecastOfficialRunPolicy.hourlyForecastHour(modelRun, generatedAt)
+        val ecmwfForecastHour = ForecastOfficialRunPolicy.ecmwfForecastHour(modelRun, generatedAt)
 
         val results = listOf(
             attempt(ForecastProvider.NOAA_NOMADS, ModelFamily.NOAA_GFS) {
@@ -334,11 +332,11 @@ class M1ForecastEngine internal constructor(
         }
 
         val horizonTimes = baseline.hourly.map { it.time }
-        require(horizonTimes.size == M1_HORIZON_HOURS) {
-            "M1 baseline must contain exactly $M1_HORIZON_HOURS hourly points"
+        require(horizonTimes.size == FORECAST_HORIZON_HOURS) {
+            "M1 baseline must contain exactly $FORECAST_HORIZON_HOURS hourly points"
         }
         require(horizonTimes.zipWithNext().all { (previous, next) ->
-            Duration.between(previous, next) == M1_HOURLY_CADENCE
+            Duration.between(previous, next) == FORECAST_HOURLY_CADENCE
         }) {
             "M1 baseline must use an exact hourly cadence"
         }
@@ -455,48 +453,3 @@ private fun ForecastSourceIdentity.toM1Identity(): M1ForecastSourceIdentity =
         provider = provider,
         modelFamily = modelFamily,
     )
-
-internal object M1OfficialRunPolicy {
-    fun selectModelRun(generatedAt: Instant): Instant {
-        val eligible = generatedAt.minus(OFFICIAL_PUBLICATION_GUARD).atOffset(ZoneOffset.UTC)
-        val cycleHour = eligible.hour / 6 * 6
-        return eligible
-            .toLocalDate()
-            .atStartOfDay()
-            .plusHours(cycleHour.toLong())
-            .toInstant(ZoneOffset.UTC)
-    }
-
-    fun hourlyForecastHour(
-        modelRun: Instant,
-        generatedAt: Instant,
-    ): Int = ceilForecastHour(modelRun, generatedAt)
-
-    fun ecmwfForecastHour(
-        modelRun: Instant,
-        generatedAt: Instant,
-    ): Int {
-        val hourly = ceilForecastHour(modelRun, generatedAt)
-        return ((hourly + 2) / 3) * 3
-    }
-
-    private fun ceilForecastHour(
-        modelRun: Instant,
-        generatedAt: Instant,
-    ): Int {
-        require(!generatedAt.isBefore(modelRun)) {
-            "Forecast generation time must not precede the selected model run"
-        }
-        val elapsed = Duration.between(modelRun, generatedAt)
-        val completedHours = elapsed.toHours()
-        val hour = if (elapsed.minusHours(completedHours).isZero) {
-            completedHours
-        } else {
-            completedHours + 1
-        }
-        require(hour in 0..M1_HORIZON_HOURS) {
-            "Selected direct-source cross-check hour must remain inside the M1 horizon"
-        }
-        return hour.toInt()
-    }
-}
