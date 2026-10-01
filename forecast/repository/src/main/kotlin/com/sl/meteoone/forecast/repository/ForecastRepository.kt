@@ -6,7 +6,6 @@ import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.FusedForecast
 import com.sl.meteoone.core.model.ModelFamily
 import com.sl.meteoone.core.model.SourceForecast
-import com.sl.meteoone.forecast.data.backend.BackendForecastEndpoint
 import kotlinx.coroutines.flow.Flow
 
 interface ForecastRepository {
@@ -23,49 +22,10 @@ interface ForecastRepository {
             context: Context,
             backendForecastUrl: String? = null,
         ): ForecastRepository =
-            AndroidForecastRepositoryHolder.get(
+            getAndroidForecastRepository(
                 context = context.applicationContext,
                 backendForecastUrl = backendForecastUrl,
             )
-    }
-}
-
-private object AndroidForecastRepositoryHolder {
-    @Volatile
-    private var instance: ForecastRepository? = null
-
-    @Volatile
-    private var configurationKey: String? = null
-
-    fun get(
-        context: Context,
-        backendForecastUrl: String?,
-    ): ForecastRepository {
-        val endpoint = backendForecastUrl
-            ?.takeIf(String::isNotBlank)
-            ?.let(BackendForecastEndpoint::parse)
-        val key = endpoint?.uri?.toASCIIString() ?: "legacy-direct"
-
-        instance?.let { existing ->
-            check(configurationKey == key) {
-                "Forecast repository is already initialized with a different refresh boundary"
-            }
-            return existing
-        }
-
-        return synchronized(this) {
-            instance?.also {
-                check(configurationKey == key) {
-                    "Forecast repository is already initialized with a different refresh boundary"
-                }
-            } ?: createAndroidForecastRepository(
-                context = context,
-                backendEndpoint = endpoint,
-            ).also { repository ->
-                configurationKey = key
-                instance = repository
-            }
-        }
     }
 }
 
