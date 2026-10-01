@@ -11,6 +11,7 @@ import com.sl.meteoone.core.model.WeatherCondition
 import com.sl.meteoone.forecast.data.openmeteo.OpenMeteoModel
 import com.sl.meteoone.forecast.domain.ForecastOfficialRunPolicy
 import com.sl.meteoone.forecast.domain.ForecastSourceIdentity
+import com.sl.meteoone.forecast.verification.VerificationWeightSampleSource
 import com.sl.meteoone.verification.domain.LeadTimeBucket
 import com.sl.meteoone.verification.domain.ObservationStation
 import com.sl.meteoone.verification.domain.ScalarVerificationSample
