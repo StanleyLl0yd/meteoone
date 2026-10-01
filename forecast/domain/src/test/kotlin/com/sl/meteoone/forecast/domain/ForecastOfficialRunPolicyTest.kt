@@ -1,13 +1,28 @@
-package com.sl.meteoone.forecast.data.execution
+package com.sl.meteoone.forecast.domain
 
-import com.sl.meteoone.forecast.domain.ForecastOfficialRunPolicy
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class M1OfficialRunPolicyTest {
+class ForecastOfficialRunPolicyTest {
     @Test
-    fun roundsSubsecondElapsedTimeUpToTheNextSupportedForecastStep() {
+    fun selectsLatestSixHourlyRunBehindPublicationGuard() {
+        assertEquals(
+            Instant.parse("2026-09-25T00:00:00Z"),
+            ForecastOfficialRunPolicy.selectModelRun(
+                Instant.parse("2026-09-25T12:15:00Z"),
+            ),
+        )
+        assertEquals(
+            Instant.parse("2026-09-25T06:00:00Z"),
+            ForecastOfficialRunPolicy.selectModelRun(
+                Instant.parse("2026-09-25T13:00:00Z"),
+            ),
+        )
+    }
+
+    @Test
+    fun roundsSubsecondElapsedTimeUpToSupportedForecastSteps() {
         val modelRun = Instant.parse("2026-09-14T00:00:00Z")
 
         assertEquals(

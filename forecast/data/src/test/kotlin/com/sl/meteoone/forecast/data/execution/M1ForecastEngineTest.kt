@@ -9,6 +9,7 @@ import com.sl.meteoone.core.model.ModelFamily
 import com.sl.meteoone.core.model.SourceForecast
 import com.sl.meteoone.core.model.WeatherCondition
 import com.sl.meteoone.forecast.data.openmeteo.OpenMeteoModel
+import com.sl.meteoone.forecast.domain.ForecastOfficialRunPolicy
 import com.sl.meteoone.forecast.domain.ForecastSourceIdentity
 import com.sl.meteoone.verification.domain.LeadTimeBucket
 import com.sl.meteoone.verification.domain.ObservationStation
@@ -215,22 +216,22 @@ class M1ForecastEngineTest {
 
         assertEquals(
             Instant.parse("2026-09-14T00:00:00Z"),
-            M1OfficialRunPolicy.selectModelRun(beforeNextEligibleCycle),
+            ForecastOfficialRunPolicy.selectModelRun(beforeNextEligibleCycle),
         )
         assertEquals(
             Instant.parse("2026-09-14T06:00:00Z"),
-            M1OfficialRunPolicy.selectModelRun(afterNextEligibleCycle),
+            ForecastOfficialRunPolicy.selectModelRun(afterNextEligibleCycle),
         )
         assertEquals(
             13,
-            M1OfficialRunPolicy.hourlyForecastHour(
+            ForecastOfficialRunPolicy.hourlyForecastHour(
                 Instant.parse("2026-09-14T00:00:00Z"),
                 generatedAt,
             ),
         )
         assertEquals(
             15,
-            M1OfficialRunPolicy.ecmwfForecastHour(
+            ForecastOfficialRunPolicy.ecmwfForecastHour(
                 Instant.parse("2026-09-14T00:00:00Z"),
                 generatedAt,
             ),
