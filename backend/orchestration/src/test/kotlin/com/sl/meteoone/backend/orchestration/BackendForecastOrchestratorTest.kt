@@ -71,7 +71,11 @@ class BackendForecastOrchestratorTest {
         val hour13 = available.forecast.hourly.first { it.weather.time == horizonStart }
         assertEquals(3, hour13.independentEvidenceCount)
         assertEquals(3, hour13.providerCount)
-        assertEquals(100.0 / 3.0, hour13.weather.temperatureC, absoluteTolerance = 1e-9)
+        assertEquals(
+            100.0 / 3.0,
+            requireNotNull(hour13.weather.temperatureC),
+            absoluteTolerance = 1e-9,
+        )
     }
 
     @Test
