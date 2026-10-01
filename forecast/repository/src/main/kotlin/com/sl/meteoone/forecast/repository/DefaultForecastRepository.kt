@@ -30,24 +30,36 @@ import kotlinx.coroutines.withContext
 
 private val DEFAULT_FRESH_DURATION: Duration = Duration.ofHours(3)
 
-internal fun createAndroidForecastRepository(context: Context): ForecastRepository {
+internal fun createAndroidForecastRepository(
+    context: Context,
+    backendEndpoint: BackendForecastEndpoint? = null,
+): ForecastRepository {
     val appContext = context.applicationContext
+    val refreshSource = if (backendEndpoint != null) {
+        BackendForecastRefreshSource.production(backendEndpoint)
+    } else {
+        createLegacyDirectRefreshSource(appContext)
+    }
+    return DefaultForecastRepository(
+        store = ForecastSnapshotDatabase.open(appContext),
+        refreshSource = refreshSource,
+    )
+}
+
+private fun createLegacyDirectRefreshSource(context: Context): ForecastRefreshSource {
     val sampleSource = RefreshScopedVerificationWeightSampleSource()
     val weightedEngine = M1ForecastEngine.android(
-        context = appContext,
+        context = context,
         verificationSamples = sampleSource,
     )
     val coordinator = productionM4VerificationEvidenceCoordinator(
-        historyStore = ForecastSnapshotDatabase.openVerificationHistory(appContext),
-        observationStore = ForecastSnapshotDatabase.openVerificationObservations(appContext),
+        historyStore = ForecastSnapshotDatabase.openVerificationHistory(context),
+        observationStore = ForecastSnapshotDatabase.openVerificationObservations(context),
     )
-    return DefaultForecastRepository(
-        store = ForecastSnapshotDatabase.open(appContext),
-        refreshSource = M4ForecastRefreshSource(
-            coordinator = coordinator,
-            sampleSource = sampleSource,
-            delegate = M1ForecastRefreshSource(weightedEngine),
-        ),
+    return M4ForecastRefreshSource(
+        coordinator = coordinator,
+        sampleSource = sampleSource,
+        delegate = M1ForecastRefreshSource(weightedEngine),
     )
 }
 
