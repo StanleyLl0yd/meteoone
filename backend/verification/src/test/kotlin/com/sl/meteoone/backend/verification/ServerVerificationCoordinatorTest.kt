@@ -159,6 +159,7 @@ class ServerVerificationCoordinatorTest {
         assertFailsWith<CancellationException> {
             coordinator.prepareSamples(target, now)
         }
+        Unit
     }
 
     private fun coordinator(
