@@ -9,6 +9,9 @@ kotlin {
 dependencies {
     api(project(":core:model"))
     api(project(":verification:domain"))
+    implementation(project(":backend:provider-gateway"))
+    implementation(project(":forecast:openmeteo"))
+    implementation(project(":verification:data"))
     implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.kotlin.test.junit)
