@@ -51,6 +51,41 @@ class DefaultBoundedHttpsTransportTest {
     }
 
     @Test
+    fun sendsExactPostBodyWithoutChangingExistingGetDefault() {
+        val factory = FakeCallFactory { request -> response(request, 200, "ok".toResponseBody()) }
+        val body = """{"latitudeTenths":599}""".encodeToByteArray()
+
+        val result = DefaultBoundedHttpsTransport(factory).newCall(
+            BoundedHttpsRequest(
+                uri = URI.create("https://example.com/v1/forecast"),
+                maxResponseBytes = 10,
+                headers = mapOf("Content-Type" to "application/json"),
+                method = BoundedHttpsMethod.POST,
+                body = body,
+            ),
+        ).execute()
+
+        assertIs<BoundedHttpsResult.Success>(result)
+        val request = requireNotNull(factory.lastRequest)
+        assertEquals("POST", request.method)
+        assertEquals("application/json", request.header("Content-Type"))
+        val buffer = Buffer()
+        requireNotNull(request.body).writeTo(buffer)
+        assertTrue(buffer.readByteArray().contentEquals(body))
+
+        val getFactory = FakeCallFactory { requestValue ->
+            response(requestValue, 200, "ok".toResponseBody())
+        }
+        DefaultBoundedHttpsTransport(getFactory).newCall(
+            BoundedHttpsRequest(
+                URI.create("https://example.com/data"),
+                maxResponseBytes = 10,
+            ),
+        ).execute()
+        assertEquals("GET", getFactory.lastRequest?.method)
+    }
+
+    @Test
     fun rejectsDeclaredOrStreamedBodyAboveBound() {
         val declaredFactory = FakeCallFactory { request ->
             response(
