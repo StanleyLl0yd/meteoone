@@ -81,6 +81,8 @@ jobs:
           args: >-
             --image jetbrains/qodana-jvm-community@sha256:3db2bdb1d846ddeca9f600a6737bc82b3993067e07e572ba7bf791d9fe41a9bf
             --within-docker true
+            --volume ${{ env.JAVA_HOME }}:/opt/meteoone-jdk17:ro
+            --env JAVA_HOME=/opt/meteoone-jdk17
             --print-problems
           upload-result: true
           artifact-name: qodana-report
