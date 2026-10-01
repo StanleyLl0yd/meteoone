@@ -11,6 +11,8 @@ dependencies {
     api(project(":forecast:domain"))
     implementation(project(":backend:gateway"))
     implementation(project(":backend:provider-adapters"))
+    implementation(project(":backend:verification"))
+    implementation(project(":forecast:verification-weighting"))
 
     testImplementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.kotlin.test.junit)
