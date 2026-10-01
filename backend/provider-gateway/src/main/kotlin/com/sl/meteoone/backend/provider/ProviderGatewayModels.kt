@@ -5,10 +5,12 @@ import com.sl.meteoone.core.model.ModelFamily
 import com.sl.meteoone.core.network.BoundedHttpsRequest
 import java.net.URI
 import java.time.Duration
+import java.util.Locale
 
 private val CREDENTIAL_SLOT = Regex("^[A-Z][A-Z0-9_]{0,63}$")
 private val HEADER_NAME = Regex("^[A-Za-z][A-Za-z0-9-]{0,63}$")
 private val MAX_REQUEST_SPACING: Duration = Duration.ofMinutes(10)
+private val RESERVED_TRANSPORT_HEADERS = setOf("range", "accept-encoding")
 
 @JvmInline
 value class ProviderCredentialSlot(
@@ -30,6 +32,9 @@ data class ProviderCredentialRequirement(
         require(HEADER_NAME.matches(headerName)) {
             "Provider credential header name is invalid"
         }
+        require(headerName.lowercase(Locale.ROOT) !in RESERVED_TRANSPORT_HEADERS) {
+            "Provider credential header is reserved by the transport boundary"
+        }
         require(valuePrefix.none { character -> character.code < 0x20 || character.code == 0x7f }) {
             "Provider credential header prefix must not contain control characters"
         }
@@ -44,6 +49,25 @@ fun interface ProviderSecretSource {
     }
 }
 
+data class ProviderByteRange(
+    val offset: Long,
+    val length: Long,
+) {
+    init {
+        require(offset >= 0L) { "Provider byte-range offset must not be negative" }
+        require(length > 0L) { "Provider byte-range length must be positive" }
+        require(offset <= Long.MAX_VALUE - (length - 1L)) {
+            "Provider byte range exceeds Long address space"
+        }
+    }
+
+    val inclusiveEnd: Long
+        get() = offset + length - 1L
+
+    val headerValue: String
+        get() = "bytes=$offset-$inclusiveEnd"
+}
+
 data class ProviderGatewayRequest(
     val provider: ForecastProvider,
     val modelFamily: ModelFamily,
@@ -52,6 +76,7 @@ data class ProviderGatewayRequest(
     val expectedStatusCodes: Set<Int> = setOf(200),
     val minimumRequestSpacing: Duration = Duration.ZERO,
     val credential: ProviderCredentialRequirement? = null,
+    val byteRange: ProviderByteRange? = null,
 ) {
     init {
         require(provider != ForecastProvider.UNKNOWN) {
@@ -65,6 +90,14 @@ data class ProviderGatewayRequest(
         }
         require(!minimumRequestSpacing.isNegative && minimumRequestSpacing <= MAX_REQUEST_SPACING) {
             "Provider request spacing must be between zero and $MAX_REQUEST_SPACING"
+        }
+        byteRange?.let { range ->
+            require(expectedStatusCodes == setOf(206)) {
+                "Provider byte-range requests must require exactly HTTP 206"
+            }
+            require(maxResponseBytes == range.length) {
+                "Provider byte-range response limit must equal the requested range length"
+            }
         }
         BoundedHttpsRequest(
             uri = uri,

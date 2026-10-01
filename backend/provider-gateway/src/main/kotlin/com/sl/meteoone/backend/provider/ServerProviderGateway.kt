@@ -13,6 +13,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
 private const val MAX_ATTEMPTS = 2
+private val CONTENT_RANGE = Regex("^bytes ([0-9]+)-([0-9]+)/([0-9]+|\\*)$")
 
 class ServerProviderGateway internal constructor(
     private val transport: BoundedHttpsTransport,
@@ -25,7 +26,7 @@ class ServerProviderGateway internal constructor(
         request: ProviderGatewayRequest,
         responseValidator: ProviderResponseValidator,
     ): ProviderGatewayResult {
-        val headers = when (val credential = request.credential) {
+        val credentialHeaders = when (val credential = request.credential) {
             null -> emptyMap()
             else -> {
                 val secret = secretSource.resolve(credential.slot)
@@ -34,6 +35,13 @@ class ServerProviderGateway internal constructor(
                 mapOf(
                     credential.headerName to credential.valuePrefix + secret,
                 )
+            }
+        }
+        val headers = buildMap {
+            putAll(credentialHeaders)
+            request.byteRange?.let { range ->
+                put("Range", range.headerValue)
+                put("Accept-Encoding", "identity")
             }
         }
 
@@ -91,6 +99,10 @@ class ServerProviderGateway internal constructor(
                 is BoundedHttpsResult.Success -> {
                     val response = result.response
                     if (response.statusCode !in request.expectedStatusCodes) {
+                        return request.failure(ProviderGatewayFailureReason.INVALID_RESPONSE)
+                    }
+                    val range = request.byteRange
+                    if (range != null && !response.matches(range)) {
                         return request.failure(ProviderGatewayFailureReason.INVALID_RESPONSE)
                     }
                     val gatewayResponse = ProviderGatewayResponse(
@@ -163,3 +175,23 @@ private fun BoundedHttpsFailureReason.toGatewayFailure(): ProviderGatewayFailure
         BoundedHttpsFailureReason.INVALID_RESPONSE ->
             ProviderGatewayFailureReason.INVALID_RESPONSE
     }
+
+
+private fun com.sl.meteoone.core.network.BoundedHttpsResponse.matches(
+    range: ProviderByteRange,
+): Boolean {
+    if (statusCode != 206) return false
+    if (body.size.toLong() != range.length) return false
+    val contentRanges = headerValues("Content-Range")
+    if (contentRanges.size != 1) return false
+    val match = CONTENT_RANGE.matchEntire(contentRanges.single()) ?: return false
+    val start = match.groupValues[1].toLongOrNull() ?: return false
+    val end = match.groupValues[2].toLongOrNull() ?: return false
+    if (start != range.offset || end != range.inclusiveEnd) return false
+    val totalToken = match.groupValues[3]
+    if (totalToken != "*") {
+        val total = totalToken.toLongOrNull() ?: return false
+        if (total <= end) return false
+    }
+    return true
+}
