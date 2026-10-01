@@ -126,6 +126,7 @@ jobs:
           :backend:orchestration:test
           :backend:server-native:test
           :backend:verification:test
+          :backend:http-service:test
           :verification:data:test
           :app:testDebugUnitTest
           :app:lintDebug
