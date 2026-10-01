@@ -79,6 +79,18 @@ class BackendForecastOrchestratorTest {
     }
 
     @Test
+    fun defaultRequestTimeUsesInjectedServerClock() = runBlocking {
+        val sources = FakeSources(successfulOutcomes())
+
+        assertIs<BackendForecastResult.Available>(
+            orchestrator(sources).forecast(target),
+        )
+
+        assertEquals(Instant.parse("2026-09-25T00:00:00Z"), sources.noaaRun)
+        assertEquals(13, sources.noaaHour)
+    }
+
+    @Test
     fun usesNextValidOpenMeteoBaselineAndPreservesTypedPartialFailures() = runBlocking {
         val outcomes = successfulOutcomes().toMutableMap()
         outcomes[identity(ForecastProvider.OPEN_METEO, ModelFamily.NOAA_GFS)] =
@@ -194,6 +206,7 @@ class BackendForecastOrchestratorTest {
                 maxEntries = 8,
                 clock = Clock.fixed(requestedAt, ZoneOffset.UTC),
             ),
+            clock = Clock.fixed(requestedAt, ZoneOffset.UTC),
         )
 
     private fun successfulOutcomes(
