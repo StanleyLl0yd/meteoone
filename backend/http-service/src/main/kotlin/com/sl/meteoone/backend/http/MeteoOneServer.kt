@@ -18,9 +18,18 @@ internal data class MeteoOneServerRuntimeConfig(
             val host = environment["METEOONE_SERVER_HOST"]
                 ?.takeIf(String::isNotBlank)
                 ?: DEFAULT_HOST
-            val port = environment["METEOONE_SERVER_PORT"]
-                ?.toIntOrNull()
-                ?: DEFAULT_PORT
+            val configuredPort = environment["METEOONE_SERVER_PORT"]
+            val port = if (configuredPort == null) {
+                DEFAULT_PORT
+            } else {
+                require(configuredPort.isNotBlank()) {
+                    "METEOONE_SERVER_PORT must not be blank"
+                }
+                configuredPort.toIntOrNull()
+                    ?: throw IllegalArgumentException(
+                        "METEOONE_SERVER_PORT must be a valid TCP port",
+                    )
+            }
             require(port in 1..65535) {
                 "METEOONE_SERVER_PORT must be a valid TCP port"
             }
