@@ -92,7 +92,7 @@ fun Application.installMeteoOneHttpService(
             }
 
             post {
-                handleForecastRequest(
+                call.handleForecastRequest(
                     handler = handler,
                     config = config,
                     permits = permits,
