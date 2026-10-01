@@ -18,20 +18,15 @@ interface ForecastRepository {
     ): ForecastRefreshResult
 
     companion object {
-        fun android(context: Context): ForecastRepository =
-            AndroidForecastRepositoryHolder.get(context.applicationContext)
+        fun android(
+            context: Context,
+            backendForecastUrl: String? = null,
+        ): ForecastRepository =
+            getAndroidForecastRepository(
+                context = context.applicationContext,
+                backendForecastUrl = backendForecastUrl,
+            )
     }
-}
-
-private object AndroidForecastRepositoryHolder {
-    @Volatile
-    private var instance: ForecastRepository? = null
-
-    fun get(context: Context): ForecastRepository =
-        instance ?: synchronized(this) {
-            instance ?: createAndroidForecastRepository(context)
-                .also { repository -> instance = repository }
-        }
 }
 
 data class ForecastSourceIdentity(
