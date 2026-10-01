@@ -250,6 +250,7 @@ class ServerVerificationEvidenceStoreTest {
                 ),
             )
         }
+        Unit
     }
 
     private fun store(
