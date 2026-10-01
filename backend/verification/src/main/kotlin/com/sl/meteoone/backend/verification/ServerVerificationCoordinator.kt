@@ -27,7 +27,6 @@ import com.sl.meteoone.verification.domain.VerificationSampleMatcher
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
