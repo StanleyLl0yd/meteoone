@@ -292,9 +292,9 @@ class ServerVerificationCoordinator internal constructor(
 fun productionServerVerificationSampleProvider(
     store: ServerVerificationEvidenceStore =
         InMemoryServerVerificationEvidenceStore(),
-    gateway: ProviderGateway = ServerProviderGateway.production(),
-    ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ): ServerVerificationSampleProvider {
+    val gateway = ServerProviderGateway.production()
+    val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
     val stationCandidates = GhcnhStationCandidateSource.default()
     val observations = GhcnhObservationSource.default()
     return ServerVerificationCoordinator(
