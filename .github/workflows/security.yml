@@ -35,7 +35,10 @@ jobs:
 
   qodana:
     name: Qodana
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.head_ref == 'm5/qodana-stabilization-validation')
     runs-on: ubuntu-24.04
     timeout-minutes: 50
     permissions:
@@ -75,6 +78,9 @@ jobs:
       - name: Run Qodana
         uses: JetBrains/qodana-action@10be11607eb323a180e2b76b26c9c5cdceac3e77 # v2026.2.1
         with:
-          args: --linter qodana-jvm-community --within-docker false --print-problems
+          args: >-
+            --image jetbrains/qodana-jvm-community@sha256:3db2bdb1d846ddeca9f600a6737bc82b3993067e07e572ba7bf791d9fe41a9bf
+            --within-docker true
+            --print-problems
           upload-result: true
           artifact-name: qodana-report
