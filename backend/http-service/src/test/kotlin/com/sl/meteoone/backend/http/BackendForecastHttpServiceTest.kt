@@ -216,6 +216,26 @@ class BackendForecastHttpServiceTest {
     }
 
     @Test
+    fun internalHandlerFailureUsesFixedPublicError() = testApplication {
+        application {
+            installMeteoOneHttpService(
+                BackendForecastRequestHandler {
+                    error("provider-secret-must-not-leak")
+                },
+            )
+        }
+
+        val response = client.post(FORECAST_API_PATH) {
+            contentType(ContentType.Application.Json)
+            setBody(validRequestJson())
+        }
+
+        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+        assertEquals("""{"error":"forecast_failed"}""", response.bodyAsText())
+        assertFalse(response.bodyAsText().contains("provider-secret"))
+    }
+
+    @Test
     fun runtimeConfigurationDefaultsToLoopbackAndRequiresNativeBundle() {
         val config = MeteoOneServerRuntimeConfig.fromEnvironment(
             mapOf("METEOONE_SERVER_NATIVE_BUNDLE" to "/srv/meteoone/native"),
@@ -224,6 +244,18 @@ class BackendForecastHttpServiceTest {
         assertEquals("127.0.0.1", config.host)
         assertEquals(8080, config.port)
         assertTrue(config.nativeBundleRoot.isAbsolute)
+
+        kotlin.test.assertFailsWith<IllegalArgumentException> {
+            MeteoOneServerRuntimeConfig.fromEnvironment(
+                mapOf(
+                    "METEOONE_SERVER_NATIVE_BUNDLE" to "/srv/meteoone/native",
+                    "METEOONE_SERVER_PORT" to "not-a-port",
+                ),
+            )
+        }
+        kotlin.test.assertFailsWith<IllegalStateException> {
+            MeteoOneServerRuntimeConfig.fromEnvironment(emptyMap())
+        }
     }
 
     private fun validRequestJson(): String =
