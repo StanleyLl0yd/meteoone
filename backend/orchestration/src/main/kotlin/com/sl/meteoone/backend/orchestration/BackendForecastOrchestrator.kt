@@ -135,11 +135,12 @@ internal class ProductionBackendForecastSources(
 class BackendForecastOrchestrator internal constructor(
     private val sources: BackendForecastSources,
     private val cache: SingleFlightForecastGatewayCache<BackendForecastResult.Available>,
+    private val clock: Clock = Clock.systemUTC(),
     private val sourceOrchestrator: ForecastSourceOrchestrator = ForecastSourceOrchestrator(),
 ) {
     suspend fun forecast(
         target: ForecastTarget,
-        requestedAt: Instant = Instant.now(),
+        requestedAt: Instant = clock.instant(),
     ): BackendForecastResult {
         val key = ForecastGatewayCacheKey.from(
             target = target,
@@ -357,6 +358,7 @@ class BackendForecastOrchestrator internal constructor(
                     maxEntries = cacheEntries,
                     clock = clock,
                 ),
+                clock = clock,
             )
     }
 }
