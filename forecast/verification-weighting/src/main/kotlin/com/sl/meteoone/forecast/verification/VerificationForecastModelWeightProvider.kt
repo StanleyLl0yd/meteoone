@@ -1,4 +1,4 @@
-package com.sl.meteoone.forecast.data.execution
+package com.sl.meteoone.forecast.verification
 
 import com.sl.meteoone.forecast.domain.ForecastModelWeightDecision
 import com.sl.meteoone.forecast.domain.ForecastModelWeightProvider
@@ -24,7 +24,7 @@ fun interface VerificationWeightSampleSource {
     fun samples(request: VerificationWeightRequest): Collection<VerificationSample>
 }
 
-internal class VerificationForecastModelWeightProvider(
+class VerificationForecastModelWeightProvider(
     private val sampleSource: VerificationWeightSampleSource,
     private val policy: VerificationWeightPolicy = VerificationWeightPolicy(),
 ) : ForecastModelWeightProvider {

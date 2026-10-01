@@ -1,4 +1,4 @@
-package com.sl.meteoone.forecast.data.execution
+package com.sl.meteoone.forecast.verification
 
 import com.sl.meteoone.core.model.ForecastCoordinate
 import com.sl.meteoone.core.model.ForecastProvider
