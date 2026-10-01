@@ -37,6 +37,7 @@ dependencies {
     implementation(project(":forecast:domain"))
     implementation(project(":forecast:openmeteo"))
     implementation(project(":forecast:official"))
+    implementation(project(":forecast:verification-weighting"))
     api(project(":verification:domain"))
     implementation(project(":core:network"))
 
