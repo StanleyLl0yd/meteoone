@@ -6,6 +6,7 @@ import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.FusedForecast
 import com.sl.meteoone.core.model.ModelFamily
 import com.sl.meteoone.core.model.SourceForecast
+import com.sl.meteoone.forecast.data.backend.BackendForecastEndpoint
 import kotlinx.coroutines.flow.Flow
 
 interface ForecastRepository {
