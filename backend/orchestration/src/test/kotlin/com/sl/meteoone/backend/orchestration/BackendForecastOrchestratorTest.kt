@@ -3,6 +3,7 @@ package com.sl.meteoone.backend.orchestration
 import com.sl.meteoone.backend.gateway.SingleFlightForecastGatewayCache
 import com.sl.meteoone.backend.provideradapter.ServerForecastAdapterFailureReason
 import com.sl.meteoone.backend.provideradapter.ServerForecastAdapterResult
+import com.sl.meteoone.backend.verification.ServerVerificationSampleProvider
 import com.sl.meteoone.core.model.ForecastCoordinate
 import com.sl.meteoone.core.model.ForecastLocation
 import com.sl.meteoone.core.model.ForecastOrigin
@@ -187,6 +188,47 @@ class BackendForecastOrchestratorTest {
     }
 
     @Test
+    fun verificationEvidenceIsPreparedOnlyForAnUncachedLoad() = runBlocking {
+        val sources = FakeSources(successfulOutcomes())
+        var preparationCalls = 0
+        val verification = ServerVerificationSampleProvider { preparedTarget, evaluatedAt ->
+            preparationCalls += 1
+            assertEquals(target, preparedTarget)
+            assertEquals(requestedAt, evaluatedAt)
+            emptyList()
+        }
+        val orchestrator = orchestrator(
+            sources = sources,
+            verificationSamples = verification,
+        )
+
+        assertIs<BackendForecastResult.Available>(
+            orchestrator.forecast(target, requestedAt),
+        )
+        assertIs<BackendForecastResult.Available>(
+            orchestrator.forecast(target, requestedAt),
+        )
+
+        assertEquals(1, preparationCalls)
+    }
+
+    @Test
+    fun verificationCancellationPropagatesBeforeProviderExecution() = runBlocking {
+        val sources = FakeSources(successfulOutcomes())
+        val verification = ServerVerificationSampleProvider { _, _ ->
+            throw CancellationException("verification cancelled")
+        }
+
+        assertFailsWith<CancellationException> {
+            orchestrator(
+                sources = sources,
+                verificationSamples = verification,
+            ).forecast(target, requestedAt)
+        }
+        assertTrue(sources.attempts.isEmpty())
+    }
+
+    @Test
     fun coroutineCancellationPropagatesInsteadOfBecomingProviderFailure() = runBlocking {
         val sources = FakeSources(successfulOutcomes()).apply {
             throwCancellation = true
@@ -198,7 +240,11 @@ class BackendForecastOrchestratorTest {
         Unit
     }
 
-    private fun orchestrator(sources: BackendForecastSources): BackendForecastOrchestrator =
+    private fun orchestrator(
+        sources: BackendForecastSources,
+        verificationSamples: ServerVerificationSampleProvider =
+            ServerVerificationSampleProvider.NONE,
+    ): BackendForecastOrchestrator =
         BackendForecastOrchestrator(
             sources = sources,
             cache = SingleFlightForecastGatewayCache(
@@ -207,6 +253,7 @@ class BackendForecastOrchestratorTest {
                 clock = Clock.fixed(requestedAt, ZoneOffset.UTC),
             ),
             clock = Clock.fixed(requestedAt, ZoneOffset.UTC),
+            verificationSamples = verificationSamples,
         )
 
     private fun successfulOutcomes(
