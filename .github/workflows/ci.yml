@@ -111,6 +111,7 @@ jobs:
           :forecast:domain:test
           :forecast:openmeteo:test
           :forecast:official:test
+          :forecast:verification-weighting:test
           :forecast:data:testDebugUnitTest
           :forecast:data:lintDebug
           :forecast:data:assembleDebug
