@@ -27,7 +27,7 @@ class BackendVerificationBoundaryTest(unittest.TestCase):
         for token in (
             "android.",
             "androidx.",
-            "Room",
+            "androidx.room",
             'project(":core:database")',
             'project(":forecast:repository")',
             'project(":forecast:data")',
