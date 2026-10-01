@@ -29,8 +29,6 @@ dependencies {
     api(libs.kotlinx.coroutines.core)
 
     implementation(project(":core:database"))
-    implementation(project(":core:network"))
-    implementation(project(":backend:contract"))
     implementation(project(":forecast:data"))
     implementation(project(":forecast:verification-weighting"))
     implementation(project(":verification:domain"))
