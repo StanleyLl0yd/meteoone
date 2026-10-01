@@ -30,6 +30,7 @@ dependencies {
 
     implementation(project(":core:database"))
     implementation(project(":forecast:data"))
+    implementation(project(":forecast:verification-weighting"))
     implementation(project(":verification:domain"))
     implementation(project(":verification:data"))
 
