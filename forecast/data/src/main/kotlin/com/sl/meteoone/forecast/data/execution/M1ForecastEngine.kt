@@ -33,6 +33,8 @@ import com.sl.meteoone.forecast.domain.ForecastOrchestrationResult
 import com.sl.meteoone.forecast.domain.ForecastSourceIdentity
 import com.sl.meteoone.forecast.domain.ForecastSourceOrchestrator
 import com.sl.meteoone.forecast.domain.ForecastSourceResult
+import com.sl.meteoone.forecast.verification.VerificationForecastModelWeightProvider
+import com.sl.meteoone.forecast.verification.VerificationWeightSampleSource
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
