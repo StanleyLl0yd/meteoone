@@ -10,7 +10,7 @@ import com.sl.meteoone.core.model.ForecastCoordinate
 import com.sl.meteoone.core.model.ModelFamily
 import com.sl.meteoone.forecast.data.execution.ExactRunAcquisitionResult
 import com.sl.meteoone.forecast.data.execution.ExactRunForecastAcquirer
-import com.sl.meteoone.forecast.data.execution.VerificationWeightSampleSource
+import com.sl.meteoone.forecast.verification.VerificationWeightSampleSource
 import com.sl.meteoone.verification.data.ghcnh.GHCNH_SOURCE_ID
 import com.sl.meteoone.verification.data.ghcnh.GhcnhObservationSource
 import com.sl.meteoone.verification.data.ghcnh.GhcnhObservationsResult
