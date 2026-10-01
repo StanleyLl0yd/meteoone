@@ -7,6 +7,8 @@ import com.sl.meteoone.core.database.StoredForecastSourceIdentity
 import com.sl.meteoone.core.model.ForecastCoordinate
 import com.sl.meteoone.core.model.FusedForecast
 import com.sl.meteoone.core.model.SourceForecast
+import com.sl.meteoone.forecast.data.backend.BackendForecastClient
+import com.sl.meteoone.forecast.data.backend.BackendForecastEndpoint
 import com.sl.meteoone.forecast.data.execution.M1ForecastEngine
 import com.sl.meteoone.forecast.data.execution.M1ForecastEngineResult
 import java.time.Clock
@@ -91,26 +93,51 @@ internal class M1ForecastRefreshSource(
         elevationMeters: Int?,
         timeZoneId: String,
         generatedAt: Instant,
-    ): ForecastRefreshSourceResult = when (
-        val result = engine.forecast(
+    ): ForecastRefreshSourceResult =
+        engine.forecast(
             coordinate = coordinate,
             elevationMeters = elevationMeters,
             timeZoneId = timeZoneId,
             generatedAt = generatedAt,
-        )
-    ) {
+        ).toRefreshSourceResult()
+}
+
+internal class BackendForecastRefreshSource(
+    private val client: BackendForecastClient,
+) : ForecastRefreshSource {
+    override suspend fun forecast(
+        coordinate: ForecastCoordinate,
+        elevationMeters: Int?,
+        timeZoneId: String,
+        generatedAt: Instant,
+    ): ForecastRefreshSourceResult =
+        client.forecast(
+            coordinate = coordinate,
+            elevationMeters = elevationMeters,
+            timeZoneId = timeZoneId,
+        ).toRefreshSourceResult()
+
+    companion object {
+        fun production(endpoint: BackendForecastEndpoint): BackendForecastRefreshSource =
+            BackendForecastRefreshSource(
+                client = BackendForecastClient.production(endpoint),
+            )
+    }
+}
+
+private fun M1ForecastEngineResult.toRefreshSourceResult(): ForecastRefreshSourceResult =
+    when (this) {
         is M1ForecastEngineResult.Available -> ForecastRefreshSourceResult.Available(
-            forecast = result.forecast,
-            sourceForecasts = result.sourceForecasts,
-            failedSources = result.failedSources.map { identity ->
+            forecast = forecast,
+            sourceForecasts = sourceForecasts,
+            failedSources = failedSources.map { identity ->
                 ForecastSourceIdentity(identity.provider, identity.modelFamily)
             },
-            degraded = result.failedSources.isNotEmpty(),
+            degraded = failedSources.isNotEmpty(),
         )
 
         is M1ForecastEngineResult.Unavailable -> ForecastRefreshSourceResult.Unavailable
     }
-}
 
 internal class ForecastFreshnessPolicy(
     private val freshFor: Duration = DEFAULT_FRESH_DURATION,
