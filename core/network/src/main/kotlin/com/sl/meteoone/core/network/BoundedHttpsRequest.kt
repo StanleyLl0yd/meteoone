@@ -4,14 +4,23 @@ import java.net.URI
 import java.util.Locale
 
 private const val MAX_NETWORK_RESPONSE_BYTES = 32L * 1024L * 1024L
+private const val MAX_NETWORK_REQUEST_BYTES = 64L * 1024L
 private val HTTP_HEADER_NAME = Regex("^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
+
+enum class BoundedHttpsMethod {
+    GET,
+    POST,
+}
 
 class BoundedHttpsRequest(
     val uri: URI,
     val maxResponseBytes: Long,
     headers: Map<String, String> = emptyMap(),
+    val method: BoundedHttpsMethod = BoundedHttpsMethod.GET,
+    body: ByteArray? = null,
 ) {
     val headers: Map<String, String> = LinkedHashMap(headers)
+    val body: ByteArray? = body?.copyOf()
 
     init {
         require(uri.isAbsolute) { "Network request URI must be absolute" }
@@ -26,6 +35,20 @@ class BoundedHttpsRequest(
         require(uri.fragment == null) { "Network requests must not contain fragments" }
         require(maxResponseBytes in 1..MAX_NETWORK_RESPONSE_BYTES) {
             "Network response byte limit is out of bounds"
+        }
+        when (method) {
+            BoundedHttpsMethod.GET -> require(this.body == null) {
+                "GET network request must not contain a body"
+            }
+
+            BoundedHttpsMethod.POST -> {
+                require(this.body != null) {
+                    "POST network request body is required"
+                }
+                require(this.body.size.toLong() <= MAX_NETWORK_REQUEST_BYTES) {
+                    "Network request body is too large"
+                }
+            }
         }
 
         val normalizedNames = HashSet<String>()
