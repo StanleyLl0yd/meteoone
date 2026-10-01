@@ -6,6 +6,8 @@ import com.sl.meteoone.backend.provideradapter.DirectOfficialServerForecastAdapt
 import com.sl.meteoone.backend.provideradapter.OpenMeteoServerForecastAdapter
 import com.sl.meteoone.backend.provideradapter.ServerForecastAdapterFailureReason
 import com.sl.meteoone.backend.provideradapter.ServerForecastAdapterResult
+import com.sl.meteoone.backend.verification.ServerVerificationSampleProvider
+import com.sl.meteoone.backend.verification.productionServerVerificationSampleProvider
 import com.sl.meteoone.core.model.ForecastCoordinate
 import com.sl.meteoone.core.model.ForecastLocation
 import com.sl.meteoone.core.model.ForecastProvider
@@ -14,11 +16,14 @@ import com.sl.meteoone.core.model.ModelFamily
 import com.sl.meteoone.core.model.SourceForecast
 import com.sl.meteoone.forecast.domain.FORECAST_HORIZON_HOURS
 import com.sl.meteoone.forecast.domain.FORECAST_HOURLY_CADENCE
+import com.sl.meteoone.forecast.domain.ForecastFusionEngine
 import com.sl.meteoone.forecast.domain.ForecastOfficialRunPolicy
 import com.sl.meteoone.forecast.domain.ForecastOrchestrationResult
 import com.sl.meteoone.forecast.domain.ForecastSourceIdentity
 import com.sl.meteoone.forecast.domain.ForecastSourceOrchestrator
 import com.sl.meteoone.forecast.domain.ForecastSourceResult
+import com.sl.meteoone.forecast.verification.VerificationForecastModelWeightProvider
+import com.sl.meteoone.forecast.verification.VerificationWeightSampleSource
 import java.nio.file.Path
 import java.time.Clock
 import java.time.Duration
@@ -136,7 +141,8 @@ class BackendForecastOrchestrator internal constructor(
     private val sources: BackendForecastSources,
     private val cache: SingleFlightForecastGatewayCache<BackendForecastResult.Available>,
     private val clock: Clock = Clock.systemUTC(),
-    private val sourceOrchestrator: ForecastSourceOrchestrator = ForecastSourceOrchestrator(),
+    private val verificationSamples: ServerVerificationSampleProvider =
+        ServerVerificationSampleProvider.NONE,
 ) {
     suspend fun forecast(
         target: ForecastTarget,
@@ -177,6 +183,28 @@ class BackendForecastOrchestrator internal constructor(
         val ecmwfForecastHour = ForecastOfficialRunPolicy.ecmwfForecastHour(
             modelRun = modelRun,
             generatedAt = generatedAt,
+        )
+
+        val preparedVerificationSamples = try {
+            verificationSamples.prepareSamples(
+                target = target,
+                evaluatedAt = generatedAt,
+            )
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            emptyList()
+        } catch (_: LinkageError) {
+            emptyList()
+        }
+        val sourceOrchestrator = ForecastSourceOrchestrator(
+            fusionEngine = ForecastFusionEngine(
+                weightProvider = VerificationForecastModelWeightProvider(
+                    sampleSource = VerificationWeightSampleSource {
+                        preparedVerificationSamples
+                    },
+                ),
+            ),
         )
 
         val attempts = listOf(
@@ -359,6 +387,7 @@ class BackendForecastOrchestrator internal constructor(
                     clock = clock,
                 ),
                 clock = clock,
+                verificationSamples = productionServerVerificationSampleProvider(),
             )
     }
 }
