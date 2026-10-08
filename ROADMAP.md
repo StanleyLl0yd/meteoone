@@ -68,16 +68,19 @@ Exit: feature-complete pre-beta Android app.
 
 Exit: fusion weights are measurable rather than purely heuristic.
 
-## M5 — MeteoOne backend
+## M5 - Cancelled: proprietary backend
 
-- central provider gateway and cache;
-- key isolation;
-- deduplication and rate limiting;
-- provider health;
-- central orchestration of the direct official-source and fallback provider paths established earlier;
-- server-side verification pipeline.
+M5 server infrastructure is cancelled by product decision. No MeteoOne server, API endpoint,
+server-native decoder, server-side verification, or provider credential infrastructure is required.
+The Android app remains the entire product. The historical M5 branches and issues are not
+supported runtime components.
 
-Exit: public clients no longer depend on embedding provider secrets.
+Production continues the completed M1-M4 path: direct HTTPS weather/observation sources,
+on-device ecCodes/JNI decoding and model fusion, local guarded verification weights,
+and Room/DataStore offline-first storage. See
+[Android-only architecture decision](docs/architecture/ANDROID_ONLY_DECISION.md).
+
+Cancelling M5 does not start M6.
 
 ## M6 — Beta hardening
 
