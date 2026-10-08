@@ -7,7 +7,6 @@ import okhttp3.Call
 import okhttp3.CookieJar
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 
 class DefaultBoundedHttpsTransport : BoundedHttpsTransport {
     private val callFactory: Call.Factory
@@ -21,12 +20,8 @@ class DefaultBoundedHttpsTransport : BoundedHttpsTransport {
     override fun newCall(request: BoundedHttpsRequest): BoundedHttpsCall {
         val builder = Request.Builder()
             .url(request.uri.toASCIIString())
+            .get()
             .header("Accept-Encoding", "identity")
-
-        when (request.method) {
-            BoundedHttpsMethod.GET -> builder.get()
-            BoundedHttpsMethod.POST -> builder.post(requireNotNull(request.body).toRequestBody())
-        }
 
         request.headers.forEach { (name, value) ->
             builder.header(name, value)

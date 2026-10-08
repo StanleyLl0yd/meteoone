@@ -7,8 +7,6 @@ import com.sl.meteoone.core.database.StoredForecastSourceIdentity
 import com.sl.meteoone.core.model.ForecastCoordinate
 import com.sl.meteoone.core.model.FusedForecast
 import com.sl.meteoone.core.model.SourceForecast
-import com.sl.meteoone.forecast.data.backend.BackendForecastClient
-import com.sl.meteoone.forecast.data.backend.BackendForecastEndpoint
 import com.sl.meteoone.forecast.data.execution.M1ForecastEngine
 import com.sl.meteoone.forecast.data.execution.M1ForecastEngineResult
 import java.time.Clock
@@ -32,85 +30,24 @@ import kotlinx.coroutines.withContext
 
 private val DEFAULT_FRESH_DURATION: Duration = Duration.ofHours(3)
 
-
-internal fun getAndroidForecastRepository(
-    context: Context,
-    backendForecastUrl: String?,
-): ForecastRepository =
-    AndroidForecastRepositoryHolder.get(
-        context = context.applicationContext,
-        backendForecastUrl = backendForecastUrl,
-    )
-
-private object AndroidForecastRepositoryHolder {
-    @Volatile
-    private var instance: ForecastRepository? = null
-
-    @Volatile
-    private var configurationKey: String? = null
-
-    fun get(
-        context: Context,
-        backendForecastUrl: String?,
-    ): ForecastRepository {
-        val endpoint = backendForecastUrl
-            ?.takeIf(String::isNotBlank)
-            ?.let(BackendForecastEndpoint::parse)
-        val key = endpoint?.uri?.toASCIIString() ?: "legacy-direct"
-
-        instance?.let { existing ->
-            check(configurationKey == key) {
-                "Forecast repository is already initialized with a different refresh boundary"
-            }
-            return existing
-        }
-
-        return synchronized(this) {
-            instance?.also {
-                check(configurationKey == key) {
-                    "Forecast repository is already initialized with a different refresh boundary"
-                }
-            } ?: createAndroidForecastRepository(
-                context = context,
-                backendEndpoint = endpoint,
-            ).also { repository ->
-                configurationKey = key
-                instance = repository
-            }
-        }
-    }
-}
-
-internal fun createAndroidForecastRepository(
-    context: Context,
-    backendEndpoint: BackendForecastEndpoint? = null,
-): ForecastRepository {
+internal fun createAndroidForecastRepository(context: Context): ForecastRepository {
     val appContext = context.applicationContext
-    val refreshSource = if (backendEndpoint != null) {
-        BackendForecastRefreshSource.production(backendEndpoint)
-    } else {
-        createLegacyDirectRefreshSource(appContext)
-    }
-    return DefaultForecastRepository(
-        store = ForecastSnapshotDatabase.open(appContext),
-        refreshSource = refreshSource,
-    )
-}
-
-private fun createLegacyDirectRefreshSource(context: Context): ForecastRefreshSource {
     val sampleSource = RefreshScopedVerificationWeightSampleSource()
     val weightedEngine = M1ForecastEngine.android(
-        context = context,
+        context = appContext,
         verificationSamples = sampleSource,
     )
     val coordinator = productionM4VerificationEvidenceCoordinator(
-        historyStore = ForecastSnapshotDatabase.openVerificationHistory(context),
-        observationStore = ForecastSnapshotDatabase.openVerificationObservations(context),
+        historyStore = ForecastSnapshotDatabase.openVerificationHistory(appContext),
+        observationStore = ForecastSnapshotDatabase.openVerificationObservations(appContext),
     )
-    return M4ForecastRefreshSource(
-        coordinator = coordinator,
-        sampleSource = sampleSource,
-        delegate = M1ForecastRefreshSource(weightedEngine),
+    return DefaultForecastRepository(
+        store = ForecastSnapshotDatabase.open(appContext),
+        refreshSource = M4ForecastRefreshSource(
+            coordinator = coordinator,
+            sampleSource = sampleSource,
+            delegate = M1ForecastRefreshSource(weightedEngine),
+        ),
     )
 }
 
@@ -142,51 +79,26 @@ internal class M1ForecastRefreshSource(
         elevationMeters: Int?,
         timeZoneId: String,
         generatedAt: Instant,
-    ): ForecastRefreshSourceResult =
-        engine.forecast(
+    ): ForecastRefreshSourceResult = when (
+        val result = engine.forecast(
             coordinate = coordinate,
             elevationMeters = elevationMeters,
             timeZoneId = timeZoneId,
             generatedAt = generatedAt,
-        ).toRefreshSourceResult()
-}
-
-internal class BackendForecastRefreshSource(
-    private val client: BackendForecastClient,
-) : ForecastRefreshSource {
-    override suspend fun forecast(
-        coordinate: ForecastCoordinate,
-        elevationMeters: Int?,
-        timeZoneId: String,
-        generatedAt: Instant,
-    ): ForecastRefreshSourceResult =
-        client.forecast(
-            coordinate = coordinate,
-            elevationMeters = elevationMeters,
-            timeZoneId = timeZoneId,
-        ).toRefreshSourceResult()
-
-    companion object {
-        fun production(endpoint: BackendForecastEndpoint): BackendForecastRefreshSource =
-            BackendForecastRefreshSource(
-                client = BackendForecastClient.production(endpoint),
-            )
-    }
-}
-
-private fun M1ForecastEngineResult.toRefreshSourceResult(): ForecastRefreshSourceResult =
-    when (this) {
+        )
+    ) {
         is M1ForecastEngineResult.Available -> ForecastRefreshSourceResult.Available(
-            forecast = forecast,
-            sourceForecasts = sourceForecasts,
-            failedSources = failedSources.map { identity ->
+            forecast = result.forecast,
+            sourceForecasts = result.sourceForecasts,
+            failedSources = result.failedSources.map { identity ->
                 ForecastSourceIdentity(identity.provider, identity.modelFamily)
             },
-            degraded = failedSources.isNotEmpty(),
+            degraded = result.failedSources.isNotEmpty(),
         )
 
         is M1ForecastEngineResult.Unavailable -> ForecastRefreshSourceResult.Unavailable
     }
+}
 
 internal class ForecastFreshnessPolicy(
     private val freshFor: Duration = DEFAULT_FRESH_DURATION,
