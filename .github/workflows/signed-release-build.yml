@@ -235,6 +235,8 @@ jobs:
       - name: Build signed APK and AAB
         env:
           REQUIRE_RELEASE_SIGNING: "true"
+          # Public test-backend HTTPS endpoint, never a provider credential.
+          METEOONE_BACKEND_FORECAST_URL: ${{ vars.METEOONE_BACKEND_FORECAST_URL }}
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/meteoone-release.jks
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
