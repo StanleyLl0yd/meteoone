@@ -6,7 +6,6 @@ import com.sl.meteoone.backend.provider.ProviderGatewayFailureReason
 import com.sl.meteoone.backend.provider.ProviderGatewayRequest
 import com.sl.meteoone.backend.provider.ProviderGatewayResponse
 import com.sl.meteoone.backend.provider.ProviderGatewayResult
-import com.sl.meteoone.backend.provider.ProviderResponseValidator
 import com.sl.meteoone.backend.provider.ServerProviderGateway
 import com.sl.meteoone.backend.servernative.ServerEcCodesRuntime
 import com.sl.meteoone.core.model.ForecastCoordinate
@@ -25,7 +24,6 @@ import com.sl.meteoone.forecast.data.ecmwf.EcmwfIfsRequestPlanner
 import com.sl.meteoone.forecast.data.ecmwf.EcmwfSurfaceField
 import com.sl.meteoone.forecast.data.grib.DwdIconGridGeometry
 import com.sl.meteoone.forecast.data.grib.DwdIconGridGeometryDecoder
-import com.sl.meteoone.forecast.data.grib.DwdIconGridGeometryProvider
 import com.sl.meteoone.forecast.data.grib.EcCodesGribFieldDecoder
 import com.sl.meteoone.forecast.data.grib.EcCodesNativeSession
 import com.sl.meteoone.forecast.data.grib.GribDecodeRequest
@@ -53,7 +51,7 @@ class DirectOfficialServerForecastAdapters internal constructor(
 ) {
     private val decoderWithoutDwdGeometry = EcCodesGribFieldDecoder(
         nativeSession = nativeSession,
-        dwdGeometryProvider = DwdIconGridGeometryProvider {
+        dwdGeometryProvider = {
             error("DWD geometry must be supplied explicitly")
         },
     )
@@ -81,7 +79,7 @@ class DirectOfficialServerForecastAdapters internal constructor(
                 provider = plan.provider,
                 modelFamily = plan.modelFamily,
             ),
-            responseValidator = ProviderResponseValidator { response ->
+            responseValidator = { response ->
                 if (!response.matches(plan.provider, plan.modelFamily, 200)) {
                     false
                 } else {
@@ -125,7 +123,7 @@ class DirectOfficialServerForecastAdapters internal constructor(
                 provider = plan.provider,
                 modelFamily = plan.modelFamily,
             ),
-            responseValidator = ProviderResponseValidator { response ->
+            responseValidator = { response ->
                 if (!response.matches(plan.provider, plan.modelFamily, 200)) {
                     false
                 } else {
@@ -165,7 +163,7 @@ class DirectOfficialServerForecastAdapters internal constructor(
                     length = selected.range.length,
                 ),
             ),
-            responseValidator = ProviderResponseValidator { response ->
+            responseValidator = { response ->
                 if (!response.matches(selected.provider, selected.modelFamily, 206)) {
                     false
                 } else {
@@ -215,7 +213,7 @@ class DirectOfficialServerForecastAdapters internal constructor(
         )
         val decoder = EcCodesGribFieldDecoder(
             nativeSession = nativeSession,
-            dwdGeometryProvider = DwdIconGridGeometryProvider { requestedPlan ->
+            dwdGeometryProvider = { requestedPlan ->
                 require(requestedPlan.modelRun == geometry.modelRun) {
                     "DWD field requested geometry from another model run"
                 }
@@ -229,7 +227,7 @@ class DirectOfficialServerForecastAdapters internal constructor(
                 provider = plan.provider,
                 modelFamily = plan.modelFamily,
             ),
-            responseValidator = ProviderResponseValidator { response ->
+            responseValidator = { response ->
                 if (!response.matches(plan.provider, plan.modelFamily, 200)) {
                     false
                 } else {
@@ -266,7 +264,7 @@ class DirectOfficialServerForecastAdapters internal constructor(
                 provider = ForecastProvider.DWD_OPEN_DATA,
                 modelFamily = ModelFamily.DWD_ICON,
             ),
-            responseValidator = ProviderResponseValidator { response ->
+            responseValidator = { response ->
                 if (!response.matches(ForecastProvider.DWD_OPEN_DATA, ModelFamily.DWD_ICON, 200)) {
                     false
                 } else {
@@ -290,7 +288,7 @@ class DirectOfficialServerForecastAdapters internal constructor(
                 provider = ForecastProvider.DWD_OPEN_DATA,
                 modelFamily = ModelFamily.DWD_ICON,
             ),
-            responseValidator = ProviderResponseValidator { response ->
+            responseValidator = { response ->
                 if (!response.matches(ForecastProvider.DWD_OPEN_DATA, ModelFamily.DWD_ICON, 200)) {
                     false
                 } else {

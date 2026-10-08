@@ -3,7 +3,6 @@ package com.sl.meteoone.backend.verification
 import com.sl.meteoone.backend.provider.ProviderGateway
 import com.sl.meteoone.backend.provider.ProviderGatewayRequest
 import com.sl.meteoone.backend.provider.ProviderGatewayResult
-import com.sl.meteoone.backend.provider.ProviderResponseValidator
 import com.sl.meteoone.backend.provider.ServerProviderGateway
 import com.sl.meteoone.core.model.ForecastCoordinate
 import com.sl.meteoone.core.model.ForecastLocation
@@ -124,7 +123,7 @@ internal class GatewayServerExactRunSource(
                         minimumRequestSpacing =
                             OPEN_METEO_SINGLE_RUN_MINIMUM_REQUEST_SPACING,
                     ),
-                    responseValidator = ProviderResponseValidator { response ->
+                    responseValidator = { response ->
                         try {
                             mapped = mapper.map(
                                 request = plan,
@@ -300,7 +299,7 @@ fun productionServerVerificationSampleProvider(
     return ServerVerificationCoordinator(
         store = store,
         exactRunSource = GatewayServerExactRunSource(gateway),
-        stationCandidateSource = ServerStationCandidateSource { coordinate, elevation ->
+        stationCandidateSource = { coordinate, elevation ->
             withContext(ioDispatcher) {
                 stationCandidates.candidates(
                     target = coordinate,

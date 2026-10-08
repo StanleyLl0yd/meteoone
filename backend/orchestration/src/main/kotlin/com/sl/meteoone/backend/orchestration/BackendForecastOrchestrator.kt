@@ -23,7 +23,6 @@ import com.sl.meteoone.forecast.domain.ForecastSourceIdentity
 import com.sl.meteoone.forecast.domain.ForecastSourceOrchestrator
 import com.sl.meteoone.forecast.domain.ForecastSourceResult
 import com.sl.meteoone.forecast.verification.VerificationForecastModelWeightProvider
-import com.sl.meteoone.forecast.verification.VerificationWeightSampleSource
 import java.nio.file.Path
 import java.time.Clock
 import java.time.Duration
@@ -200,7 +199,7 @@ class BackendForecastOrchestrator internal constructor(
         val sourceOrchestrator = ForecastSourceOrchestrator(
             fusionEngine = ForecastFusionEngine(
                 weightProvider = VerificationForecastModelWeightProvider(
-                    sampleSource = VerificationWeightSampleSource {
+                    sampleSource = {
                         preparedVerificationSamples
                     },
                 ),
