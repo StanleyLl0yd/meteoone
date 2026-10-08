@@ -75,13 +75,20 @@ jobs:
       - name: Prepare Gradle dependencies
         run: ./gradlew :app:dependencies --no-daemon --stacktrace
 
+      - name: Prepare self-contained JDK for Qodana container
+        run: |
+          # The hosted Temurin cacerts may be an absolute symlink outside JAVA_HOME.
+          # Resolve links before mounting so the container keeps Java TLS trust.
+          cp -aL "$JAVA_HOME" "$RUNNER_TEMP/qodana-jdk17"
+          test -r "$RUNNER_TEMP/qodana-jdk17/lib/security/cacerts"
+
       - name: Run Qodana
         uses: JetBrains/qodana-action@10be11607eb323a180e2b76b26c9c5cdceac3e77 # v2026.2.1
         with:
           args: >-
             --image jetbrains/qodana-jvm-community@sha256:3db2bdb1d846ddeca9f600a6737bc82b3993067e07e572ba7bf791d9fe41a9bf
             --within-docker true
-            --volume ${{ env.JAVA_HOME }}:/opt/meteoone-jdk17:ro
+            --volume ${{ runner.temp }}/qodana-jdk17:/opt/meteoone-jdk17:ro
             --env JAVA_HOME=/opt/meteoone-jdk17
             --print-problems
           upload-result: true
