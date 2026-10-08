@@ -1,0 +1,4 @@
+# Exact historical false-positive: the synthetic endpoint-with-port rejection case
+# in an Android backend client test. This fingerprint is commit/path/rule/line
+# scoped. Do not add rule-wide or generic-api-key suppressions.
+21b79f2ddc741d77140a7a82fcf51d54b2f1957f:forecast/repository/src/test/kotlin/com/sl/meteoone/forecast/repository/BackendForecastRefreshSourceTest.kt:generic-api-key:48
