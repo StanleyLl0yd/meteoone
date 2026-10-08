@@ -37,9 +37,9 @@ Android application ID:
 
 Current repository phase:
 
-`M1-M4 complete; M5 in progress`
+`M1-M4 complete; M5 proprietary backend cancelled; M6 not started`
 
-Current product sequence is defined by `ROADMAP.md`.
+Current product sequence is defined by `ROADMAP.md`. The accepted Android-only decision is in `docs/adr/0003-android-only-no-backend.md`.
 
 Do not implement later roadmap milestones merely because the architecture could support them.
 
@@ -53,6 +53,7 @@ Preserve these unless the owner explicitly changes them:
 - Forecast fusion must remain robust and explainable before any ML-based approach is introduced.
 - Numeric confidence must not be presented as calibrated probability until real verification data supports calibration.
 - Exact device location is sensitive transient data and must not be persisted.
+- The product is fully Android-only: forecasts, verification and fusion run on-device. Never introduce a proprietary MeteoOne backend or required server URL.
 - The product is offline-first.
 - A usable cached forecast should be available immediately when possible, with refresh performed separately.
 - Partial provider failure must degrade gracefully.
@@ -203,14 +204,11 @@ The current implemented module set is:
 :forecast:domain
 :forecast:openmeteo
 :forecast:official
+:forecast:verification-weighting
 :forecast:data
 :forecast:repository
 :verification:domain
 :verification:data
-:backend:gateway
-:backend:contract
-:backend:provider-gateway
-:backend:provider-adapters
 ```
 
 Create additional design-system or feature modules only when a concrete dependency boundary justifies them. Do not create empty modules, speculative interfaces, repositories, use cases, or service abstractions solely for hypothetical future features.
