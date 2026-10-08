@@ -112,7 +112,7 @@ class SignedReleaseWorkflowPolicyTest(unittest.TestCase):
 
     def test_release_requires_all_exact_main_security_gates(self) -> None:
         self.assertIn(
-            'required_workflows=("CI" "Security and Quality" "Secret Scan")',
+            'required_workflows=("CI" "Security and Quality" "Secret Scan" "CodeQL")',
             self.text,
         )
         self.assertIn('select(.name == $name and .event == "push" and .head_branch == "main")', self.text)

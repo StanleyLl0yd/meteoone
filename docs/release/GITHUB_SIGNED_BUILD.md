@@ -63,7 +63,7 @@ Before signing, the workflow:
 3. verifies CI supply-chain and release-secret policies;
 4. validates application id, `versionName`, positive `versionCode`, and matching `docs/release/<version>.md` release notes;
 5. rejects an already existing `v<version>` tag or GitHub Release;
-6. waits for successful `CI`, `Security and Quality`, and `Secret Scan` push runs on that exact main SHA. CodeQL remains compatibility-gated until a real compiled Kotlin probe succeeds with the current toolchain.
+6. waits for successful `CI`, `Security and Quality`, `Secret Scan`, and compiled `CodeQL` push runs on that exact main SHA.
 
 The signing job then:
 

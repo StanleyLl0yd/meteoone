@@ -88,7 +88,7 @@ jobs:
         run: |
           set -euo pipefail
           release_sha="$(git rev-parse HEAD)"
-          required_workflows=("CI" "Security and Quality" "Secret Scan")
+          required_workflows=("CI" "Security and Quality" "Secret Scan" "CodeQL")
 
           for attempt in $(seq 1 40); do
             runs="$(gh api "/repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$release_sha&per_page=100")"
