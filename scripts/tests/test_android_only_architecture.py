@@ -20,6 +20,9 @@ class AndroidOnlyArchitecturePolicyTest(unittest.TestCase):
         self.assertNotIn('include(":backend:', settings)
         self.assertNotIn(":backend:", ci)
         self.assertNotIn("project(\":backend:", data)
+        dependency_catalog = (ROOT / "gradle/libs.versions.toml").read_text(encoding="utf-8")
+        self.assertNotIn("ktor-server-", dependency_catalog)
+        self.assertNotIn("io.ktor:", dependency_catalog)
         for module in (":forecast:data:testDebugUnitTest", ":forecast:repository:testDebugUnitTest",
                        ":verification:domain:test", ":verification:data:test",
                        ":app:assembleDebug", ":app:bundleRelease"):
