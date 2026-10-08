@@ -60,6 +60,16 @@ class SignedReleaseWorkflowPolicyTest(unittest.TestCase):
             2,
         )
 
+    def test_signed_build_receives_only_public_backend_endpoint_variable(self) -> None:
+        build_step = self.text.split("      - name: Build signed APK and AAB", 1)[1]
+        build_step = build_step.split("      - name: Verify and stage APK and AAB", 1)[0]
+        self.assertIn(
+            "METEOONE_BACKEND_FORECAST_URL: ${{ vars.METEOONE_BACKEND_FORECAST_URL }}",
+            build_step,
+        )
+        self.assertNotIn("secrets.METEOONE_BACKEND_FORECAST_URL", self.text)
+        self.assertNotIn("METEOONE_BACKEND_API_KEY", self.text)
+
     def test_builds_apk_and_aab_in_one_release_run(self) -> None:
         self.assertIn(":app:assembleRelease", self.text)
         self.assertIn(":app:bundleRelease", self.text)
