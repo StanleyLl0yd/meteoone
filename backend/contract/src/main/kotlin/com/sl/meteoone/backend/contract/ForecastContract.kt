@@ -9,10 +9,8 @@ import com.sl.meteoone.core.model.ForecastTarget
 import com.sl.meteoone.core.model.FusedForecast
 import com.sl.meteoone.core.model.FusedHourlyForecast
 import com.sl.meteoone.core.model.HourlyWeatherPoint
-import com.sl.meteoone.core.model.ModelAgreement
 import com.sl.meteoone.core.model.ModelFamily
 import com.sl.meteoone.core.model.SourceForecast
-import com.sl.meteoone.core.model.WeatherCondition
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.format.DateTimeParseException
