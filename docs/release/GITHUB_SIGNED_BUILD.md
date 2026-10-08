@@ -17,6 +17,29 @@ The canonical workflow is `.github/workflows/signed-release-build.yml` (`Signed 
 
 There is intentionally no separate APK release chain: APK and AAB must always come from the same release run.
 
+## M5 test backend selection
+
+The signed-release build passes the non-secret GitHub Actions **repository variable**
+`METEOONE_BACKEND_FORECAST_URL` to Gradle. Configure it in repository Actions
+variables to the externally reachable `https://<test-host>/v1/forecast` endpoint
+before selecting a build intended to test M5 end-to-end.
+
+The Android build rejects a configured URL unless it uses HTTPS on port 443
+with exactly the `/v1/forecast` path, no embedded credentials, query or fragment.
+No weather-provider credentials belong in this variable or the APK.
+
+When this variable is **absent or empty**, Android deliberately retains the
+legacy direct-provider refresh boundary, even in a new signed APK. Such a build
+can test M4/UI/offline behavior, but must **not** be presented as evidence of
+an operational M5 backend. A configured URL alone is not sufficient:
+deploy the verified Linux native runtime behind HTTPS, verify health/ready
+and API behavior, and exercise backend/Room offline-first flow on a device.
+
+The endpoint is compile-time configuration, not a runtime switch.
+Changing the repository variable does not modify already signed APK/AAB
+artifacts. Every selected new test version must be built and signed once
+from its own reviewed main SHA, with a new monotonic version identity.
+
 ## Repository secrets
 
 The signing workflow uses these Actions repository secrets:
