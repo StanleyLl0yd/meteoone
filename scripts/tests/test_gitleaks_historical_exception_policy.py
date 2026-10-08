@@ -12,7 +12,7 @@ EXACT_HISTORICAL_FINGERPRINT = (
     "BackendForecastRefreshSourceTest.kt:generic-api-key:48"
 )
 EXACT_FINGERPRINT_PATTERN = re.compile(
-    r"^[0-9a-f]{40}:[^:\\r\\n]+:[a-z][a-z0-9-]*:[1-9][0-9]*$"
+    r"^[0-9a-f]{40}:[^:]+:[a-z][a-z0-9-]*:[1-9][0-9]*$"
 )
 
 
