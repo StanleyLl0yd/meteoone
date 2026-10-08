@@ -44,6 +44,46 @@ class BoundedHttpsRequestTest {
     }
 
     @Test
+    fun postBodyIsBoundedAndDefensivelyCopied() {
+        val body = """{"latitudeTenths":599}""".encodeToByteArray()
+        val request = BoundedHttpsRequest(
+            uri = URI.create("https://example.com/v1/forecast"),
+            maxResponseBytes = 1024,
+            headers = mapOf("Content-Type" to "application/json"),
+            method = BoundedHttpsMethod.POST,
+            body = body,
+        )
+        body[0] = 'X'.code.toByte()
+
+        assertEquals(BoundedHttpsMethod.POST, request.method)
+        assertEquals('{'.code.toByte(), request.body?.first())
+
+        assertFailsWith<IllegalArgumentException> {
+            BoundedHttpsRequest(
+                uri = URI.create("https://example.com/v1/forecast"),
+                maxResponseBytes = 1024,
+                method = BoundedHttpsMethod.POST,
+                body = ByteArray(64 * 1024 + 1),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            BoundedHttpsRequest(
+                uri = URI.create("https://example.com/v1/forecast"),
+                maxResponseBytes = 1024,
+                method = BoundedHttpsMethod.POST,
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            BoundedHttpsRequest(
+                uri = URI.create("https://example.com/data"),
+                maxResponseBytes = 1024,
+                method = BoundedHttpsMethod.GET,
+                body = byteArrayOf(1),
+            )
+        }
+    }
+
+    @Test
     fun rejectsUnsafeHeadersAndNonIdentityEncoding() {
         assertFailsWith<IllegalArgumentException> {
             BoundedHttpsRequest(
