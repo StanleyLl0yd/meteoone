@@ -15,10 +15,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val appContext = applicationContext
-        val repository = ForecastRepository.android(
-            context = appContext,
-            backendForecastUrl = BuildConfig.BACKEND_FORECAST_URL.takeIf(String::isNotBlank),
-        )
+        val repository = ForecastRepository.android(appContext)
         val targetStore = ForecastTargetStore.android(appContext)
         val locationClient = AndroidCurrentLocationClient(appContext)
 

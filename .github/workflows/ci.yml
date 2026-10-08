@@ -119,14 +119,6 @@ jobs:
           :forecast:repository:lintDebug
           :forecast:repository:assembleDebug
           :verification:domain:test
-          :backend:gateway:test
-          :backend:contract:test
-          :backend:provider-gateway:test
-          :backend:provider-adapters:test
-          :backend:orchestration:test
-          :backend:server-native:test
-          :backend:verification:test
-          :backend:http-service:test
           :verification:data:test
           :app:testDebugUnitTest
           :app:lintDebug

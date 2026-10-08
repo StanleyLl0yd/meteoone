@@ -95,13 +95,10 @@ Before sufficient verification data exists, the UI exposes qualitative model agr
 :forecast:repository
 :verification:domain
 :verification:data
-:backend:gateway
-:backend:contract
-:backend:provider-gateway
-:backend:provider-adapters
+:forecast:verification-weighting
 ```
 
-`:core:network` is the concrete JVM-testable bounded HTTPS execution boundary. It exposes only MeteoOne-owned request/result/cancellation types; OkHttp remains an implementation detail. `:forecast:openmeteo` and `:forecast:official` own reusable pure-JVM provider planning/normalization contracts shared by Android and M5 server adapters. `:forecast:data` owns Android production source execution, bounded direct transport, Android ecCodes/JNI/runtime composition, and the UI-independent M1 execution façade. `:backend:gateway`, `:backend:contract`, `:backend:provider-gateway` and `:backend:provider-adapters` are the implemented M5 server cache/wire/provider boundaries; Android production routing has not migrated to them yet. `:core:location` owns foreground coarse-location acquisition and privacy-preserving forecast-coordinate normalization. `:forecast:domain` remains free of Android, HTTP, decoder and provider implementation details.
+`:core:network` is the bounded direct HTTPS execution boundary. It exposes only MeteoOne-owned request/result/cancellation types; OkHttp remains an implementation detail. `:forecast:openmeteo` and `:forecast:official` own reusable pure-JVM provider planning/normalization contracts for Android. `:forecast:data` owns the Android production source execution, direct transport, Android ecCodes/JNI/runtime composition, and M1 execution façade. `:forecast:verification-weighting` adapts the local M4 guarded verification policy into fusion. No server or Android-to-MeteoOne-backend execution path exists. `:core:location` owns foreground coarse-location acquisition and privacy-preserving forecast-coordinate normalization. `:forecast:domain` remains free of Android, HTTP, decoder and provider implementation details.
 
 `:core:database` owns only Room forecast persistence. It exposes MeteoOne model types through `ForecastSnapshotStore`, stores coordinate identity as integer tenths of a degree, and has a policy-enforced dependency boundary that prevents it from depending on location acquisition, networking, forecast execution, or forecast-domain implementation modules.
 
@@ -125,4 +122,4 @@ The remaining roadmap modules are created only when their responsibilities becom
 
 M4 is complete with `:verification:domain` and `:verification:data`; verification persistence remains owned by `:core:database`, and production composition remains in `:forecast:repository`. Do not create additional verification modules unless a new concrete dependency boundary appears.
 
-The exact split may be adjusted only when real dependency boundaries justify it.
+The exact split may be adjusted only when real dependency boundaries justify it. The self-contained Android decision is documented in [`ANDROID_ONLY_DECISION.md`](ANDROID_ONLY_DECISION.md).

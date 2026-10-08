@@ -1,4 +1,3 @@
-import java.net.URI
 import org.gradle.api.GradleException
 
 plugins {
@@ -19,38 +18,6 @@ val releaseSigningValues = listOf(
 val hasAnyReleaseSigning = releaseSigningValues.any { !it.isNullOrBlank() }
 val hasReleaseSigning = releaseSigningValues.all { !it.isNullOrBlank() }
 val requireReleaseSigning = System.getenv("REQUIRE_RELEASE_SIGNING") == "true"
-val backendForecastUrl: String = System.getenv("METEOONE_BACKEND_FORECAST_URL")
-    ?.trim()
-    .orEmpty()
-
-if (backendForecastUrl.isNotEmpty()) {
-    val backendUri = try {
-        URI.create(backendForecastUrl)
-    } catch (error: IllegalArgumentException) {
-        throw GradleException("METEOONE_BACKEND_FORECAST_URL must be a valid URI", error)
-    }
-    if (
-        !backendUri.isAbsolute ||
-        !backendUri.scheme.equals("https", ignoreCase = true) ||
-        backendUri.host.isNullOrBlank() ||
-        backendUri.userInfo != null ||
-        backendUri.query != null ||
-        backendUri.fragment != null ||
-        (backendUri.port != -1 && backendUri.port != 443) ||
-        backendUri.path != "/v1/forecast"
-    ) {
-        throw GradleException(
-            "METEOONE_BACKEND_FORECAST_URL must be an HTTPS /v1/forecast endpoint on port 443",
-        )
-    }
-    if (backendForecastUrl.any { character -> character.code < 0x20 || character.code == 0x7f }) {
-        throw GradleException("METEOONE_BACKEND_FORECAST_URL must not contain control characters")
-    }
-}
-
-fun String.toBuildConfigLiteral(): String =
-    "\"" + replace("\\", "\\\\").replace("\"", "\\\"") + "\""
-
 if (hasAnyReleaseSigning && !hasReleaseSigning) {
     throw GradleException(
         "Release signing is only enabled when ANDROID_KEYSTORE_PATH, " +
@@ -73,11 +40,6 @@ android {
         targetSdk = 36
         versionCode = 2
         versionName = "0.2.0-alpha.1"
-        buildConfigField(
-            "String",
-            "BACKEND_FORECAST_URL",
-            backendForecastUrl.toBuildConfigLiteral(),
-        )
     }
 
     signingConfigs {
@@ -112,7 +74,6 @@ android {
     }
 
     buildFeatures {
-        buildConfig = true
         compose = true
     }
 
