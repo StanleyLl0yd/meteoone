@@ -153,7 +153,7 @@ data class SurfaceObservation(
         }
         require(
             windDirectionDegrees == null ||
-                (windDirectionDegrees >= 0.0 && windDirectionDegrees <= 360.0),
+                windDirectionDegrees in 0.0..360.0,
         ) {
             "Observation wind direction must be within [0, 360]"
         }

@@ -27,7 +27,7 @@ data class SourceGridPoint(
 ) {
     init {
         require(latitude in -90.0..90.0)
-        require(longitudeDegreesEast >= 0.0 && longitudeDegreesEast < 360.0)
+        require(longitudeDegreesEast in 0.0..<360.0)
     }
 }
 
