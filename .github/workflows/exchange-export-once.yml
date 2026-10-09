@@ -1,0 +1,39 @@
+name: Export released APK to Exchange handoff
+
+on:
+  push:
+    branches:
+      - ops/exchange-export-v030a1
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    if: github.repository == 'StanleyLl0yd/meteoone'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Download exact released APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/exchange"
+          gh release download v0.3.0-alpha.1 \
+            --repo "$REPO" \
+            --pattern 'meteoone-0.3.0-alpha.1.apk' \
+            --dir "$RUNNER_TEMP/exchange"
+          apk="$RUNNER_TEMP/exchange/meteoone-0.3.0-alpha.1.apk"
+          test "$(stat -c '%s' "$apk")" = '45067709'
+          echo '2fd0c0a997c9ed394263b7d218f15c96b9e9eecfceb64a185f896f614eea1364  '"$apk" | sha256sum --check --status
+          echo "Verified published signed APK byte count and SHA-256"
+      - name: Transport exact APK as a short-lived workflow artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: meteoone-v0.3.0-alpha.1-exchange-transport
+          path: ${{ runner.temp }}/exchange/meteoone-0.3.0-alpha.1.apk
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
