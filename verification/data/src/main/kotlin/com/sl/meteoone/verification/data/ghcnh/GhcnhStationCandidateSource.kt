@@ -56,7 +56,7 @@ class GhcnhStationCandidateSource internal constructor(
     }
 
     companion object {
-        // Used by :forecast:repository production M4 composition.
+        // Used by the Android repository's production verification composition.
         @Suppress("unused")
         fun default(): GhcnhStationCandidateSource =
             GhcnhStationCandidateSource(DefaultBoundedHttpsTransport())
