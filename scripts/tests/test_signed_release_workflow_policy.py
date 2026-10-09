@@ -108,7 +108,7 @@ class SignedReleaseWorkflowPolicyTest(unittest.TestCase):
         self.assertIn('select(.name == $name and .event == "push" and .head_branch == "main")', self.text)
 
     def test_release_version_history_is_verified_before_publication(self) -> None:
-        self.assertIn("python3 scripts/verify_release_version_history.py", self.text)
+        self.assertIn("python3 -m scripts.verify_release_version_history", self.text)
         self.assertIn("git fetch --force --tags origin", self.text)
 
     def test_prerelease_versions_are_marked_prerelease(self) -> None:
