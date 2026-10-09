@@ -45,6 +45,72 @@ class VerificationMatchingTest {
     }
 
     @Test
+    fun eachParameterMatchesNearestUsableObservationWithinTolerance() {
+        val exact = surface(
+            validTime,
+            pressureSeaLevelHpa = 1000.0,
+            windSpeedMps = 5.0, // Direction missing: unusable for non-calm wind.
+        )
+        val earlier = surface(
+            validTime.minus(Duration.ofMinutes(15)),
+            temperatureC = 10.0,
+            windSpeedMps = 4.0,
+            windDirectionDegrees = 90.0,
+        )
+        val later = surface(
+            validTime.plus(Duration.ofMinutes(15)),
+            temperatureC = 20.0,
+            windSpeedMps = 6.0,
+            windDirectionDegrees = 270.0,
+        )
+        val samples = VerificationSampleMatcher().match(
+            forecast = run(
+                provider = ForecastProvider.OPEN_METEO,
+                point = point(
+                    validTime,
+                    temperatureC = 12.0,
+                    pressureSeaLevelHpa = 1001.0,
+                    windSpeedMps = 5.0,
+                    windDirectionDegrees = 90.0,
+                ),
+            ),
+            station = station,
+            surfaceObservations = listOf(later, exact, earlier),
+            precipitationObservations = emptyList(),
+        )
+
+        assertEquals(3, samples.size)
+        val temperature = samples.filterIsInstance<ScalarVerificationSample>()
+            .single { it.parameter == VerificationParameter.TEMPERATURE }
+        assertEquals(earlier.observedAt, temperature.observedAt)
+        assertEquals(10.0, temperature.observed)
+        val pressure = samples.filterIsInstance<ScalarVerificationSample>()
+            .single { it.parameter == VerificationParameter.PRESSURE }
+        assertEquals(exact.observedAt, pressure.observedAt)
+        assertEquals(1000.0, pressure.observed)
+        val wind = samples.filterIsInstance<WindVerificationSample>().single()
+        assertEquals(earlier.observedAt, wind.observedAt)
+        assertEquals(4.0, wind.observedSpeedMps)
+    }
+
+    @Test
+    fun missingNearestFieldNeverExpandsMatchingTolerance() {
+        val samples = VerificationSampleMatcher().match(
+            forecast = run(
+                provider = ForecastProvider.OPEN_METEO,
+                point = point(validTime, temperatureC = 12.0),
+            ),
+            station = station,
+            surfaceObservations = listOf(
+                surface(validTime, pressureSeaLevelHpa = 1010.0),
+                surface(validTime.minus(Duration.ofMinutes(31)), temperatureC = 10.0),
+            ),
+            precipitationObservations = emptyList(),
+        )
+        assertTrue(samples.isEmpty())
+    }
+
+    @Test
     fun surfaceEvidenceOutsideToleranceOrMissingValuesCreatesNoSample() {
         val tooEarly = surface(
             validTime.minus(Duration.ofMinutes(30).plusNanos(1)),
