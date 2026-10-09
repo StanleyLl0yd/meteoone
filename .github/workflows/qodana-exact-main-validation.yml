@@ -1,0 +1,88 @@
+name: Qodana exact-main source validation (one-time)
+
+on:
+  push:
+    branches: [ci/qodana-exact-main-validation-20261009]
+
+permissions: {}
+
+concurrency:
+  group: security-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    name: Semgrep
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    container:
+      image: semgrep/semgrep:1.172.0@sha256:65dcd4408adda7c183a6b4550cb1e9b19f7f627a6fbb7e0559bd466bedc44d7b
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: 51f3061cec0a186b285c605701576971e71bbed5
+
+      - name: Run Semgrep CE
+        run: semgrep scan --config p/security-audit --config p/secrets --error --metrics=off .
+
+  qodana:
+    name: Qodana
+    if: github.ref == 'refs/heads/ci/qodana-exact-main-validation-20261009'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: 51f3061cec0a186b285c605701576971e71bbed5
+
+      - name: Set up JDK
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          cmdline-tools-version: 15859902
+          packages: platform-tools
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          cache-provider: basic
+          cache-read-only: true
+          validate-wrappers: true
+
+      - name: Install Android SDK packages
+        run: android sdk install platforms/android-37.0 build-tools/37.0.0
+
+      - name: Prepare Gradle dependencies
+        run: ./gradlew :app:dependencies --no-daemon --stacktrace
+
+      - name: Prepare self-contained JDK for pinned Qodana container
+        run: |
+          # Hosted Temurin may link cacerts outside JAVA_HOME; preserve Java TLS trust.
+          cp -aL "$JAVA_HOME" "$RUNNER_TEMP/qodana-jdk17"
+          test -r "$RUNNER_TEMP/qodana-jdk17/lib/security/cacerts"
+
+      - name: Run Qodana
+        uses: JetBrains/qodana-action@10be11607eb323a180e2b76b26c9c5cdceac3e77 # v2026.2.1
+        with:
+          args: >-
+            --image jetbrains/qodana-jvm-community@sha256:3db2bdb1d846ddeca9f600a6737bc82b3993067e07e572ba7bf791d9fe41a9bf
+            --within-docker true
+            --volume ${{ runner.temp }}/qodana-jdk17:/opt/meteoone-jdk17:ro
+            --env JAVA_HOME=/opt/meteoone-jdk17
+            --print-problems
+          upload-result: true
+          artifact-name: qodana-report
