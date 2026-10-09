@@ -252,7 +252,7 @@ private fun nearestSurfaceObservation(
 
         // The earlier observation wins when both usable candidates are equally distant.
         val candidate = if (earlierInRange && (
-                !laterInRange || requireNotNull(earlierDelta) <= requireNotNull(laterDelta)
+                !laterInRange || compareValues(earlierDelta, laterDelta) <= 0
             )
         ) {
             observations[earlier--]
