@@ -64,7 +64,7 @@ Generic `precipitation` remains raw evidence because its accumulation interval i
 
 ## Matching semantics
 
-M4 normalizes observation input order and matches each instantaneous forecast valid time to the nearest surface observation within 30 minutes. The 30-minute bound is a hard production maximum inherited from the M0 scorer; callers may narrow it but cannot broaden it. Equal-distance ties choose the earlier observation deterministically.
+M4 normalizes observation input order and matches each instantaneous forecast parameter to the nearest observation that actually contains usable evidence for that parameter, within 30 minutes. An observation with a missing field does not hide another valid observation within the tolerance. The 30-minute bound is a hard production maximum inherited from the M0 scorer; callers may narrow it but cannot broaden it. Equal-distance ties choose the earlier observation deterministically.
 
 Matching is parameter-by-parameter. Missing forecast or observed values produce no sample. Calm wind remains the zero vector and does not require a direction; non-calm wind without direction remains unusable rather than receiving a fabricated bearing.
 
