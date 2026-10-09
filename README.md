@@ -38,11 +38,12 @@ MeteoOne 1.0 targets:
 - Android package: `com.sl.meteoone`.
 - Published technical alpha: `0.1.0-alpha.1` (`versionCode = 1`).
 - Published M3 pre-beta: `0.2.0-alpha.1` (`versionCode = 2`).
+- Published standalone Android M4 test alpha: `0.3.0-alpha.1` (`versionCode = 3`).
 - Every selected release publishes a signed APK and signed AAB from the same reviewed source SHA.
 
 ## Status
 
-M1 Forecast Core, M2 Offline-first Data Layer, M3 Product UI, and M4 Verification Engine are complete. The M5 server backend was cancelled by explicit product decision. MeteoOne is self-contained on Android: there is no proprietary MeteoOne server, backend URL, or dependency on MeteoOne cloud services. `v0.2.0-alpha.1` remains the published feature-complete M3 GitHub prerelease with its signed APK+AAB pair; no M4 release has been selected. Production refresh now composes local verification evidence and may use guarded dynamic model-family weights only when the documented evidence, provenance, recency, materiality, and stability gates pass; otherwise fusion deterministically retains the equal-weight baseline.
+M1 Forecast Core, M2 Offline-first Data Layer, M3 Product UI, and M4 Verification Engine are complete. The M5 server backend was cancelled by explicit product decision. MeteoOne is self-contained on Android: there is no proprietary MeteoOne server, backend URL, or dependency on MeteoOne cloud services. `v0.3.0-alpha.1` is the published signed Android-only M4 test release (APK and AAB from canonical commit `51f3061cec0a186b285c605701576971e71bbed5`). On 2026-10-09, the product owner reported passing device checklist scenarios 1-11; extended 1-2 day observation remains pending. These UI tests are not independent on-device proof of internal M4/GHCNh or native GRIB execution. Production refresh now composes local verification evidence and may use guarded dynamic model-family weights only when the documented evidence, provenance, recency, materiality, and stability gates pass; otherwise fusion deterministically retains the equal-weight baseline.
 
 See:
 
