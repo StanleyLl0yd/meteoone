@@ -14,7 +14,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 internal const val OPEN_METEO_SINGLE_RUN_MAX_RESPONSE_BYTES = 256L * 1024L
-// Used by the bounded :forecast:data HTTP transport policy.
+// Used by the bounded Android HTTP transport policy.
 @Suppress("unused")
 val OPEN_METEO_SINGLE_RUN_MINIMUM_REQUEST_SPACING: Duration = Duration.ofSeconds(1)
 internal const val OPEN_METEO_SINGLE_RUN_FORECAST_HOURS = 72
