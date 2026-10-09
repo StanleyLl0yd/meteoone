@@ -13,7 +13,6 @@ private const val GDT_REGULAR_LAT_LON = 0
 private const val GDT_ICOSAHEDRAL = 101
 private const val DRT_SIMPLE_PACKING = 0
 private const val DRT_CCSDS = 42
-private const val STATISTICAL_PROCESS_AVERAGE = 0
 private const val STATISTICAL_PROCESS_ACCUMULATION = 1
 private const val STATISTICAL_PROCESS_MAXIMUM = 2
 

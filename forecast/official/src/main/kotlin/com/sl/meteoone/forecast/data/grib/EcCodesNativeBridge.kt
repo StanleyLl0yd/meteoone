@@ -1,6 +1,5 @@
 package com.sl.meteoone.forecast.data.grib
 
-import java.io.File
 
 class NativeGribMessage(
     val metadata: LongArray,
@@ -25,30 +24,6 @@ object EcCodesNativeLibrary {
 
     @Volatile
     private var loadedIdentity: String? = null
-
-    fun loadAbsolute(path: String) {
-        val requested = File(path)
-        require(requested.isAbsolute) {
-            "Server ecCodes JNI library path must be absolute"
-        }
-        val canonical = requested.canonicalFile
-        require(canonical.isFile) {
-            "Server ecCodes JNI library must be a regular file"
-        }
-        synchronized(loadLock) {
-            val current = loadedIdentity
-            when {
-                current == null -> {
-                    System.load(canonical.path)
-                    loadedIdentity = canonical.path
-                }
-                current == canonical.path -> Unit
-                else -> throw IllegalStateException(
-                    "ecCodes JNI library is already loaded from another runtime",
-                )
-            }
-        }
-    }
 
     internal fun ensureDefaultLoaded() {
         if (loadedIdentity != null) return
@@ -119,6 +94,8 @@ internal class SerializedEcCodesNativeApi(
     }
 }
 
+// Used by the Android native session in :forecast:data.
+@Suppress("unused")
 object ProductionEcCodesNativeApi : EcCodesNativeApi by SerializedEcCodesNativeApi(
     delegate = BridgeEcCodesNativeApi,
 )

@@ -1,3 +1,6 @@
+// Gradle marks RepositoriesMode incubating; keep the policy-enforced repository guard.
+@file:Suppress("UnstableApiUsage")
+
 import org.gradle.api.initialization.resolve.RepositoriesMode
 
 pluginManagement {

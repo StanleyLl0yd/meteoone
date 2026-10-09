@@ -54,6 +54,8 @@ class BoundedHttpsResponse(
     val headers: Map<String, List<String>> = headers.mapValues { (_, values) -> values.toList() }
     val body: ByteArray = body.copyOf()
 
+    // Used by :forecast:data to enforce exact Content-Range validation.
+    @Suppress("unused")
     fun headerValues(name: String): List<String> =
         headers.entries
             .filter { (headerName, _) -> headerName.equals(name, ignoreCase = true) }

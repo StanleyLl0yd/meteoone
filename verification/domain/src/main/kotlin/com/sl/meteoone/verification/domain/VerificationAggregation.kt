@@ -42,12 +42,6 @@ data class VerificationRegionKey(
     val eastLongitudeDegrees: Int
         get() = westLongitudeDegrees + REGION_DEGREES
 
-    val encoded: String
-        get() = "r5-" +
-            latitudeBand.toString().padStart(2, '0') +
-            "-" +
-            longitudeBand.toString().padStart(2, '0')
-
     companion object {
         fun from(coordinate: ForecastCoordinate): VerificationRegionKey {
             val latitudeTenths = coordinate.latitude.toCanonicalTenths()

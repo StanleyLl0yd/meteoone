@@ -5,15 +5,16 @@ import java.time.Instant
 import java.time.ZoneOffset
 
 const val FORECAST_HORIZON_HOURS: Int = 72
+// Used by :forecast:data to validate the 72-hour forecast cadence.
+@Suppress("unused")
 val FORECAST_HOURLY_CADENCE: Duration = Duration.ofHours(1)
 private val OFFICIAL_PUBLICATION_GUARD: Duration = Duration.ofHours(7)
 
 /**
- * Shared direct-official run policy used by Android M1 execution and the M5 backend.
+ * Direct-official model-run selection for on-device Android forecast execution.
  *
- * The publication guard and forecast-step rounding are intentionally centralized so moving
- * orchestration server-side cannot silently select a different model run from the accepted
- * Android behavior.
+ * Publication guard and forecast-step rounding remain consistent across Android
+ * providers and forecast paths without introducing a MeteoOne server.
  */
 object ForecastOfficialRunPolicy {
     fun selectModelRun(generatedAt: Instant): Instant {

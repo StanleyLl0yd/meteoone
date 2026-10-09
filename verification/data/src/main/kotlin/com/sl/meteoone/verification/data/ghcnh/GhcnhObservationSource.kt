@@ -88,6 +88,8 @@ class GhcnhObservationSource internal constructor(
     }
 
     companion object {
+        // Used by the Android repository's production verification composition.
+        @Suppress("unused")
         fun default(): GhcnhObservationSource =
             GhcnhObservationSource(DefaultBoundedHttpsTransport())
     }

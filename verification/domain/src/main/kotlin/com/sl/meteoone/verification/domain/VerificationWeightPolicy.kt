@@ -354,7 +354,7 @@ class VerificationWeightPolicy(
     ): MaterialWinner? {
         if (scores.size < 2) return null
         val ranked = scores.entries.sortedWith(
-            compareBy<Map.Entry<ModelFamily, Double>>(
+            compareBy(
                 { it.value },
                 { it.key.ordinal },
             ),
@@ -378,6 +378,8 @@ class VerificationWeightPolicy(
         )
     }
 
+    // Preserve IEEE signed-zero behavior of primitive Double comparisons.
+    @Suppress("IntroduceWhenSubject")
     private fun deriveWeights(
         scores: Map<ModelFamily, Double>,
         families: List<ModelFamily>,
