@@ -61,10 +61,13 @@ import com.sl.meteoone.forecast.repository.ForecastRefreshResult
 import com.sl.meteoone.forecast.repository.ForecastRepository
 import java.time.Instant
 import java.time.LocalDate
+import java.time.Duration
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -390,7 +393,19 @@ private fun ForecastSnapshot(
     timeZoneId: String,
 ) {
     val forecast = cache.forecast
-    val current = forecast.hourly.firstOrNull()
+    val currentTime by produceState(initialValue = Instant.now(), key1 = forecast.hourly) {
+        while (true) {
+            val now = Instant.now()
+            value = now
+            val nextHour = now.truncatedTo(ChronoUnit.HOURS).plus(1, ChronoUnit.HOURS)
+            delay(Duration.between(now, nextHour).toMillis().coerceAtLeast(1L))
+        }
+    }
+    val current = if (cache.freshness == ForecastFreshness.EXPIRED) {
+        null
+    } else {
+        selectCurrentForecastHour(forecast.hourly, currentTime)
+    }
     val dayGroups = remember(forecast.hourly, timeZoneId) {
         groupHourlyByLocalDay(forecast.hourly, timeZoneId)
     }
