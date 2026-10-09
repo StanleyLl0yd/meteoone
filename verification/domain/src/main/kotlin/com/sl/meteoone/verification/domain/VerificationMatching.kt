@@ -105,61 +105,67 @@ class VerificationSampleMatcher(
         return buildList {
             forecast.hourly.forEach { point ->
                 val context = forecast.contextAt(point.validTime)
-                val observed = nearestSurfaceObservation(
-                    validTime = point.validTime,
-                    observations = sortedSurface,
-                    tolerance = surfaceObservationTolerance,
-                )
-                if (observed != null) {
-                    point.temperatureC?.let { predicted ->
-                        observed.temperatureC?.let { actual ->
-                            add(
-                                ScalarVerificationSample(
-                                    context = context,
-                                    station = station,
-                                    parameter = VerificationParameter.TEMPERATURE,
-                                    observedAt = observed.observedAt,
-                                    predicted = predicted,
-                                    observed = actual,
-                                ),
-                            )
-                        }
+                point.temperatureC?.let { predicted ->
+                    nearestSurfaceObservation(
+                        validTime = point.validTime,
+                        observations = sortedSurface,
+                        tolerance = surfaceObservationTolerance,
+                        usable = { it.temperatureC != null },
+                    )?.let { observed ->
+                        add(
+                            ScalarVerificationSample(
+                                context = context,
+                                station = station,
+                                parameter = VerificationParameter.TEMPERATURE,
+                                observedAt = observed.observedAt,
+                                predicted = predicted,
+                                observed = requireNotNull(observed.temperatureC),
+                            ),
+                        )
                     }
-                    point.pressureSeaLevelHpa?.let { predicted ->
-                        observed.pressureSeaLevelHpa?.let { actual ->
-                            add(
-                                ScalarVerificationSample(
-                                    context = context,
-                                    station = station,
-                                    parameter = VerificationParameter.PRESSURE,
-                                    observedAt = observed.observedAt,
-                                    predicted = predicted,
-                                    observed = actual,
-                                ),
-                            )
-                        }
+                }
+                point.pressureSeaLevelHpa?.let { predicted ->
+                    nearestSurfaceObservation(
+                        validTime = point.validTime,
+                        observations = sortedSurface,
+                        tolerance = surfaceObservationTolerance,
+                        usable = { it.pressureSeaLevelHpa != null },
+                    )?.let { observed ->
+                        add(
+                            ScalarVerificationSample(
+                                context = context,
+                                station = station,
+                                parameter = VerificationParameter.PRESSURE,
+                                observedAt = observed.observedAt,
+                                predicted = predicted,
+                                observed = requireNotNull(observed.pressureSeaLevelHpa),
+                            ),
+                        )
                     }
-
-                    val predictedWindSpeed = point.windSpeedMps
-                    val observedWindSpeed = observed.windSpeedMps
-                    if (
-                        predictedWindSpeed != null &&
-                        observedWindSpeed != null &&
-                        VerificationMetrics.windVectorError(
-                            predictedSpeedMps = predictedWindSpeed,
-                            predictedDirectionDegrees = point.windDirectionDegrees,
-                            observedSpeedMps = observedWindSpeed,
-                            observedDirectionDegrees = observed.windDirectionDegrees,
-                        ) != null
-                    ) {
+                }
+                point.windSpeedMps?.let { predictedSpeed ->
+                    nearestSurfaceObservation(
+                        validTime = point.validTime,
+                        observations = sortedSurface,
+                        tolerance = surfaceObservationTolerance,
+                        usable = { observed ->
+                            val observedSpeed = observed.windSpeedMps
+                            observedSpeed != null && VerificationMetrics.windVectorError(
+                                predictedSpeedMps = predictedSpeed,
+                                predictedDirectionDegrees = point.windDirectionDegrees,
+                                observedSpeedMps = observedSpeed,
+                                observedDirectionDegrees = observed.windDirectionDegrees,
+                            ) != null
+                        },
+                    )?.let { observed ->
                         add(
                             WindVerificationSample(
                                 context = context,
                                 station = station,
                                 observedAt = observed.observedAt,
-                                predictedSpeedMps = predictedWindSpeed,
+                                predictedSpeedMps = predictedSpeed,
                                 predictedDirectionDegrees = point.windDirectionDegrees,
-                                observedSpeedMps = observedWindSpeed,
+                                observedSpeedMps = requireNotNull(observed.windSpeedMps),
                                 observedDirectionDegrees = observed.windDirectionDegrees,
                             ),
                         )
@@ -212,6 +218,7 @@ private fun nearestSurfaceObservation(
     validTime: Instant,
     observations: List<SurfaceObservation>,
     tolerance: Duration,
+    usable: (SurfaceObservation) -> Boolean,
 ): SurfaceObservation? {
     if (observations.isEmpty()) return null
 
@@ -226,31 +233,35 @@ private fun nearestSurfaceObservation(
         }
     }
 
-    var best: SurfaceObservation? = null
-    var bestDelta: Duration? = null
-
-    fun consider(index: Int) {
-        if (index !in observations.indices) return
-        val candidate = observations[index]
-        val delta = Duration.between(validTime, candidate.observedAt).abs()
-        val current = best
-        val currentDelta = bestDelta
-        if (
-            current == null ||
-            currentDelta == null ||
-            delta < currentDelta ||
-            (delta == currentDelta && candidate.observedAt.isBefore(current.observedAt))
-        ) {
-            best = candidate
-            bestDelta = delta
+    var earlier = low - 1
+    var later = low
+    while (earlier >= 0 || later < observations.size) {
+        val earlierDelta = if (earlier >= 0) {
+            Duration.between(observations[earlier].observedAt, validTime)
+        } else {
+            null
         }
+        val laterDelta = if (later < observations.size) {
+            Duration.between(validTime, observations[later].observedAt)
+        } else {
+            null
+        }
+        val earlierInRange = earlierDelta != null && earlierDelta <= tolerance
+        val laterInRange = laterDelta != null && laterDelta <= tolerance
+        if (!earlierInRange && !laterInRange) break
+
+        // The earlier observation wins when both usable candidates are equally distant.
+        val candidate = if (earlierInRange && (
+                !laterInRange || requireNotNull(earlierDelta) <= requireNotNull(laterDelta)
+            )
+        ) {
+            observations[earlier--]
+        } else {
+            observations[later++]
+        }
+        if (usable(candidate)) return candidate
     }
-
-    consider(low)
-    consider(low - 1)
-
-    val delta = bestDelta ?: return null
-    return if (delta <= tolerance) best else null
+    return null
 }
 
 private fun requireFiniteOrNull(value: Double?, label: String) {
