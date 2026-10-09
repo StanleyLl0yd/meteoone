@@ -34,7 +34,7 @@ class ForecastFusionEngine(
             ForecastCoordinate(location.latitude, location.longitude)
         }.getOrNull()
 
-        val pointsByTime = buildMap<Instant, MutableList<SourcePoint>> {
+        val pointsByTime = buildMap {
             sources.forEach { source ->
                 source.hourly.forEach { point ->
                     getOrPut(point.time) { mutableListOf() }

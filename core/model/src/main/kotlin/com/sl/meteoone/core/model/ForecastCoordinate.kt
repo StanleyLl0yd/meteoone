@@ -26,12 +26,16 @@ data class ForecastCoordinate(
         }
     }
 
+    // Explicitly reject negative zero; redundant-if rewriting loses raw-bit validation.
+    @Suppress("RedundantIf")
     private fun isCanonicalGridValue(value: Double): Boolean {
         if (value == 0.0 && value.toRawBits() != 0L) return false
         return BigDecimal.valueOf(value).remainder(GRID_STEP_DECIMAL).signum() == 0
     }
 
     companion object {
+        // Used by :core:location; Qodana cannot always resolve cross-module consumers.
+        @Suppress("unused")
         const val GRID_STEP_DEGREES = 0.1
         private val GRID_STEP_DECIMAL = BigDecimal("0.1")
     }

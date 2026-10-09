@@ -12,7 +12,7 @@ private const val MAX_SELECTED_FIELD_BYTES = 16L * 1024L * 1024L
 
 enum class EcmwfSurfaceField(
     val parameter: String,
-    val parameterAliases: Set<String> = emptySet(),
+    parameterAliases: Set<String> = emptySet(),
 ) {
     TEMPERATURE_2M("2t"),
     DEW_POINT_2M("2d"),

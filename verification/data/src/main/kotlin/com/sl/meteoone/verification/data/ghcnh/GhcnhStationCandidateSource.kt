@@ -56,6 +56,8 @@ class GhcnhStationCandidateSource internal constructor(
     }
 
     companion object {
+        // Used by :forecast:repository production M4 composition.
+        @Suppress("unused")
         fun default(): GhcnhStationCandidateSource =
             GhcnhStationCandidateSource(DefaultBoundedHttpsTransport())
     }
