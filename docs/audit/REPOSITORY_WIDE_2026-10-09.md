@@ -71,7 +71,7 @@ uses the nearest **usable** observation separately for temperature, pressure
 and vector-compatible wind. It preserves the hard 30-minute tolerance,
 deterministic earlier tie-break, calm-wind behavior and exact precipitation
 interval matching. Two regression cases and matching documentation are included.
-**Status: pending exact-head CI and code review at this checkpoint.**
+**Status: fixed and merged** as [PR #292](https://github.com/StanleyLl0yd/meteoone/pull/292), main commit `f8a80d77f302835a4ef64aa7113200f7d702cb3d`. Exact PR-head Android CI, CodeQL and security checks succeeded, as did full pinned Qodana [run 37977878975](https://github.com/StanleyLl0yd/meteoone/actions/runs/37977878975) with zero new problems.
 
 ### A2 - Obsolete server wording in the official GRIB model
 
