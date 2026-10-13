@@ -1,0 +1,35 @@
+name: Export MeteoOne 0.4.0 APK for Exchange
+
+on:
+  push:
+    branches:
+      - ops/exchange-export-v040
+
+permissions:
+  contents: read
+
+jobs:
+  transport:
+    if: github.repository == 'StanleyLl0yd/meteoone'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Download and verify immutable 0.4.0 release APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/exchange"
+          gh release download v0.4.0 --repo "$GITHUB_REPOSITORY" \
+            --pattern 'meteoone-0.4.0.apk' --dir "$RUNNER_TEMP/exchange"
+          apk="$RUNNER_TEMP/exchange/meteoone-0.4.0.apk"
+          test "$(stat -c '%s' "$apk")" = '45067705'
+          echo "50859465c6b873f6fe1c72bd62b13eb6f0fd87f5c46fee8527e83d8ff7fcc2cd  $apk" | sha256sum -c
+      - name: Upload APK for Exchange transfer
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: meteoone-v0.4.0-exchange
+          path: ${{ runner.temp }}/exchange/meteoone-0.4.0.apk
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
