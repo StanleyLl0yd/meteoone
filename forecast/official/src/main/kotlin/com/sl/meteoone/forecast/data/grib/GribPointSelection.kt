@@ -79,7 +79,7 @@ data class EcmwfRegularLatLonGeometry(
 }
 
 /**
- * Decoded DWD CLAT/CLON geometry shared by Android and server direct-official runtimes.
+ * Decoded DWD CLAT/CLON geometry used by the Android direct-official runtime.
  *
  * The arrays are adopted without copying to avoid doubling the multi-million-point geometry.
  * Callers inside this module must transfer ownership and must not mutate them afterwards.
