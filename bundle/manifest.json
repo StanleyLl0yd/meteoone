@@ -14,7 +14,7 @@
     },
     "jniLibs/arm64-v8a/libeccodes.so": {
       "bytes": 37868248,
-      "sha256": "2ca082eaa5d761de743adee3f385f0d11035d696e033e23d476506a2d4e71beb"
+      "sha256": "6c3bdf4e303f8609c38b49221b9a4d92d6644e20bcd0c278229890355a840a29"
     },
     "jniLibs/arm64-v8a/libmeteoone_grib_jni.so": {
       "bytes": 13496,
