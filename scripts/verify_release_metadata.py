@@ -81,7 +81,7 @@ def verify_release_metadata(
         raise ValueError("versionCode must be a positive integer")
     if not VERSION_NAME_RE.fullmatch(metadata.version_name):
         raise ValueError(
-            "versionName must use only numeric major.minor.patch (no suffix)
+            "versionName must use only numeric major.minor.patch (no suffix)"
         )
     if expected_version_name is not None and metadata.version_name != expected_version_name:
         raise ValueError(
