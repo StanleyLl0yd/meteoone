@@ -111,9 +111,10 @@ class SignedReleaseWorkflowPolicyTest(unittest.TestCase):
         self.assertIn("python3 -m scripts.verify_release_version_history", self.text)
         self.assertIn("git fetch --force --tags origin", self.text)
 
-    def test_prerelease_versions_are_marked_prerelease(self) -> None:
-        self.assertIn('if [[ "$VERSION_NAME" == *-* ]]; then', self.text)
+    def test_numeric_test_versions_are_marked_prerelease(self) -> None:
+        self.assertIn('if [[ "$VERSION_NAME" == 0.* ]]; then', self.text)
         self.assertIn("args+=(--prerelease)", self.text)
+        self.assertNotIn('if [[ "$VERSION_NAME" == *-* ]]; then', self.text)
 
     def test_rejects_existing_release_identity(self) -> None:
         self.assertIn('tag="v$VERSION_NAME"', self.text)
