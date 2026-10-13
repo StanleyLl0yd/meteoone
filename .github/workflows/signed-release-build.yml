@@ -306,6 +306,11 @@ jobs:
           echo "apk_path=release/$apk_name" >> "$GITHUB_OUTPUT"
           echo "aab_path=release/$aab_name" >> "$GITHUB_OUTPUT"
 
+      - name: Verify signed APK native identity and 16 KiB alignment
+        run: >-
+          python3 -m scripts.verify_release_apk_native
+          --apk app/build/outputs/apk/release/app-release.apk
+
       - name: Create GitHub Release with APK and AAB only
         env:
           GH_TOKEN: ${{ github.token }}
