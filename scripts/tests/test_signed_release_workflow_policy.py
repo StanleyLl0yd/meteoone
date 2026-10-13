@@ -67,6 +67,14 @@ class SignedReleaseWorkflowPolicyTest(unittest.TestCase):
         self.assertIn('source_aab="app/build/outputs/bundle/release/app-release.aab"', self.text)
         self.assertIn('--target "$GITHUB_SHA"', self.text)
 
+    def test_verifies_final_apk_native_bundle_before_publication(self) -> None:
+        self.assertIn("python3 -m scripts.verify_release_apk_native", self.text)
+        self.assertIn("--apk app/build/outputs/apk/release/app-release.apk", self.text)
+        self.assertLess(
+            self.text.index("Verify signed APK native identity and 16 KiB alignment"),
+            self.text.index("Create GitHub Release with APK and AAB only"),
+        )
+
     def test_release_assets_are_only_apk_and_aab(self) -> None:
         self.assertIn('apk_name="meteoone-$VERSION_NAME.apk"', self.text)
         self.assertIn('aab_name="meteoone-$VERSION_NAME.aab"', self.text)
