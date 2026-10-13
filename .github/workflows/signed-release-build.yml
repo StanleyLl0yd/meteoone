@@ -324,7 +324,9 @@ jobs:
             --title "MeteoOne $VERSION_NAME"
             --notes-file "docs/release/$VERSION_NAME.md"
           )
-          if [[ "$VERSION_NAME" == *-* ]]; then
+          # Test builds remain GitHub-only without encoding the channel in
+          # Android versionName or the immutable release tag. M7 uses 1.x.y.
+          if [[ "$VERSION_NAME" == 0.* ]]; then
             args+=(--prerelease)
           fi
           "${args[@]}"

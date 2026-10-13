@@ -7,7 +7,7 @@ MeteoOne has one manual signed-release path. Every released version creates a Gi
 - `meteoone-<version>.apk`;
 - `meteoone-<version>.aab`.
 
-Alpha and beta versions are GitHub-only. A future stable AAB may be uploaded to RuStore manually; repository automation never publishes to RuStore.
+New version names use only numeric major.minor.patch. Testing builds in the 0.x.y line remain GitHub-only and receive the GitHub prerelease flag independently of the version string. A future intentionally selected stable AAB may be uploaded to RuStore manually; repository automation never publishes to RuStore.
 
 The Android application ID is permanently `com.sl.meteoone`. Future store distribution must preserve the intended Android signing/update lineage.
 
@@ -60,7 +60,7 @@ The signing job then:
 4. verifies APK/AAB signatures, package/version identity and required native libraries;
 5. calculates hashes in logs as an internal integrity check but does not publish checksum files;
 6. creates GitHub Release `v<versionName>` targeting the exact source SHA;
-7. marks prerelease version names as GitHub prereleases;
+7. marks 0.x.y test versions as GitHub prereleases without changing their numeric version names;
 8. uploads exactly APK and AAB as release assets;
 9. removes temporary signing material unconditionally.
 
@@ -70,7 +70,7 @@ The workflow receives repository `contents: write` only because creating the rel
 
 Every GitHub Release uses tag `v<versionName>`. Existing release tags must never be moved, replaced or reused. A version name is therefore single-use.
 
-Version codes must also increase monotonically across released Android builds, including alpha and beta builds, so direct APK upgrades and later store publication retain a valid Android upgrade path.
+Version codes must increase monotonically across all released Android builds, including historical suffix-bearing releases, so direct APK upgrades and later store publication retain a valid Android upgrade path. Historical tags remain immutable and are accepted by the release-history checker.
 
 ## Stable store handoff
 
@@ -83,4 +83,4 @@ When M7 selects a stable version for RuStore:
 5. complete the then-current RuStore signing/metadata process manually;
 6. upload the unchanged AAB manually.
 
-Alpha and beta releases never enter this store handoff.
+Testing-phase GitHub-only releases never enter this store handoff.
