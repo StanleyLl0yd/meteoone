@@ -27,12 +27,13 @@ REQUIRED_NATIVE = {
 
 
 def verify_elf(payload: bytes, abi: str, label: str) -> None:
-    if len(payload) < 64 or payload[:6] != b"\x7fELF\x02\x01":
-        raise ValueError(f"{label}: expected little-endian ELF64")
-    # 32-bit ELFs use another header layout.
-    if abi == "armeabi-v7a" or abi == "x86":
+    if len(payload) < 6 or payload[:4] != b"\x7fELF":
+        raise ValueError(f"{label}: invalid ELF magic")
+    if abi in ("armeabi-v7a", "x86"):
         verify_elf32(payload, abi, label)
         return
+    if len(payload) < 64 or payload[4:6] != b"\x02\x01":
+        raise ValueError(f"{label}: expected little-endian ELF64")
     if struct.unpack_from("<H", payload, 18)[0] != ELF_MACHINE[abi]:
         raise ValueError(f"{label}: unexpected ELF machine for {abi}")
     phoff = struct.unpack_from("<Q", payload, 32)[0]
