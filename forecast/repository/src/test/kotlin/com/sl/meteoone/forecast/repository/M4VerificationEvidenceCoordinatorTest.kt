@@ -248,6 +248,55 @@ class M4VerificationEvidenceCoordinatorTest {
         assertEquals(1, observations.archiveCalls)
     }
 
+
+    @Test
+    fun skipsNearestStoredStationWithoutMeasurementsAndReusesNextUsableStation() = runBlocking {
+        val nextStation = station.copy(
+            stationId = "RSM00026064",
+            latitude = 59.75,
+        )
+        val history = (0L until 14L).flatMap { offset ->
+            val run = Instant.parse("2026-09-21T00:00:00Z").minus(Duration.ofDays(offset))
+            M4_MODEL_TEST_FAMILIES.map { family -> storedRun(family, run) }
+        }
+        val producer = RecordingSampleProducer()
+        val coordinator = M4VerificationEvidenceCoordinator(
+            historyStore = FakeHistoryStore(history),
+            observationStore = FakeObservationStore(
+                initial = listOf(
+                    StoredVerificationObservationSeries(
+                        station = station,
+                        surfaceObservations = emptyList(),
+                        precipitationObservations = emptyList(),
+                    ),
+                    StoredVerificationObservationSeries(
+                        station = nextStation,
+                        surfaceObservations = listOf(
+                            surface(nextStation, evaluatedAt.minus(Duration.ofHours(1))),
+                        ),
+                        precipitationObservations = emptyList(),
+                    ),
+                ),
+            ),
+            exactRunSource = M4ExactRunSource { _, _, _, _, _ ->
+                error("complete history must not require exact-run acquisition")
+            },
+            stationCandidateSource = M4StationCandidateSource { _, _ ->
+                error("usable stored station must avoid candidate discovery")
+            },
+            observationSource = M4ObservationSource { _, _, _ ->
+                error("usable stored station must avoid observation download")
+            },
+            sampleProducer = producer,
+        )
+
+        coordinator.prepareSamples(coordinate, 12, "Europe/Moscow", evaluatedAt)
+
+        assertEquals(42, producer.producedForecasts.size)
+        assertEquals(42, producer.usedStations.size)
+        assertTrue(producer.usedStations.all { it == nextStation })
+    }
+
     @Test
     fun refreshScopedSamplesAreVisibleOnlyDuringDelegateForecast() = runBlocking {
         val sample = sample()
@@ -308,6 +357,35 @@ class M4VerificationEvidenceCoordinatorTest {
             cancellationObserved = true
         }
         assertTrue(cancellationObserved)
+    }
+
+
+    @Test
+    fun delegatedFailureClearsRefreshScopedEvidenceBeforeNextForecast() = runBlocking {
+        val first = sample()
+        val sampleSource = RefreshScopedVerificationWeightSampleSource()
+        val request = weightRequest()
+        var calls = 0
+        val source = M4ForecastRefreshSource(
+            coordinator = M4VerificationEvidenceSource { _, _, _, _ -> listOf(first) },
+            sampleSource = sampleSource,
+            delegate = ForecastRefreshSource { _, _, _, _ ->
+                calls += 1
+                assertEquals(listOf(first), sampleSource.samples(request).toList())
+                throw IllegalStateException("simulated forecast failure")
+            },
+        )
+
+        var exceptionObserved = false
+        try {
+            source.forecast(coordinate, null, "UTC", evaluatedAt)
+        } catch (_: IllegalStateException) {
+            exceptionObserved = true
+        }
+
+        assertTrue(exceptionObserved)
+        assertEquals(1, calls)
+        assertEquals(emptyList(), sampleSource.samples(request).toList())
     }
 
     private fun sourceForecast(
@@ -534,12 +612,14 @@ private class FakeObservationStore(
 
 private class RecordingSampleProducer : VerificationSampleProducer {
     val producedForecasts = mutableListOf<StoredVerificationForecastRun>()
+    val usedStations = mutableListOf<ObservationStation>()
 
     override fun produce(
         forecast: StoredVerificationForecastRun,
         observations: StoredVerificationObservationSeries,
     ): List<VerificationSample> {
         producedForecasts += forecast
+        usedStations += observations.station
         return emptyList()
     }
 }
