@@ -7,7 +7,7 @@ Each release always produces exactly two public binary assets from the same revi
 - `meteoone-<version>.apk` — installable Android package;
 - `meteoone-<version>.aab` — Android App Bundle.
 
-The APK is always produced. Manual device testing is optional for creating a GitHub Release and is not a prerequisite for alpha/beta publication there. Alpha and beta versions are distributed through GitHub Releases only. They are not uploaded to RuStore. Before any RuStore AAB upload, the APK from that same GitHub Release must pass manual device acceptance testing; if the APK fails, do not upload its AAB.
+The APK is always produced. New version names and tags are strictly numeric major.minor.patch. Manual device testing is optional for creating a GitHub test release. Builds in the 0.x.y line use the GitHub prerelease flag without a version suffix and are not uploaded to RuStore. Before any RuStore AAB upload, the APK from that same GitHub Release must pass manual device acceptance testing; if the APK fails, do not upload its AAB.
 
 For a future stable store release, the AAB from the corresponding GitHub Release may be uploaded to RuStore manually. Repository automation must never upload or publish to RuStore.
 
@@ -51,7 +51,7 @@ The signing job then:
 5. verifies the AAB JAR signature, signing identity and the same required native libraries;
 6. stages only `meteoone-<version>.apk` and `meteoone-<version>.aab` as public release files;
 7. creates GitHub Release `v<version>` targeting the exact source SHA;
-8. marks versions containing a prerelease suffix such as `-alpha` or `-beta` as GitHub prereleases;
+8. marks numeric 0.x.y testing versions as GitHub prereleases without any version suffix;
 9. attaches only APK and AAB to the GitHub Release;
 10. removes temporary signing material unconditionally.
 
@@ -63,8 +63,8 @@ Hashes may be calculated in workflow logs for internal verification, but checksu
 2. Set a new monotonic `versionCode` and the intended `versionName`; add/update `docs/release/<version>.md`.
 3. Trigger `/build-release` from an issue or run `Signed Android Release` manually in Actions.
 4. The workflow builds, signs and verifies APK+AAB from the same SHA and creates `v<version>`.
-5. Download/install the APK when a manual device test is desired. Skipping that test does not invalidate a GitHub-only alpha/beta release.
-6. Alpha/beta stop at GitHub Releases.
+5. Download/install the APK when a manual device test is desired. Skipping that test does not invalidate a GitHub-only testing release.
+6. Testing-phase releases stop at GitHub Releases.
 7. For a future stable version selected for RuStore, manually test the APK from that exact GitHub Release.
 8. If the APK test fails, do not upload its AAB; fix the issue and create a new monotonic release pair.
 9. Only after the APK passes, upload the unchanged AAB from that same GitHub Release manually as a separate store action.

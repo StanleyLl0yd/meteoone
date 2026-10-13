@@ -10,7 +10,10 @@ from pathlib import Path
 
 DEFAULT_BUILD_FILE = Path("app/build.gradle.kts")
 EXPECTED_APPLICATION_ID = "com.sl.meteoone"
-VERSION_NAME_RE = re.compile(
+# New releases use only three numeric components. Historical tagged releases
+# may contain old suffixes; keep their parser independent for provenance checks.
+VERSION_NAME_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
+LEGACY_RELEASE_VERSION_NAME_RE = re.compile(
     r"^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$"
 )
 
@@ -78,8 +81,7 @@ def verify_release_metadata(
         raise ValueError("versionCode must be a positive integer")
     if not VERSION_NAME_RE.fullmatch(metadata.version_name):
         raise ValueError(
-            "versionName must use numeric major.minor.patch with an optional "
-            "pre-release suffix"
+            "versionName must use only numeric major.minor.patch (no suffix)
         )
     if expected_version_name is not None and metadata.version_name != expected_version_name:
         raise ValueError(

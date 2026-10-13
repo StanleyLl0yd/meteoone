@@ -38,8 +38,8 @@ android {
         applicationId = "com.sl.meteoone"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.3.0-alpha.2"
+        versionCode = 5
+        versionName = "0.4.0"
     }
 
     signingConfigs {

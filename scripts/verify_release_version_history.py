@@ -11,7 +11,7 @@ from pathlib import Path
 
 from scripts.verify_release_metadata import (
     ReleaseMetadata,
-    VERSION_NAME_RE,
+    LEGACY_RELEASE_VERSION_NAME_RE,
     parse_release_metadata,
 )
 
@@ -47,7 +47,7 @@ def load_release_history(root: Path) -> list[TaggedRelease]:
         if match is None:
             continue
         version = match.group("version")
-        if VERSION_NAME_RE.fullmatch(version) is None:
+        if LEGACY_RELEASE_VERSION_NAME_RE.fullmatch(version) is None:
             continue
 
         build_file = _git(root, "show", f"{tag}:app/build.gradle.kts")
