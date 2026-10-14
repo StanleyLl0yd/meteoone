@@ -8,9 +8,11 @@ import com.sl.meteoone.core.model.HourlyWeatherPoint
 import com.sl.meteoone.core.model.ModelFamily
 import com.sl.meteoone.core.model.SourceForecast
 import java.time.Instant
+import java.util.concurrent.CancellationException
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -79,6 +81,20 @@ class ForecastWeightedFusionTest {
         ).fuse(sources)
 
         assertEquals(baseline, failing)
+    }
+
+    @Test
+    fun weightProviderCancellationPropagatesThroughFusion() {
+        val sources = listOf(
+            source(ForecastProvider.NOAA_NOMADS, ModelFamily.NOAA_GFS, temperature = 10.0),
+            source(ForecastProvider.DWD_OPEN_DATA, ModelFamily.DWD_ICON, temperature = 20.0),
+        )
+        val engine = ForecastFusionEngine(
+            ForecastModelWeightProvider {
+                throw CancellationException("diagnostic session stopped")
+            },
+        )
+        assertFailsWith<CancellationException> { engine.fuse(sources) }
     }
 
     @Test
