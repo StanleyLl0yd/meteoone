@@ -21,6 +21,7 @@ class ForecastDiagnosticRecorderTest {
         recorder.start()
         val first = recorder.finish(ForecastRefreshResult.Unavailable, now)
         assertTrue(first.sources.isEmpty())
+        assertTrue(first.sanitizedText("0.4.0", "arm64-v8a").contains("not_evaluated"))
 
         recorder.start()
         recorder.sourceResult(ForecastProvider.NOAA_NOMADS, ModelFamily.NOAA_GFS, true)

@@ -72,6 +72,7 @@ data class ForecastDiagnosticReport(
         ForecastWeightParameter.entries.forEach { parameter ->
             appendLine("M4 ${parameter.name} samples: ${samples[parameter] ?: 0}")
         }
+        if (weights.isEmpty()) appendLine("Weight decisions: not_evaluated")
         weights.forEach {
             appendLine(
                 "Weight ${it.parameter.name}: ${if (it.measured) "measured" else "equal_fallback"} " +
@@ -85,6 +86,8 @@ data class ForecastDiagnosticReport(
 /** All state exists only during the user's one explicit diagnostic refresh. */
 internal class RefreshDiagnosticRecorder : ForecastDiagnosticProbe {
     private var active = false
+    override val collecting: Boolean
+        @Synchronized get() = active
     private val sourceResults = linkedMapOf<Pair<ForecastProvider, ModelFamily>, Boolean>()
     private val decoded = mutableMapOf<ForecastProvider, Int>()
     private val weightCounts =

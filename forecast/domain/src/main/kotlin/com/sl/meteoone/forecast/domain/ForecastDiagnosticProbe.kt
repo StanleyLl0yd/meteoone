@@ -5,6 +5,7 @@ import com.sl.meteoone.core.model.ModelFamily
 
 /** Opt-in, aggregate-only evidence. Implementations must never receive location or raw payload data. */
 interface ForecastDiagnosticProbe {
+    val collecting: Boolean get() = false
     fun sourceResult(provider: ForecastProvider, family: ModelFamily, succeeded: Boolean) {}
     fun nativeDecodeSucceeded(provider: ForecastProvider) {}
     fun weightDecision(

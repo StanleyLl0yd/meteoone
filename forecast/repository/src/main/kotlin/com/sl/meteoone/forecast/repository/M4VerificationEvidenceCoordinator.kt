@@ -144,23 +144,25 @@ internal class M4VerificationEvidenceCoordinator(
                 observations = selectedObservations,
             )
         }
-        val observationCount = selectedObservations.surfaceObservations.size +
-            selectedObservations.precipitationObservations.size
-        diagnostics.m4Evidence(
-            observationCount = observationCount,
-            samples = samples.groupingBy { sample ->
-                when (sample.parameter) {
-                    com.sl.meteoone.verification.domain.VerificationParameter.TEMPERATURE ->
-                        ForecastWeightParameter.TEMPERATURE
-                    com.sl.meteoone.verification.domain.VerificationParameter.PRESSURE ->
-                        ForecastWeightParameter.PRESSURE
-                    com.sl.meteoone.verification.domain.VerificationParameter.WIND ->
-                        ForecastWeightParameter.WIND
-                    com.sl.meteoone.verification.domain.VerificationParameter.PRECIPITATION ->
-                        ForecastWeightParameter.PRECIPITATION
-                }
-            }.eachCount(),
-        )
+        if (diagnostics.collecting) {
+            val observationCount = selectedObservations.surfaceObservations.size +
+                selectedObservations.precipitationObservations.size
+            diagnostics.m4Evidence(
+                observationCount = observationCount,
+                samples = samples.groupingBy { sample ->
+                    when (sample.parameter) {
+                        com.sl.meteoone.verification.domain.VerificationParameter.TEMPERATURE ->
+                            ForecastWeightParameter.TEMPERATURE
+                        com.sl.meteoone.verification.domain.VerificationParameter.PRESSURE ->
+                            ForecastWeightParameter.PRESSURE
+                        com.sl.meteoone.verification.domain.VerificationParameter.WIND ->
+                            ForecastWeightParameter.WIND
+                        com.sl.meteoone.verification.domain.VerificationParameter.PRECIPITATION ->
+                            ForecastWeightParameter.PRECIPITATION
+                    }
+                }.eachCount(),
+            )
+        }
         return samples
     }
 
