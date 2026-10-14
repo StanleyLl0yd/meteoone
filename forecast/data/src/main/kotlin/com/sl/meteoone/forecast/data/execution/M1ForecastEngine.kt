@@ -42,7 +42,7 @@ import com.sl.meteoone.forecast.verification.VerificationForecastModelWeightProv
 import com.sl.meteoone.forecast.verification.VerificationWeightSampleSource
 import java.time.Duration
 import java.time.Instant
-import kotlinx.coroutines.CancellationException
+import java.util.concurrent.CancellationException
 
 internal interface ForecastSourceExecutor {
     fun openMeteo(
