@@ -104,7 +104,7 @@ class VerificationForecastModelWeightProviderTest {
         )
 
         assertIs<ForecastModelWeightDecision.EqualFallback>(provider.weights(request()))
-        assertEquals(listOf(ForecastDiagnosticFallbackReason.MISSING_EVIDENCE), recorded)
+        assertEquals(ForecastDiagnosticFallbackReason.MISSING_EVIDENCE, recorded.single())
     }
 
     @Test

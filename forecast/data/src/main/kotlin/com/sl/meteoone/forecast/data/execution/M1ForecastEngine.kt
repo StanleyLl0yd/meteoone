@@ -340,6 +340,13 @@ class M1ForecastEngine internal constructor(
             ?.forecast
 
         if (baseline == null) {
+            results.forEach { result ->
+                diagnostics.sourceResult(
+                    result.identity.provider,
+                    result.identity.modelFamily,
+                    result is ForecastSourceResult.Success,
+                )
+            }
             return M1ForecastEngineResult.Unavailable(
                 successfulCrossChecks = results
                     .filterIsInstance<ForecastSourceResult.Success>()
@@ -363,6 +370,13 @@ class M1ForecastEngine internal constructor(
         }
         val horizon = horizonTimes.toHashSet()
         val horizonResults = results.map { result -> result.withinHorizon(horizon) }
+        horizonResults.forEach { result ->
+            diagnostics.sourceResult(
+                result.identity.provider,
+                result.identity.modelFamily,
+                result is ForecastSourceResult.Success,
+            )
+        }
 
         val combined = orchestrator.combine(horizonResults)
         require(combined is ForecastOrchestrationResult.Available) {
@@ -393,15 +407,12 @@ class M1ForecastEngine internal constructor(
             require(forecast.origin.provider == provider && forecast.origin.modelFamily == modelFamily) {
                 "Forecast source provenance does not match the attempted source identity"
             }
-            diagnostics.sourceResult(provider, modelFamily, succeeded = true)
             ForecastSourceResult.Success(forecast)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            diagnostics.sourceResult(provider, modelFamily, succeeded = false)
             ForecastSourceResult.Failure(identity)
         } catch (_: LinkageError) {
-            diagnostics.sourceResult(provider, modelFamily, succeeded = false)
             ForecastSourceResult.Failure(identity)
         }
     }
