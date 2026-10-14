@@ -17,6 +17,16 @@ interface ForecastRepository {
         timeZoneId: String,
     ): ForecastRefreshResult
 
+    /**
+     * Explicit opt-in diagnostic refresh. Returns only transient aggregate evidence, or null when
+     * a repository does not support diagnostics. Nothing is persisted or uploaded.
+     */
+    suspend fun diagnose(
+        coordinate: ForecastCoordinate,
+        elevationMeters: Int?,
+        timeZoneId: String,
+    ): ForecastDiagnosticReport? = null
+
     companion object {
         fun android(context: Context): ForecastRepository =
             AndroidForecastRepositoryHolder.get(context.applicationContext)

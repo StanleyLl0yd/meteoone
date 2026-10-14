@@ -28,6 +28,8 @@ import com.sl.meteoone.forecast.data.openmeteo.OpenMeteoForecastMapper
 import com.sl.meteoone.forecast.data.openmeteo.OpenMeteoForecastRequestPlanner
 import com.sl.meteoone.forecast.data.openmeteo.OpenMeteoModel
 import com.sl.meteoone.forecast.data.transport.ForecastHttpAdapter
+import com.sl.meteoone.forecast.domain.ForecastDiagnosticProbe
+import com.sl.meteoone.forecast.domain.NoOpForecastDiagnosticProbe
 import com.sl.meteoone.forecast.domain.FORECAST_HORIZON_HOURS
 import com.sl.meteoone.forecast.domain.FORECAST_HOURLY_CADENCE
 import com.sl.meteoone.forecast.domain.ForecastFusionEngine
@@ -40,6 +42,7 @@ import com.sl.meteoone.forecast.verification.VerificationForecastModelWeightProv
 import com.sl.meteoone.forecast.verification.VerificationWeightSampleSource
 import java.time.Duration
 import java.time.Instant
+import kotlinx.coroutines.CancellationException
 
 internal interface ForecastSourceExecutor {
     fun openMeteo(
@@ -191,6 +194,7 @@ private fun BoundedHttpsCall.requireBody(label: String): ByteArray =
 internal fun productionForecastSourceExecutor(
     context: Context,
     transport: BoundedHttpsTransport,
+    diagnostics: ForecastDiagnosticProbe = NoOpForecastDiagnosticProbe,
 ): ForecastSourceExecutor {
     val httpAdapter = ForecastHttpAdapter(transport)
     val decompressor = BoundedDwdBzip2Decompressor()
@@ -205,6 +209,18 @@ internal fun productionForecastSourceExecutor(
         gribDecoder = EcCodesGribFieldDecoder(
             nativeSession = nativeSession,
             dwdGeometryProvider = geometryProvider,
+            onNativeDecodeSuccess = { context ->
+                diagnostics.nativeDecodeSucceeded(
+                    when (context) {
+                        is com.sl.meteoone.forecast.data.grib.OfficialGribDecodeContext.Noaa ->
+                            ForecastProvider.NOAA_NOMADS
+                        is com.sl.meteoone.forecast.data.grib.OfficialGribDecodeContext.Ecmwf ->
+                            ForecastProvider.ECMWF_OPEN_DATA
+                        is com.sl.meteoone.forecast.data.grib.OfficialGribDecodeContext.Dwd ->
+                            ForecastProvider.DWD_OPEN_DATA
+                    },
+                )
+            },
         ),
         dwdDecompress = decompressor::decompress,
     )
@@ -213,19 +229,22 @@ internal fun productionForecastSourceExecutor(
 internal fun verificationWeightedM1ForecastEngine(
     sourceExecutor: ForecastSourceExecutor,
     sampleSource: VerificationWeightSampleSource,
+    diagnostics: ForecastDiagnosticProbe = NoOpForecastDiagnosticProbe,
 ): M1ForecastEngine =
     M1ForecastEngine(
         sourceExecutor = sourceExecutor,
         orchestrator = ForecastSourceOrchestrator(
             fusionEngine = ForecastFusionEngine(
-                weightProvider = VerificationForecastModelWeightProvider(sampleSource),
+                weightProvider = VerificationForecastModelWeightProvider(sampleSource, diagnostics = diagnostics),
             ),
         ),
+        diagnostics = diagnostics,
     )
 
 class M1ForecastEngine internal constructor(
     private val sourceExecutor: ForecastSourceExecutor,
     private val orchestrator: ForecastSourceOrchestrator = ForecastSourceOrchestrator(),
+    private val diagnostics: ForecastDiagnosticProbe = NoOpForecastDiagnosticProbe,
 ) {
     /**
      * Executes bounded network work synchronously. Android callers must invoke this off the main thread.
@@ -374,10 +393,15 @@ class M1ForecastEngine internal constructor(
             require(forecast.origin.provider == provider && forecast.origin.modelFamily == modelFamily) {
                 "Forecast source provenance does not match the attempted source identity"
             }
+            diagnostics.sourceResult(provider, modelFamily, succeeded = true)
             ForecastSourceResult.Success(forecast)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Exception) {
+            diagnostics.sourceResult(provider, modelFamily, succeeded = false)
             ForecastSourceResult.Failure(identity)
         } catch (_: LinkageError) {
+            diagnostics.sourceResult(provider, modelFamily, succeeded = false)
             ForecastSourceResult.Failure(identity)
         }
     }
@@ -418,11 +442,13 @@ class M1ForecastEngine internal constructor(
         fun android(
             context: Context,
             verificationSamples: VerificationWeightSampleSource,
+            diagnostics: ForecastDiagnosticProbe = NoOpForecastDiagnosticProbe,
         ): M1ForecastEngine =
             android(
                 context = context,
                 transport = DefaultBoundedHttpsTransport(),
                 verificationSamples = verificationSamples,
+                diagnostics = diagnostics,
             )
 
         internal fun android(
@@ -439,13 +465,16 @@ class M1ForecastEngine internal constructor(
             context: Context,
             transport: BoundedHttpsTransport,
             verificationSamples: VerificationWeightSampleSource,
+            diagnostics: ForecastDiagnosticProbe = NoOpForecastDiagnosticProbe,
         ): M1ForecastEngine =
             verificationWeightedM1ForecastEngine(
                 sourceExecutor = productionForecastSourceExecutor(
                     context = context,
                     transport = transport,
+                    diagnostics = diagnostics,
                 ),
                 sampleSource = verificationSamples,
+                diagnostics = diagnostics,
             )
     }
 }
