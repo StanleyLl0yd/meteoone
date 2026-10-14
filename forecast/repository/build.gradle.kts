@@ -26,6 +26,7 @@ android {
 
 dependencies {
     api(project(":core:model"))
+    api(project(":forecast:domain"))
     api(libs.kotlinx.coroutines.core)
 
     implementation(project(":core:database"))
