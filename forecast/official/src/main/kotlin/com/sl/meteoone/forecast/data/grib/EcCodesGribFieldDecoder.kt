@@ -28,6 +28,7 @@ fun interface DwdIconGridGeometryProvider {
 class EcCodesGribFieldDecoder(
     private val nativeSession: EcCodesNativeSession,
     private val dwdGeometryProvider: DwdIconGridGeometryProvider,
+    private val onNativeDecodeSuccess: (OfficialGribDecodeContext) -> Unit = {},
 ) : GribFieldDecoder {
     override fun decode(request: GribDecodeRequest): List<DecodedGribField> {
         val limits = when (request.context) {
@@ -61,14 +62,15 @@ class EcCodesGribFieldDecoder(
             null
         }
 
-        return buildList {
+        val decodedFields = buildList {
             messages.forEach { nativeMessage ->
                 val decoded = nativeMessage.decode(request.context, dwdGeometry)
                 if (decoded != null) add(decoded)
             }
         }
+        if (decodedFields.isNotEmpty()) onNativeDecodeSuccess(request.context)
+        return decodedFields
     }
-
 }
 
 private data class NativeDecodeLimits(

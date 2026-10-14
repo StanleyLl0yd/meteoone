@@ -8,6 +8,9 @@ import com.sl.meteoone.core.database.VerificationObservationStore
 import com.sl.meteoone.core.database.VerificationSampleProducer
 import com.sl.meteoone.core.model.ForecastCoordinate
 import com.sl.meteoone.core.model.ModelFamily
+import com.sl.meteoone.forecast.domain.ForecastDiagnosticProbe
+import com.sl.meteoone.forecast.domain.ForecastWeightParameter
+import com.sl.meteoone.forecast.domain.NoOpForecastDiagnosticProbe
 import com.sl.meteoone.forecast.data.execution.ExactRunAcquisitionResult
 import com.sl.meteoone.forecast.data.execution.ExactRunForecastAcquirer
 import com.sl.meteoone.forecast.verification.VerificationWeightSampleSource
@@ -77,6 +80,7 @@ internal class M4VerificationEvidenceCoordinator(
     private val observationSource: M4ObservationSource,
     private val sampleProducer: VerificationSampleProducer = DefaultVerificationSampleProducer(),
     private val storedStationRanker: GhcnhStationCandidateRanker = GhcnhStationCandidateRanker(),
+    private val diagnostics: ForecastDiagnosticProbe = NoOpForecastDiagnosticProbe,
 ) : M4VerificationEvidenceSource {
     override suspend fun prepareSamples(
         coordinate: ForecastCoordinate,
@@ -88,6 +92,7 @@ internal class M4VerificationEvidenceCoordinator(
         var history = historyStore.readSince(coordinate, fromInclusive)
         val runsToAcquire = planRunsToAcquire(history, evaluatedAt)
         val attemptedRunAcquisition = runsToAcquire.isNotEmpty()
+        diagnostics.m4RunAcquisition(attemptedRunAcquisition)
 
         if (attemptedRunAcquisition) {
             val acquired = exactRunSource.acquire(
@@ -103,6 +108,7 @@ internal class M4VerificationEvidenceCoordinator(
             )
             history = historyStore.readSince(coordinate, fromInclusive)
         }
+        diagnostics.m4StoredRuns(history.size)
 
         var observations = readBestStoredSeries(
             coordinate = coordinate,
@@ -127,13 +133,37 @@ internal class M4VerificationEvidenceCoordinator(
             ) ?: observations
         }
 
-        val selectedObservations = observations ?: return emptyList()
-        return history.flatMap { run ->
+        val selectedObservations = observations
+        if (selectedObservations == null) {
+            diagnostics.m4Evidence(observationCount = 0, samples = emptyMap())
+            return emptyList()
+        }
+        val samples = history.flatMap { run ->
             sampleProducer.produce(
                 forecast = run,
                 observations = selectedObservations,
             )
         }
+        if (diagnostics.collecting) {
+            val observationCount = selectedObservations.surfaceObservations.size +
+                selectedObservations.precipitationObservations.size
+            diagnostics.m4Evidence(
+                observationCount = observationCount,
+                samples = samples.groupingBy { sample ->
+                    when (sample.parameter) {
+                        com.sl.meteoone.verification.domain.VerificationParameter.TEMPERATURE ->
+                            ForecastWeightParameter.TEMPERATURE
+                        com.sl.meteoone.verification.domain.VerificationParameter.PRESSURE ->
+                            ForecastWeightParameter.PRESSURE
+                        com.sl.meteoone.verification.domain.VerificationParameter.WIND ->
+                            ForecastWeightParameter.WIND
+                        com.sl.meteoone.verification.domain.VerificationParameter.PRECIPITATION ->
+                            ForecastWeightParameter.PRECIPITATION
+                    }
+                }.eachCount(),
+            )
+        }
+        return samples
     }
 
     private suspend fun readBestStoredSeries(
@@ -214,6 +244,7 @@ internal class M4ForecastRefreshSource(
     private val coordinator: M4VerificationEvidenceSource,
     private val sampleSource: RefreshScopedVerificationWeightSampleSource,
     private val delegate: ForecastRefreshSource,
+    private val diagnostics: ForecastDiagnosticProbe = NoOpForecastDiagnosticProbe,
 ) : ForecastRefreshSource {
     override suspend fun forecast(
         coordinate: ForecastCoordinate,
@@ -233,8 +264,10 @@ internal class M4ForecastRefreshSource(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
+                diagnostics.m4Failure()
                 emptyList()
             } catch (_: LinkageError) {
+                diagnostics.m4Failure()
                 emptyList()
             }
             sampleSource.replace(samples)
@@ -253,6 +286,7 @@ internal class M4ForecastRefreshSource(
 internal fun productionM4VerificationEvidenceCoordinator(
     historyStore: ForecastVerificationHistoryStore,
     observationStore: VerificationObservationStore,
+    diagnostics: ForecastDiagnosticProbe = NoOpForecastDiagnosticProbe,
 ): M4VerificationEvidenceCoordinator {
     val exactRuns = ExactRunForecastAcquirer.default()
     val stationCandidates = GhcnhStationCandidateSource.default()
@@ -260,6 +294,7 @@ internal fun productionM4VerificationEvidenceCoordinator(
     return M4VerificationEvidenceCoordinator(
         historyStore = historyStore,
         observationStore = observationStore,
+        diagnostics = diagnostics,
         exactRunSource = M4ExactRunSource { coordinate, elevation, timeZoneId, runs, capturedAt ->
             exactRuns.acquire(
                 coordinate = coordinate,

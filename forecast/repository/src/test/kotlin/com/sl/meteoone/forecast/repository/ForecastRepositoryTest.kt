@@ -328,6 +328,57 @@ class ForecastRepositoryTest {
         }
     }
 
+    @Test
+    fun diagnosticRefreshIsOptInAndNeverCarriesEventsAcrossSessions() = runBlocking {
+        val recorder = RefreshDiagnosticRecorder()
+        var cancel = false
+        val repository = DefaultForecastRepository(
+            store = FakeStore(),
+            refreshSource = ForecastRefreshSource { _, _, _, _ ->
+                recorder.sourceResult(ForecastProvider.NOAA_NOMADS, ModelFamily.NOAA_GFS, true)
+                recorder.nativeDecodeSucceeded(ForecastProvider.NOAA_NOMADS)
+                if (cancel) throw CancellationException("cancelled diagnostic")
+                ForecastRefreshSourceResult.Unavailable
+            },
+            clock = clock,
+            ioDispatcher = Dispatchers.Unconfined,
+            diagnosticRecorder = recorder,
+        )
+
+        assertEquals(ForecastRefreshResult.Unavailable, repository.refresh(coordinate, null, "UTC"))
+        cancel = true
+        assertFailsWith<CancellationException> {
+            repository.diagnose(coordinate, null, "UTC")
+        }
+        cancel = false
+        val report = requireNotNull(repository.diagnose(coordinate, null, "UTC"))
+        assertEquals(ForecastRefreshResult.Unavailable, report.refreshOutcome)
+        assertEquals(1, report.sources.size)
+        assertEquals(1, report.sources.single().nativeDecodeSuccesses)
+        assertTrue(report.sources.single().officialGribSelected)
+        val second = requireNotNull(repository.diagnose(coordinate, null, "UTC"))
+        assertEquals(1, second.sources.single().nativeDecodeSuccesses)
+    }
+
+    @Test
+    fun diagnosticFailureDoesNotExposeExceptionDetails() = runBlocking {
+        val recorder = RefreshDiagnosticRecorder()
+        val repository = DefaultForecastRepository(
+            store = FakeStore(),
+            refreshSource = ForecastRefreshSource { _, _, _, _ ->
+                recorder.m4Failure()
+                error("private-coordinate=59.900001,30.300001")
+            },
+            clock = clock,
+            ioDispatcher = Dispatchers.Unconfined,
+            diagnosticRecorder = recorder,
+        )
+        val report = requireNotNull(repository.diagnose(coordinate, null, "UTC"))
+        assertEquals(ForecastRefreshResult.Failed, report.refreshOutcome)
+        assertTrue(report.m4Failed)
+        assertFalse(report.sanitizedText("0.4.0", "arm64-v8a").contains("59.900001"))
+    }
+
     private fun repository(
         store: ForecastSnapshotStore,
         clock: Clock = this.clock,

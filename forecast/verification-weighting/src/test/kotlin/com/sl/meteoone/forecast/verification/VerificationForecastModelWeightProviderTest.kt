@@ -3,6 +3,8 @@ package com.sl.meteoone.forecast.verification
 import com.sl.meteoone.core.model.ForecastCoordinate
 import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.ModelFamily
+import com.sl.meteoone.forecast.domain.ForecastDiagnosticFallbackReason
+import com.sl.meteoone.forecast.domain.ForecastDiagnosticProbe
 import com.sl.meteoone.forecast.domain.ForecastModelWeightDecision
 import com.sl.meteoone.forecast.domain.ForecastModelWeightRequest
 import com.sl.meteoone.forecast.domain.ForecastWeightParameter
@@ -15,8 +17,10 @@ import com.sl.meteoone.verification.domain.VerificationSample
 import com.sl.meteoone.verification.domain.VerificationWeightRequest
 import java.time.Duration
 import java.time.Instant
+import java.util.concurrent.CancellationException
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -40,10 +44,22 @@ class VerificationForecastModelWeightProviderTest {
     @Test
     fun stableM4EvidenceBecomesMeasuredFusionWeights() {
         var captured: VerificationWeightRequest? = null
+        val measuredParameters = mutableListOf<ForecastWeightParameter>()
         val provider = VerificationForecastModelWeightProvider(
             sampleSource = VerificationWeightSampleSource { request ->
                 captured = request
                 stableCampaign()
+            },
+            diagnostics = object : ForecastDiagnosticProbe {
+                override fun weightDecision(
+                    parameter: ForecastWeightParameter,
+                    measured: Boolean,
+                    fallback: ForecastDiagnosticFallbackReason?,
+                ) {
+                    assertTrue(measured)
+                    assertEquals(null, fallback)
+                    measuredParameters += parameter
+                }
             },
         )
 
@@ -57,6 +73,7 @@ class VerificationForecastModelWeightProviderTest {
         )
         assertEquals(MeteorologicalSeason.AUTUMN, requireNotNull(captured).season)
         assertEquals(families, decision.weights.keys)
+        assertEquals(listOf(ForecastWeightParameter.TEMPERATURE), measuredParameters)
         assertTrue(
             decision.weights.getValue(ModelFamily.ECMWF_IFS) >
                 decision.weights.getValue(ModelFamily.DWD_ICON),
@@ -72,13 +89,24 @@ class VerificationForecastModelWeightProviderTest {
 
     @Test
     fun missingEvidenceKeepsEqualFusionFallback() {
+        val recorded = mutableListOf<ForecastDiagnosticFallbackReason?>()
         val provider = VerificationForecastModelWeightProvider(
             sampleSource = VerificationWeightSampleSource { emptyList() },
+            diagnostics = object : ForecastDiagnosticProbe {
+                override fun weightDecision(
+                    parameter: ForecastWeightParameter,
+                    measured: Boolean,
+                    fallback: ForecastDiagnosticFallbackReason?,
+                ) {
+                    assertEquals(ForecastWeightParameter.TEMPERATURE, parameter)
+                    assertEquals(false, measured)
+                    recorded += fallback
+                }
+            },
         )
 
-        assertIs<ForecastModelWeightDecision.EqualFallback>(
-            provider.weights(request()),
-        )
+        assertIs<ForecastModelWeightDecision.EqualFallback>(provider.weights(request()))
+        assertEquals(ForecastDiagnosticFallbackReason.MISSING_EVIDENCE, recorded.single())
     }
 
     @Test
@@ -97,6 +125,25 @@ class VerificationForecastModelWeightProviderTest {
 
         assertIs<ForecastModelWeightDecision.EqualFallback>(decision)
         assertEquals(0, queries)
+    }
+
+    @Test
+    fun cancellationPropagatesInsteadOfBecomingEqualWeightFallback() {
+        val provider = VerificationForecastModelWeightProvider(
+            sampleSource = VerificationWeightSampleSource {
+                throw CancellationException("stop")
+            },
+            diagnostics = object : ForecastDiagnosticProbe {
+                override fun weightDecision(
+                    parameter: ForecastWeightParameter,
+                    measured: Boolean,
+                    fallback: ForecastDiagnosticFallbackReason?,
+                ) {
+                    error("A cancelled evaluation must not report a fallback decision")
+                }
+            },
+        )
+        assertFailsWith<CancellationException> { provider.weights(request()) }
     }
 
     private fun request(

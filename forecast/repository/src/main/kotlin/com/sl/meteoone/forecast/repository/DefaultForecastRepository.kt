@@ -33,13 +33,16 @@ private val DEFAULT_FRESH_DURATION: Duration = Duration.ofHours(3)
 internal fun createAndroidForecastRepository(context: Context): ForecastRepository {
     val appContext = context.applicationContext
     val sampleSource = RefreshScopedVerificationWeightSampleSource()
+    val diagnostics = RefreshDiagnosticRecorder()
     val weightedEngine = M1ForecastEngine.android(
         context = appContext,
         verificationSamples = sampleSource,
+        diagnostics = diagnostics,
     )
     val coordinator = productionM4VerificationEvidenceCoordinator(
         historyStore = ForecastSnapshotDatabase.openVerificationHistory(appContext),
         observationStore = ForecastSnapshotDatabase.openVerificationObservations(appContext),
+        diagnostics = diagnostics,
     )
     return DefaultForecastRepository(
         store = ForecastSnapshotDatabase.open(appContext),
@@ -47,7 +50,9 @@ internal fun createAndroidForecastRepository(context: Context): ForecastReposito
             coordinator = coordinator,
             sampleSource = sampleSource,
             delegate = M1ForecastRefreshSource(weightedEngine),
+            diagnostics = diagnostics,
         ),
+        diagnosticRecorder = diagnostics,
     )
 }
 
@@ -156,6 +161,7 @@ internal class DefaultForecastRepository(
         delay(duration.toMillis().coerceAtLeast(1L))
     },
     private val refreshMutex: Mutex = Mutex(),
+    private val diagnosticRecorder: RefreshDiagnosticRecorder? = null,
 ) : ForecastRepository {
     private val freshnessRevision = MutableStateFlow(0L)
 
@@ -197,35 +203,7 @@ internal class DefaultForecastRepository(
     ): ForecastRefreshResult = try {
         refreshMutex.withLock {
             withContext(ioDispatcher) {
-                when (
-                    val result = refreshSource.forecast(
-                        coordinate = coordinate,
-                        elevationMeters = elevationMeters,
-                        timeZoneId = timeZoneId,
-                        generatedAt = clock.instant(),
-                    )
-                ) {
-                    is ForecastRefreshSourceResult.Available -> {
-                        store.replace(
-                            coordinate = coordinate,
-                            forecast = result.forecast,
-                            sourceForecasts = result.sourceForecasts,
-                            failedSources = result.failedSources.map { identity ->
-                                StoredForecastSourceIdentity(
-                                    provider = identity.provider,
-                                    modelFamily = identity.modelFamily,
-                                )
-                            },
-                        )
-                        if (result.degraded) {
-                            ForecastRefreshResult.UpdatedWithDegradation
-                        } else {
-                            ForecastRefreshResult.Updated
-                        }
-                    }
-
-                    ForecastRefreshSourceResult.Unavailable -> ForecastRefreshResult.Unavailable
-                }
+                refreshOnce(coordinate, elevationMeters, timeZoneId)
             }
         }
     } catch (cancelled: CancellationException) {
@@ -237,4 +215,67 @@ internal class DefaultForecastRepository(
     } finally {
         freshnessRevision.update { revision -> revision + 1L }
     }
+
+    override suspend fun diagnose(
+        coordinate: ForecastCoordinate,
+        elevationMeters: Int?,
+        timeZoneId: String,
+    ): ForecastDiagnosticReport? {
+        val recorder = diagnosticRecorder ?: return null
+        return refreshMutex.withLock {
+            recorder.start()
+            try {
+                val outcome = try {
+                    withContext(ioDispatcher) {
+                        refreshOnce(coordinate, elevationMeters, timeZoneId)
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    ForecastRefreshResult.Failed
+                } catch (_: LinkageError) {
+                    ForecastRefreshResult.Failed
+                }
+                recorder.finish(outcome, clock.instant())
+            } finally {
+                recorder.discard()
+                freshnessRevision.update { revision -> revision + 1L }
+            }
+        }
+    }
+
+    private suspend fun refreshOnce(
+        coordinate: ForecastCoordinate,
+        elevationMeters: Int?,
+        timeZoneId: String,
+    ): ForecastRefreshResult =
+        when (
+            val result = refreshSource.forecast(
+                coordinate = coordinate,
+                elevationMeters = elevationMeters,
+                timeZoneId = timeZoneId,
+                generatedAt = clock.instant(),
+            )
+        ) {
+            is ForecastRefreshSourceResult.Available -> {
+                store.replace(
+                    coordinate = coordinate,
+                    forecast = result.forecast,
+                    sourceForecasts = result.sourceForecasts,
+                    failedSources = result.failedSources.map { identity ->
+                        StoredForecastSourceIdentity(
+                            provider = identity.provider,
+                            modelFamily = identity.modelFamily,
+                        )
+                    },
+                )
+                if (result.degraded) {
+                    ForecastRefreshResult.UpdatedWithDegradation
+                } else {
+                    ForecastRefreshResult.Updated
+                }
+            }
+
+            ForecastRefreshSourceResult.Unavailable -> ForecastRefreshResult.Unavailable
+        }
 }

@@ -1,5 +1,8 @@
 package com.sl.meteoone.forecast.verification
 
+import com.sl.meteoone.forecast.domain.ForecastDiagnosticFallbackReason
+import com.sl.meteoone.forecast.domain.ForecastDiagnosticProbe
+import com.sl.meteoone.forecast.domain.NoOpForecastDiagnosticProbe
 import com.sl.meteoone.forecast.domain.ForecastModelWeightDecision
 import com.sl.meteoone.forecast.domain.ForecastModelWeightProvider
 import com.sl.meteoone.forecast.domain.ForecastModelWeightRequest
@@ -13,6 +16,7 @@ import com.sl.meteoone.verification.domain.VerificationWeightPolicy
 import com.sl.meteoone.verification.domain.VerificationWeightRequest
 import java.time.Duration
 import java.time.ZoneId
+import java.util.concurrent.CancellationException
 
 /**
  * Supplies already-collected M4 verification samples to the synchronous forecast fusion boundary.
@@ -27,11 +31,18 @@ fun interface VerificationWeightSampleSource {
 class VerificationForecastModelWeightProvider(
     private val sampleSource: VerificationWeightSampleSource,
     private val policy: VerificationWeightPolicy = VerificationWeightPolicy(),
+    private val diagnostics: ForecastDiagnosticProbe = NoOpForecastDiagnosticProbe,
 ) : ForecastModelWeightProvider {
     override fun weights(request: ForecastModelWeightRequest): ForecastModelWeightDecision {
         val leadBucket = LeadTimeBucket.from(
             Duration.between(request.modelRun, request.validTime),
-        ) ?: return ForecastModelWeightDecision.EqualFallback
+        ) ?: return ForecastModelWeightDecision.EqualFallback.also {
+            diagnostics.weightDecision(
+                request.parameter,
+                measured = false,
+                fallback = ForecastDiagnosticFallbackReason.INVALID_LEAD,
+            )
+        }
 
         val verificationRequest = VerificationWeightRequest(
             coordinate = request.coordinate,
@@ -51,15 +62,35 @@ class VerificationForecastModelWeightProvider(
                     samples = sampleSource.samples(verificationRequest),
                 )
             ) {
-                is VerificationWeightDecision.EqualFallback ->
+                is VerificationWeightDecision.EqualFallback -> {
+                    diagnostics.weightDecision(
+                        request.parameter,
+                        measured = false,
+                        fallback = decision.attempts.lastOrNull()?.reason?.let {
+                            ForecastDiagnosticFallbackReason.valueOf(it.name)
+                        } ?: ForecastDiagnosticFallbackReason.MISSING_EVIDENCE,
+                    )
                     ForecastModelWeightDecision.EqualFallback
+                }
 
-                is VerificationWeightDecision.Measured ->
+                is VerificationWeightDecision.Measured -> {
+                    diagnostics.weightDecision(request.parameter, measured = true, fallback = null)
                     ForecastModelWeightDecision.Measured(decision.weights)
+                }
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Exception) {
+            diagnostics.weightDecision(
+                request.parameter, measured = false,
+                fallback = ForecastDiagnosticFallbackReason.EVALUATION_ERROR,
+            )
             ForecastModelWeightDecision.EqualFallback
         } catch (_: LinkageError) {
+            diagnostics.weightDecision(
+                request.parameter, measured = false,
+                fallback = ForecastDiagnosticFallbackReason.EVALUATION_ERROR,
+            )
             ForecastModelWeightDecision.EqualFallback
         }
     }

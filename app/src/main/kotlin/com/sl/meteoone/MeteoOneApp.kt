@@ -55,6 +55,7 @@ import com.sl.meteoone.core.model.FusedHourlyForecast
 import com.sl.meteoone.core.model.ModelAgreement
 import com.sl.meteoone.core.model.WeatherCondition
 import com.sl.meteoone.core.preferences.ForecastTargetStore
+import com.sl.meteoone.forecast.repository.ForecastDiagnosticReport
 import com.sl.meteoone.forecast.repository.ForecastCacheState
 import com.sl.meteoone.forecast.repository.ForecastFreshness
 import com.sl.meteoone.forecast.repository.ForecastRefreshResult
@@ -81,6 +82,8 @@ internal fun MeteoOneApp(
     var operation by remember { mutableStateOf<ForecastOperation>(ForecastOperation.Idle) }
     var locationRequest by remember { mutableStateOf<LocationRequestHandle?>(null) }
     var destination by remember { mutableStateOf(ProductDestination.FORECAST) }
+    var diagnosticRunning by remember { mutableStateOf(false) }
+    var diagnosticReport by remember { mutableStateOf<ForecastDiagnosticReport?>(null) }
 
     DisposableEffect(locationClient) {
         onDispose {
@@ -106,7 +109,7 @@ internal fun MeteoOneApp(
     }
 
     fun refresh(target: ForecastTarget) {
-        if (operation.isBusy) return
+        if (operation.isBusy || diagnosticRunning) return
         operation = ForecastOperation.Refreshing
         scope.launch {
             operation = ForecastOperation.RefreshFinished(
@@ -120,7 +123,7 @@ internal fun MeteoOneApp(
     }
 
     fun requestCurrentApproximateLocation() {
-        if (operation.isBusy) return
+        if (operation.isBusy || diagnosticRunning) return
         operation = ForecastOperation.Locating
         locationRequest?.cancel()
         locationRequest = locationClient.requestCurrentLocation { result ->
@@ -147,6 +150,27 @@ internal fun MeteoOneApp(
                 is CurrentLocationResult.Unavailable -> {
                     operation = ForecastOperation.LocationUnavailable(result.reason)
                 }
+            }
+        }
+    }
+
+    fun runDiagnostics(target: ForecastTarget) {
+        if (operation.isBusy || diagnosticRunning) return
+        diagnosticReport = null
+        diagnosticRunning = true
+        scope.launch {
+            try {
+                diagnosticReport = repository.diagnose(
+                    coordinate = target.coordinate,
+                    elevationMeters = target.elevationMeters,
+                    timeZoneId = target.timeZoneId,
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                diagnosticReport = null
+            } finally {
+                diagnosticRunning = false
             }
         }
     }
@@ -253,9 +277,19 @@ internal fun MeteoOneApp(
                     )
                 }
 
-                    ProductDestination.SETTINGS -> SettingsContent(
-                        modifier = Modifier.weight(1f),
-                    )
+                    ProductDestination.SETTINGS -> {
+                        val diagnosticTarget = (targetLoad as? TargetLoadState.Loaded)?.target
+                        SettingsContent(
+                            modifier = Modifier.weight(1f),
+                            diagnosticAvailable = diagnosticTarget != null,
+                            diagnosticRunning = diagnosticRunning,
+                            diagnosticReport = diagnosticReport,
+                            onRunDiagnostics = {
+                                diagnosticTarget?.let(::runDiagnostics)
+                            },
+                            onClearDiagnostics = { diagnosticReport = null },
+                        )
+                    }
                 }
             }
         }
