@@ -161,4 +161,11 @@
     <string name="settings_project_title">Проект</string>
     <string name="settings_project_body">MeteoOne разрабатывается в публичном репозитории GitHub. Там поддерживаются архитектурная документация, политика конфиденциальности, политика безопасности и правила релизов.</string>
     <string name="settings_open_project">Открыть репозиторий проекта</string>
+    <string name="diagnostics_title">Диагностика устройства (M4)</string>
+    <string name="diagnostics_privacy">Запускается только вручную. При обновлении прогноза временно собирает агрегированные результаты источников, native-декодирования и проверки моделей. Без координат, ID станций, сырых ответов или отправки диагностики. Результат можно удалить.</string>
+    <string name="diagnostics_run">Выполнить диагностическое обновление</string>
+    <string name="diagnostics_running">Идёт диагностическое обновление…</string>
+    <string name="diagnostics_select_location">Сначала выберите место для прогноза.</string>
+    <string name="diagnostics_copy">Скопировать безопасный отчёт</string>
+    <string name="diagnostics_clear">Удалить отчёт</string>
 </resources>

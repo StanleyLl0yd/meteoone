@@ -45,10 +45,20 @@ data class ForecastDiagnosticReport(
     /** Strict field allowlist: no coordinates, station IDs, paths, URLs or network exceptions. */
     fun sanitizedText(version: String, abi: String): String = buildString {
         appendLine("MeteoOne device diagnostics")
-        appendLine("Version: $version")
-        appendLine("ABI: $abi")
+        val safeVersion = version.takeIf { it.matches(Regex("[0-9]+\\.[0-9]+\\.[0-9]+")) }
+            ?: "unknown"
+        val safeAbi = abi.takeIf { it in setOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86") }
+            ?: "unknown"
+        appendLine("Version: $safeVersion")
+        appendLine("ABI: $safeAbi")
         appendLine("UTC: $capturedAt")
-        appendLine("Refresh: ${refreshOutcome.javaClass.simpleName}")
+        val outcome = when (refreshOutcome) {
+            ForecastRefreshResult.Updated -> "updated"
+            ForecastRefreshResult.UpdatedWithDegradation -> "updated_degraded"
+            ForecastRefreshResult.Unavailable -> "unavailable"
+            ForecastRefreshResult.Failed -> "failed"
+        }
+        appendLine("Refresh: $outcome")
         sources.forEach {
             appendLine(
                 "Source: ${it.provider.name}/${it.family.name} " +

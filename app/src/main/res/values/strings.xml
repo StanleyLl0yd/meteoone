@@ -155,4 +155,11 @@
     <string name="settings_project_title">Project</string>
     <string name="settings_project_body">MeteoOne is developed in a public GitHub repository. Project architecture, privacy documentation, security policy, and release controls are maintained there.</string>
     <string name="settings_open_project">Open project repository</string>
+    <string name="diagnostics_title">Device diagnostics (M4)</string>
+    <string name="diagnostics_privacy">Only runs when requested. A manual forecast refresh collects aggregate source, native decoder and verification outcomes in memory. No location, station IDs, raw responses or diagnostic uploads. Clear the result after copying if needed.</string>
+    <string name="diagnostics_run">Run one diagnostic refresh</string>
+    <string name="diagnostics_running">Diagnostic refresh in progress…</string>
+    <string name="diagnostics_select_location">Select a forecast location first.</string>
+    <string name="diagnostics_copy">Copy sanitized report</string>
+    <string name="diagnostics_clear">Clear report</string>
 </resources>

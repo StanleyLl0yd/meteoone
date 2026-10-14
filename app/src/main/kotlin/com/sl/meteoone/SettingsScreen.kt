@@ -13,6 +13,12 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import com.sl.meteoone.forecast.repository.ForecastDiagnosticReport
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -27,9 +33,15 @@ import androidx.compose.ui.unit.dp
 @Composable
 internal fun SettingsContent(
     modifier: Modifier,
+    diagnosticAvailable: Boolean,
+    diagnosticRunning: Boolean,
+    diagnosticReport: ForecastDiagnosticReport?,
+    onRunDiagnostics: () -> Unit,
+    onClearDiagnostics: () -> Unit,
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
+    val clipboard = LocalClipboardManager.current
     val appVersion = remember(context) { readAppVersion(context) }
 
     LazyColumn(
@@ -64,6 +76,50 @@ internal fun SettingsContent(
                 title = stringResource(R.string.settings_offline_title),
                 body = stringResource(R.string.settings_offline_body),
             )
+        }
+
+        item {
+            SettingsCard(
+                title = stringResource(R.string.diagnostics_title),
+                body = stringResource(R.string.diagnostics_privacy),
+            ) {
+                if (diagnosticAvailable) {
+                    TextButton(
+                        onClick = onRunDiagnostics,
+                        enabled = !diagnosticRunning,
+                    ) {
+                        Text(
+                            stringResource(
+                                if (diagnosticRunning) {
+                                    R.string.diagnostics_running
+                                } else {
+                                    R.string.diagnostics_run
+                                },
+                            ),
+                        )
+                    }
+                } else {
+                    Text(stringResource(R.string.diagnostics_select_location))
+                }
+                if (diagnosticReport != null) {
+                    val sanitized = diagnosticReport.sanitizedText(
+                        version = appVersion.name ?: "unknown",
+                        abi = Build.SUPPORTED_ABIS.firstOrNull() ?: "unknown",
+                    )
+                    Text(
+                        text = sanitized,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    TextButton(
+                        onClick = { clipboard.setText(AnnotatedString(sanitized)) },
+                    ) {
+                        Text(stringResource(R.string.diagnostics_copy))
+                    }
+                    TextButton(onClick = onClearDiagnostics) {
+                        Text(stringResource(R.string.diagnostics_clear))
+                    }
+                }
+            }
         }
 
         item {
