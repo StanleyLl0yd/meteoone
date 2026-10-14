@@ -24,9 +24,11 @@ class EcCodesGribFieldDecoderTest {
             observedMaxValues = maxTotalValues
             arrayOf(temperatureMessage(281.25))
         }
+        var nativeCallbackCount = 0
         val decoder = EcCodesGribFieldDecoder(
             nativeSession = session,
             dwdGeometryProvider = DwdIconGridGeometryProvider { error("DWD geometry must not be requested") },
+            onNativeDecodeSuccess = { nativeCallbackCount++ },
         )
 
         val fields = decoder.decode(GribDecodeRequest.noaa(byteArrayOf(1), plan))
@@ -34,6 +36,7 @@ class EcCodesGribFieldDecoderTest {
         assertEquals(64, observedMaxMessages)
         assertEquals(64, observedMaxValues)
         assertEquals(1, fields.size)
+        assertEquals(1, nativeCallbackCount)
         assertEquals(GribForecastParameter.TEMPERATURE_2M, fields.single().parameter)
         assertEquals(GribValueUnit.KELVIN, fields.single().unit)
         assertEquals(281.25, fields.single().value)
@@ -52,6 +55,7 @@ class EcCodesGribFieldDecoderTest {
         val decoder = EcCodesGribFieldDecoder(
             nativeSession = EcCodesNativeSession { _, _, _ -> arrayOf(malformed) },
             dwdGeometryProvider = DwdIconGridGeometryProvider { error("DWD geometry must not be requested") },
+            onNativeDecodeSuccess = { error("Invalid native messages must not count") },
         )
 
         assertFailsWith<IllegalArgumentException> {
@@ -67,9 +71,22 @@ class EcCodesGribFieldDecoderTest {
         val decoder = EcCodesGribFieldDecoder(
             nativeSession = EcCodesNativeSession { _, _, _ -> arrayOf(malformed) },
             dwdGeometryProvider = DwdIconGridGeometryProvider { error("DWD geometry must not be requested") },
+            onNativeDecodeSuccess = { error("Invalid native messages must not count") },
         )
 
         assertFailsWith<IllegalArgumentException> {
+            decoder.decode(GribDecodeRequest.noaa(byteArrayOf(1), plan))
+        }
+    }
+
+    @Test
+    fun nativeDecoderExceptionsAreNotReportedAsSuccessful() {
+        val decoder = EcCodesGribFieldDecoder(
+            nativeSession = EcCodesNativeSession { _, _, _ -> error("simulated native failure") },
+            dwdGeometryProvider = DwdIconGridGeometryProvider { error("DWD geometry must not be requested") },
+            onNativeDecodeSuccess = { error("Failed native call must not count") },
+        )
+        assertFailsWith<IllegalStateException> {
             decoder.decode(GribDecodeRequest.noaa(byteArrayOf(1), plan))
         }
     }

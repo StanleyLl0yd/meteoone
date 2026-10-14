@@ -3,6 +3,8 @@ package com.sl.meteoone.forecast.verification
 import com.sl.meteoone.core.model.ForecastCoordinate
 import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.ModelFamily
+import com.sl.meteoone.forecast.domain.ForecastDiagnosticFallbackReason
+import com.sl.meteoone.forecast.domain.ForecastDiagnosticProbe
 import com.sl.meteoone.forecast.domain.ForecastModelWeightDecision
 import com.sl.meteoone.forecast.domain.ForecastModelWeightRequest
 import com.sl.meteoone.forecast.domain.ForecastWeightParameter
@@ -40,10 +42,22 @@ class VerificationForecastModelWeightProviderTest {
     @Test
     fun stableM4EvidenceBecomesMeasuredFusionWeights() {
         var captured: VerificationWeightRequest? = null
+        val measuredParameters = mutableListOf<ForecastWeightParameter>()
         val provider = VerificationForecastModelWeightProvider(
             sampleSource = VerificationWeightSampleSource { request ->
                 captured = request
                 stableCampaign()
+            },
+            diagnostics = object : ForecastDiagnosticProbe {
+                override fun weightDecision(
+                    parameter: ForecastWeightParameter,
+                    measured: Boolean,
+                    fallback: ForecastDiagnosticFallbackReason?,
+                ) {
+                    assertTrue(measured)
+                    assertEquals(null, fallback)
+                    measuredParameters += parameter
+                }
             },
         )
 
@@ -57,6 +71,7 @@ class VerificationForecastModelWeightProviderTest {
         )
         assertEquals(MeteorologicalSeason.AUTUMN, requireNotNull(captured).season)
         assertEquals(families, decision.weights.keys)
+        assertEquals(listOf(ForecastWeightParameter.TEMPERATURE), measuredParameters)
         assertTrue(
             decision.weights.getValue(ModelFamily.ECMWF_IFS) >
                 decision.weights.getValue(ModelFamily.DWD_ICON),
@@ -72,13 +87,24 @@ class VerificationForecastModelWeightProviderTest {
 
     @Test
     fun missingEvidenceKeepsEqualFusionFallback() {
+        val recorded = mutableListOf<ForecastDiagnosticFallbackReason?>()
         val provider = VerificationForecastModelWeightProvider(
             sampleSource = VerificationWeightSampleSource { emptyList() },
+            diagnostics = object : ForecastDiagnosticProbe {
+                override fun weightDecision(
+                    parameter: ForecastWeightParameter,
+                    measured: Boolean,
+                    fallback: ForecastDiagnosticFallbackReason?,
+                ) {
+                    assertEquals(ForecastWeightParameter.TEMPERATURE, parameter)
+                    assertEquals(false, measured)
+                    recorded += fallback
+                }
+            },
         )
 
-        assertIs<ForecastModelWeightDecision.EqualFallback>(
-            provider.weights(request()),
-        )
+        assertIs<ForecastModelWeightDecision.EqualFallback>(provider.weights(request()))
+        assertEquals(listOf(ForecastDiagnosticFallbackReason.MISSING_EVIDENCE), recorded)
     }
 
     @Test
