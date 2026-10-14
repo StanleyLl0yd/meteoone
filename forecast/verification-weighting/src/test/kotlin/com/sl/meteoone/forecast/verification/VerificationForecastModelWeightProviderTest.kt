@@ -17,8 +17,10 @@ import com.sl.meteoone.verification.domain.VerificationSample
 import com.sl.meteoone.verification.domain.VerificationWeightRequest
 import java.time.Duration
 import java.time.Instant
+import java.util.concurrent.CancellationException
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -123,6 +125,25 @@ class VerificationForecastModelWeightProviderTest {
 
         assertIs<ForecastModelWeightDecision.EqualFallback>(decision)
         assertEquals(0, queries)
+    }
+
+    @Test
+    fun cancellationPropagatesInsteadOfBecomingEqualWeightFallback() {
+        val provider = VerificationForecastModelWeightProvider(
+            sampleSource = VerificationWeightSampleSource {
+                throw CancellationException("stop")
+            },
+            diagnostics = object : ForecastDiagnosticProbe {
+                override fun weightDecision(
+                    parameter: ForecastWeightParameter,
+                    measured: Boolean,
+                    fallback: ForecastDiagnosticFallbackReason?,
+                ) {
+                    error("A cancelled evaluation must not report a fallback decision")
+                }
+            },
+        )
+        assertFailsWith<CancellationException> { provider.weights(request()) }
     }
 
     private fun request(

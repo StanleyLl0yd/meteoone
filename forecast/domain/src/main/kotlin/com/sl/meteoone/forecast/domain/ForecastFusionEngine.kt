@@ -12,6 +12,7 @@ import com.sl.meteoone.core.model.ModelFamily
 import com.sl.meteoone.core.model.SourceForecast
 import com.sl.meteoone.core.model.WeatherCondition
 import java.time.Instant
+import java.util.concurrent.CancellationException
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
@@ -434,6 +435,8 @@ class ForecastFusionEngine(
                     evaluatedAt = evaluatedAt,
                 ),
             )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Exception) {
             return null
         } catch (_: LinkageError) {

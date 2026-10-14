@@ -16,6 +16,7 @@ import com.sl.meteoone.verification.domain.VerificationWeightPolicy
 import com.sl.meteoone.verification.domain.VerificationWeightRequest
 import java.time.Duration
 import java.time.ZoneId
+import java.util.concurrent.CancellationException
 
 /**
  * Supplies already-collected M4 verification samples to the synchronous forecast fusion boundary.
@@ -77,6 +78,8 @@ class VerificationForecastModelWeightProvider(
                     ForecastModelWeightDecision.Measured(decision.weights)
                 }
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Exception) {
             diagnostics.weightDecision(
                 request.parameter, measured = false,
