@@ -6,6 +6,11 @@ import org.gradle.api.initialization.resolve.RepositoriesMode
 pluginManagement {
     repositories {
         google()
+        // Google-hosted Maven Central mirror avoids repeated 429s on shared CI runners.
+        // Keep canonical Maven Central as a fallback for artifacts not yet mirrored.
+        maven("https://maven-central-eu.storage-download.googleapis.com/maven2/") {
+            name = "GoogleMavenCentralMirror"
+        }
         mavenCentral()
         gradlePluginPortal()
     }
@@ -15,6 +20,11 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
+        // Google-hosted Maven Central mirror avoids repeated 429s on shared CI runners.
+        // Keep canonical Maven Central as a fallback for artifacts not yet mirrored.
+        maven("https://maven-central-eu.storage-download.googleapis.com/maven2/") {
+            name = "GoogleMavenCentralMirror"
+        }
         mavenCentral()
     }
 }
