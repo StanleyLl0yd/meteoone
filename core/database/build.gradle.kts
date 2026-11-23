@@ -23,6 +23,14 @@ android {
 
     testOptions {
         unitTests.isIncludeAndroidResources = true
+        // Robolectric downloads Android runtime jars outside Gradle repository resolution.
+        unitTests.all {
+            it.systemProperty(
+                "robolectric.dependency.repo.url",
+                "https://maven-central-eu.storage-download.googleapis.com/maven2/",
+            )
+            it.systemProperty("robolectric.dependency.repo.id", "google-maven-central-mirror")
+        }
     }
 
     lint {
