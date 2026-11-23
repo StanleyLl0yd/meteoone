@@ -4,7 +4,11 @@ plugins {
 
 android {
     namespace = "com.sl.meteoone.forecast.repository"
-    compileSdk = 37
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 1
+        }
+    }
 
     defaultConfig {
         minSdk = 26

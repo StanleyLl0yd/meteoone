@@ -32,7 +32,11 @@ if (requireReleaseSigning && !hasReleaseSigning) {
 
 android {
     namespace = "com.sl.meteoone"
-    compileSdk = 37
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 1
+        }
+    }
 
     defaultConfig {
         applicationId = "com.sl.meteoone"

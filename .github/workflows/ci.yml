@@ -72,7 +72,7 @@ jobs:
           validate-wrappers: true
 
       - name: Install Android SDK packages
-        run: android sdk install platforms/android-37.0 build-tools/37.0.0
+        run: android sdk install platforms/android-37.1 build-tools/37.0.0
 
       - name: Repository policy unit tests
         run: python -m unittest discover -s scripts/tests -v
