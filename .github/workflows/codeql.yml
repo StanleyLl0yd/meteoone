@@ -51,7 +51,7 @@ jobs:
           validate-wrappers: true
 
       - name: Install Android SDK packages
-        run: android sdk install platforms/android-37.0 build-tools/37.0.0
+        run: android sdk install platforms/android-37.1 build-tools/37.0.0
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
