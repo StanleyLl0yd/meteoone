@@ -26,6 +26,14 @@ jobs:
           set -euo pipefail
           actual_head="$(git rev-parse HEAD)"
           actual_tree="$(git rev-parse 'HEAD^{tree}')"
+          # The committed Windows wrapper predates text normalization and contains CRLF.
+          # Require byte-for-byte identity before overriding only its local Git attributes.
+          wrapper_blob="$(git rev-parse HEAD:gradlew.bat)"
+          wrapper_bytes="$(git hash-object --no-filters gradlew.bat)"
+          printf 'Wrapper blob: %s\nWrapper raw bytes: %s\n' "$wrapper_blob" "$wrapper_bytes"
+          test "$wrapper_blob" = "03754c4c3d9206f5c9ef69e41990dfe26a05251e"
+          test "$wrapper_bytes" = "$wrapper_blob" || { echo '::error::Windows wrapper bytes differ from committed blob'; exit 1; }
+          printf '\ngradlew.bat -text !eol\n' >> "$(git rev-parse --git-path info/attributes)"
           working_status="$(git status --porcelain=v1 --untracked-files=all)"
           printf 'Actual HEAD: %s\nActual tree: %s\nWorking tree status:\n%s\n' "$actual_head" "$actual_tree" "$working_status"
           test "$actual_head" = "a8bf5a575e37cd15c5c2f9210035c9715b27f009" || { echo '::error::HEAD mismatch'; exit 1; }
