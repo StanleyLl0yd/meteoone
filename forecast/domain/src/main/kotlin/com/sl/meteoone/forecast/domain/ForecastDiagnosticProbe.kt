@@ -4,6 +4,9 @@ import com.sl.meteoone.core.model.ForecastProvider
 import com.sl.meteoone.core.model.ModelFamily
 
 /** Opt-in, aggregate-only evidence. Implementations must never receive location or raw payload data. */
+// Qodana scans this module independently and cannot see implementations/callers in Android modules.
+// These no-op methods are intentional cross-module extension points, not removable dead code.
+@Suppress("unused")
 interface ForecastDiagnosticProbe {
     val collecting: Boolean get() = false
     fun sourceResult(provider: ForecastProvider, family: ModelFamily, succeeded: Boolean) {}
