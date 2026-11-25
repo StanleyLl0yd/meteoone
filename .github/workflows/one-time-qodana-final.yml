@@ -23,9 +23,14 @@ jobs:
 
       - name: Verify exact main checkout
         run: |
-          test "$(git rev-parse HEAD)" = "a8bf5a575e37cd15c5c2f9210035c9715b27f009"
-          test "$(git rev-parse HEAD^{tree})" = "8731bafd7c57b4eec1a72d741c4d022045def471"
-          test -z "$(git status --porcelain)"
+          set -euo pipefail
+          actual_head="$(git rev-parse HEAD)"
+          actual_tree="$(git rev-parse 'HEAD^{tree}')"
+          working_status="$(git status --porcelain=v1 --untracked-files=all)"
+          printf 'Actual HEAD: %s\nActual tree: %s\nWorking tree status:\n%s\n' "$actual_head" "$actual_tree" "$working_status"
+          test "$actual_head" = "a8bf5a575e37cd15c5c2f9210035c9715b27f009" || { echo '::error::HEAD mismatch'; exit 1; }
+          test "$actual_tree" = "8731bafd7c57b4eec1a72d741c4d022045def471" || { echo '::error::Tree mismatch'; exit 1; }
+          test -z "$working_status" || { echo '::error::Working tree is not clean'; exit 1; }
 
       - name: Set up JDK
         uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
